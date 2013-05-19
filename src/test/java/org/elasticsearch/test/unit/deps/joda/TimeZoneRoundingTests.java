@@ -37,43 +37,43 @@ public class TimeZoneRoundingTests {
     @Test
     public void testUTCMonthRounding() {
         TimeZoneRounding tzRounding = TimeZoneRounding.builder(chronology().monthOfYear()).build();
-        assertThat(tzRounding.calc(utc("2009-02-03T01:01:01")), equalTo(utc("2009-02-01T00:00:00.000Z")));
+        assertThat(tzRounding.round(utc("2009-02-03T01:01:01")), equalTo(utc("2009-02-01T00:00:00.000Z")));
 
         tzRounding = TimeZoneRounding.builder(chronology().weekOfWeekyear()).build();
-        assertThat(tzRounding.calc(utc("2012-01-10T01:01:01")), equalTo(utc("2012-01-09T00:00:00.000Z")));
+        assertThat(tzRounding.round(utc("2012-01-10T01:01:01")), equalTo(utc("2012-01-09T00:00:00.000Z")));
 
         tzRounding = TimeZoneRounding.builder(chronology().weekOfWeekyear()).postOffset(-TimeValue.timeValueHours(24).millis()).build();
-        assertThat(tzRounding.calc(utc("2012-01-10T01:01:01")), equalTo(utc("2012-01-08T00:00:00.000Z")));
+        assertThat(tzRounding.round(utc("2012-01-10T01:01:01")), equalTo(utc("2012-01-08T00:00:00.000Z")));
     }
 
     @Test
     public void testDayTimeZoneRounding() {
         TimeZoneRounding tzRounding = TimeZoneRounding.builder(chronology().dayOfMonth()).preZone(DateTimeZone.forOffsetHours(-2)).build();
-        assertThat(tzRounding.calc(0), equalTo(0l - TimeValue.timeValueHours(24).millis()));
+        assertThat(tzRounding.round(0), equalTo(0l - TimeValue.timeValueHours(24).millis()));
 
         tzRounding = TimeZoneRounding.builder(chronology().dayOfMonth()).preZone(DateTimeZone.forOffsetHours(-2)).postZone(DateTimeZone.forOffsetHours(-2)).build();
-        assertThat(tzRounding.calc(0), equalTo(0l - TimeValue.timeValueHours(26).millis()));
+        assertThat(tzRounding.round(0), equalTo(0l - TimeValue.timeValueHours(26).millis()));
 
         tzRounding = TimeZoneRounding.builder(chronology().dayOfMonth()).preZone(DateTimeZone.forOffsetHours(-2)).build();
-        assertThat(tzRounding.calc(utc("2009-02-03T01:01:01")), equalTo(utc("2009-02-02T00:00:00")));
+        assertThat(tzRounding.round(utc("2009-02-03T01:01:01")), equalTo(utc("2009-02-02T00:00:00")));
 
         tzRounding = TimeZoneRounding.builder(chronology().dayOfMonth()).preZone(DateTimeZone.forOffsetHours(-2)).postZone(DateTimeZone.forOffsetHours(-2)).build();
-        assertThat(tzRounding.calc(utc("2009-02-03T01:01:01")), equalTo(time("2009-02-02T00:00:00", DateTimeZone.forOffsetHours(+2))));
+        assertThat(tzRounding.round(utc("2009-02-03T01:01:01")), equalTo(time("2009-02-02T00:00:00", DateTimeZone.forOffsetHours(+2))));
     }
 
     @Test
     public void testTimeTimeZoneRounding() {
         TimeZoneRounding tzRounding = TimeZoneRounding.builder(chronology().hourOfDay()).preZone(DateTimeZone.forOffsetHours(-2)).build();
-        assertThat(tzRounding.calc(0), equalTo(0l));
+        assertThat(tzRounding.round(0), equalTo(0l));
 
         tzRounding = TimeZoneRounding.builder(chronology().hourOfDay()).preZone(DateTimeZone.forOffsetHours(-2)).postZone(DateTimeZone.forOffsetHours(-2)).build();
-        assertThat(tzRounding.calc(0), equalTo(0l - TimeValue.timeValueHours(2).millis()));
+        assertThat(tzRounding.round(0), equalTo(0l - TimeValue.timeValueHours(2).millis()));
 
         tzRounding = TimeZoneRounding.builder(chronology().hourOfDay()).preZone(DateTimeZone.forOffsetHours(-2)).build();
-        assertThat(tzRounding.calc(utc("2009-02-03T01:01:01")), equalTo(utc("2009-02-03T01:00:00")));
+        assertThat(tzRounding.round(utc("2009-02-03T01:01:01")), equalTo(utc("2009-02-03T01:00:00")));
 
         tzRounding = TimeZoneRounding.builder(chronology().hourOfDay()).preZone(DateTimeZone.forOffsetHours(-2)).postZone(DateTimeZone.forOffsetHours(-2)).build();
-        assertThat(tzRounding.calc(utc("2009-02-03T01:01:01")), equalTo(time("2009-02-03T01:00:00", DateTimeZone.forOffsetHours(+2))));
+        assertThat(tzRounding.round(utc("2009-02-03T01:01:01")), equalTo(time("2009-02-03T01:00:00", DateTimeZone.forOffsetHours(+2))));
     }
 
     private static Chronology chronology() {

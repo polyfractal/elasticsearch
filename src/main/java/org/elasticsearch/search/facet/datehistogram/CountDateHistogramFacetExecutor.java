@@ -106,7 +106,7 @@ public class CountDateHistogramFacetExecutor extends FacetExecutor {
 
         @Override
         public void onValue(int docId, long value) {
-            counts.adjustOrPutValue(tzRounding.calc(value), 1, 1);
+            counts.adjustOrPutValue(tzRounding.round(value), 1, 1);
         }
 
         public TLongLongHashMap counts() {

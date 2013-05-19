@@ -30,6 +30,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.trove.ExtTIntArrayList;
 import org.elasticsearch.common.util.concurrent.AtomicArray;
+import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.dfs.AggregatedDfs;
 import org.elasticsearch.search.dfs.DfsSearchResult;
 import org.elasticsearch.search.facet.Facet;
@@ -45,6 +46,7 @@ import org.elasticsearch.search.query.QuerySearchResultProvider;
 import org.elasticsearch.search.suggest.Suggest;
 
 import java.util.*;
+
 
 /**
  *
@@ -414,8 +416,21 @@ public class SearchPhaseController extends AbstractComponent {
             suggest = hasSuggestions ? new Suggest(Suggest.Fields.SUGGEST, Suggest.reduce(groupedSuggestions)) : null;
         }
 
+        // merge aggregations
+        InternalAggregations aggregations = null;
+        if (!queryResults.asList().isEmpty()) {
+            if (querySearchResult.aggregations() != null && querySearchResult.aggregations().asList() != null) {
+                List<InternalAggregations> aggregationsList = new ArrayList<InternalAggregations>(queryResults.length());
+                for (AtomicArray.Entry<? extends QuerySearchResultProvider> entry : queryResults.asList()) {
+                    aggregationsList.add((InternalAggregations) entry.value.queryResult().aggregations());
+                }
+                aggregations = InternalAggregations.reduce(aggregationsList);
+            }
+        }
+
         InternalSearchHits searchHits = new InternalSearchHits(hits.toArray(new InternalSearchHit[hits.size()]), totalHits, maxScore);
-        return new InternalSearchResponse(searchHits, facets, suggest, timedOut);
+
+        return new InternalSearchResponse(searchHits, facets, aggregations, suggest, timedOut);
     }
 
 }

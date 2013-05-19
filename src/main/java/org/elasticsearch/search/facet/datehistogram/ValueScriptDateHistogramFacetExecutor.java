@@ -115,7 +115,7 @@ public class ValueScriptDateHistogramFacetExecutor extends FacetExecutor {
         @Override
         public void onValue(int docId, long value) {
             valueScript.setNextDocId(docId);
-            long time = tzRounding.calc(value);
+            long time = tzRounding.round(value);
             double scriptValue = valueScript.runAsDouble();
 
             InternalFullDateHistogramFacet.FullEntry entry = entries.get(time);

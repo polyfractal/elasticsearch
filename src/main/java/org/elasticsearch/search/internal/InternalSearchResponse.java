@@ -25,6 +25,7 @@ import org.elasticsearch.common.io.stream.Streamable;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.facet.Facets;
 import org.elasticsearch.search.facet.InternalFacets;
 import org.elasticsearch.search.suggest.Suggest;
@@ -42,18 +43,21 @@ public class InternalSearchResponse implements Streamable, ToXContent {
 
     private InternalFacets facets;
 
+    private InternalAggregations aggregations;
+
     private Suggest suggest;
 
     private boolean timedOut;
 
-    public static final InternalSearchResponse EMPTY = new InternalSearchResponse(new InternalSearchHits(new InternalSearchHit[0], 0, 0), null, null, false);
+    public static final InternalSearchResponse EMPTY = new InternalSearchResponse(new InternalSearchHits(new InternalSearchHit[0], 0, 0), null, null, null, false);
 
     private InternalSearchResponse() {
     }
 
-    public InternalSearchResponse(InternalSearchHits hits, InternalFacets facets, Suggest suggest, boolean timedOut) {
+    public InternalSearchResponse(InternalSearchHits hits, InternalFacets facets, InternalAggregations aggregations, Suggest suggest, boolean timedOut) {
         this.hits = hits;
         this.facets = facets;
+        this.aggregations = aggregations;
         this.suggest = suggest;
         this.timedOut = timedOut;
     }
@@ -80,6 +84,9 @@ public class InternalSearchResponse implements Streamable, ToXContent {
         if (facets != null) {
             facets.toXContent(builder, params);
         }
+        if (aggregations != null) {
+            aggregations.toXContent(builder, params);
+        }
         if (suggest != null) {
             suggest.toXContent(builder, params);
         }
@@ -99,6 +106,9 @@ public class InternalSearchResponse implements Streamable, ToXContent {
             facets = InternalFacets.readFacets(in);
         }
         if (in.readBoolean()) {
+            aggregations = InternalAggregations.readAggregations(in);
+        }
+        if (in.readBoolean()) {
             suggest = Suggest.readSuggest(Suggest.Fields.SUGGEST, in);
         }
         timedOut = in.readBoolean();
@@ -112,6 +122,12 @@ public class InternalSearchResponse implements Streamable, ToXContent {
         } else {
             out.writeBoolean(true);
             facets.writeTo(out);
+        }
+        if (aggregations == null) {
+            out.writeBoolean(false);
+        } else {
+            out.writeBoolean(true);
+            aggregations.writeTo(out);
         }
         if (suggest == null) {
             out.writeBoolean(false);

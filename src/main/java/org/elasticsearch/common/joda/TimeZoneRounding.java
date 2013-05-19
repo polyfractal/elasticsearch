@@ -19,6 +19,7 @@
 
 package org.elasticsearch.common.joda;
 
+import org.elasticsearch.common.Rounding;
 import org.elasticsearch.common.unit.TimeValue;
 import org.joda.time.DateTimeConstants;
 import org.joda.time.DateTimeField;
@@ -26,9 +27,9 @@ import org.joda.time.DateTimeZone;
 
 /**
  */
-public abstract class TimeZoneRounding {
+public abstract class TimeZoneRounding implements Rounding {
 
-    public abstract long calc(long utcMillis);
+    public abstract long round(long utcMillis);
 
     public static Builder builder(DateTimeField field) {
         return new Builder(field);
@@ -135,7 +136,7 @@ public abstract class TimeZoneRounding {
         }
 
         @Override
-        public long calc(long utcMillis) {
+        public long round(long utcMillis) {
             long time = utcMillis + preTz.getOffset(utcMillis);
             time = field.roundFloor(time);
             // now, time is still in local, move it to UTC (or the adjustLargeInterval flag is set)
@@ -155,7 +156,7 @@ public abstract class TimeZoneRounding {
         }
 
         @Override
-        public long calc(long utcMillis) {
+        public long round(long utcMillis) {
             return field.roundFloor(utcMillis);
         }
     }
@@ -172,7 +173,7 @@ public abstract class TimeZoneRounding {
         }
 
         @Override
-        public long calc(long utcMillis) {
+        public long round(long utcMillis) {
             long time = utcMillis + preTz.getOffset(utcMillis);
             time = field.roundFloor(time);
             // after rounding, since its day level (and above), its actually UTC!
@@ -191,7 +192,7 @@ public abstract class TimeZoneRounding {
         }
 
         @Override
-        public long calc(long utcMillis) {
+        public long round(long utcMillis) {
             return ((utcMillis / interval) * interval);
         }
     }
@@ -210,7 +211,7 @@ public abstract class TimeZoneRounding {
         }
 
         @Override
-        public long calc(long utcMillis) {
+        public long round(long utcMillis) {
             long time = utcMillis + preTz.getOffset(utcMillis);
             time = ((time / interval) * interval);
             // now, time is still in local, move it to UTC
@@ -234,7 +235,7 @@ public abstract class TimeZoneRounding {
         }
 
         @Override
-        public long calc(long utcMillis) {
+        public long round(long utcMillis) {
             long time = utcMillis + preTz.getOffset(utcMillis);
             time = ((time / interval) * interval);
             // after rounding, since its day level (and above), its actually UTC!
@@ -256,8 +257,8 @@ public abstract class TimeZoneRounding {
         }
 
         @Override
-        public long calc(long utcMillis) {
-            return timeZoneRounding.calc((long) (factor * utcMillis));
+        public long round(long utcMillis) {
+            return timeZoneRounding.round((long) (factor * utcMillis));
         }
     }
 
@@ -275,8 +276,8 @@ public abstract class TimeZoneRounding {
         }
 
         @Override
-        public long calc(long utcMillis) {
-            return postOffset + timeZoneRounding.calc(utcMillis + preOffset);
+        public long round(long utcMillis) {
+            return postOffset + timeZoneRounding.round(utcMillis + preOffset);
         }
     }
 }

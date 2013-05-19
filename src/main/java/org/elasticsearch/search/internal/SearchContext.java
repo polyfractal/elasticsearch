@@ -54,6 +54,7 @@ import org.elasticsearch.index.similarity.SimilarityService;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.SearchShardTarget;
+import org.elasticsearch.search.aggregations.SearchContextAggregations;
 import org.elasticsearch.search.dfs.DfsSearchResult;
 import org.elasticsearch.search.facet.SearchContextFacets;
 import org.elasticsearch.search.fetch.FetchSearchResult;
@@ -173,6 +174,8 @@ public class SearchContext implements Releasable {
     private int docsIdsToLoadSize;
 
     private SearchContextFacets facets;
+
+    private SearchContextAggregations aggregations;
 
     private SearchContextHighlight highlight;
 
@@ -325,6 +328,15 @@ public class SearchContext implements Releasable {
 
     public SearchContext facets(SearchContextFacets facets) {
         this.facets = facets;
+        return this;
+    }
+
+    public SearchContextAggregations aggregations() {
+        return aggregations;
+    }
+
+    public SearchContext aggregations(SearchContextAggregations aggregations) {
+        this.aggregations = aggregations;
         return this;
     }
 

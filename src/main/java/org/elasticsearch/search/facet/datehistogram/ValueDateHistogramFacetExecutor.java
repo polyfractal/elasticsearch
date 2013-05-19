@@ -109,7 +109,7 @@ public class ValueDateHistogramFacetExecutor extends FacetExecutor {
 
         @Override
         public void onValue(int docId, long value) {
-            long time = tzRounding.calc(value);
+            long time = tzRounding.round(value);
 
             InternalFullDateHistogramFacet.FullEntry entry = entries.get(time);
             if (entry == null) {

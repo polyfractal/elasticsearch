@@ -25,13 +25,13 @@ import org.elasticsearch.client.IndicesAdminClient;
 import org.elasticsearch.client.internal.InternalIndicesAdminClient;
 
 /**
- * A request to get indices level stats. Allow to enable different stats to be returned.
+ * A request to get indices level numeric. Allow to enable different numeric to be returned.
  * <p/>
  * <p>By default, the {@link #setDocs(boolean)}, {@link #setStore(boolean)}, {@link #setIndexing(boolean)}
- * are enabled. Other stats can be enabled as well.
+ * are enabled. Other numeric can be enabled as well.
  * <p/>
- * <p>All the stats to be returned can be cleared using {@link #clear()}, at which point, specific
- * stats can be enabled.
+ * <p>All the numeric to be returned can be cleared using {@link #clear()}, at which point, specific
+ * numeric can be enabled.
  */
 public class IndicesStatsRequestBuilder extends BroadcastOperationRequestBuilder<IndicesStatsRequest, IndicesStatsResponse, IndicesStatsRequestBuilder> {
 
@@ -40,7 +40,7 @@ public class IndicesStatsRequestBuilder extends BroadcastOperationRequestBuilder
     }
 
     /**
-     * Sets all flags to return all stats.
+     * Sets all flags to return all numeric.
      */
     public IndicesStatsRequestBuilder all() {
         request.all();
@@ -48,7 +48,7 @@ public class IndicesStatsRequestBuilder extends BroadcastOperationRequestBuilder
     }
 
     /**
-     * Clears all stats.
+     * Clears all numeric.
      */
     public IndicesStatsRequestBuilder clear() {
         request.clear();
@@ -56,8 +56,8 @@ public class IndicesStatsRequestBuilder extends BroadcastOperationRequestBuilder
     }
 
     /**
-     * Document types to return stats for. Mainly affects {@link #setIndexing(boolean)} when
-     * enabled, returning specific indexing stats for those types.
+     * Document types to return numeric for. Mainly affects {@link #setIndexing(boolean)} when
+     * enabled, returning specific indexing numeric for those types.
      */
     public IndicesStatsRequestBuilder setTypes(String... types) {
         request.types(types);

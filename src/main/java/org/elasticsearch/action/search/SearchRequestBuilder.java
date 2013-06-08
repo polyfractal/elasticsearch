@@ -354,7 +354,7 @@ public class SearchRequestBuilder extends ActionRequestBuilder<SearchRequest, Se
     }
 
     /**
-     * The stats groups this request will be aggregated under.
+     * The numeric groups this request will be aggregated under.
      */
     public SearchRequestBuilder setStats(String... statsGroups) {
         sourceBuilder().stats(statsGroups);

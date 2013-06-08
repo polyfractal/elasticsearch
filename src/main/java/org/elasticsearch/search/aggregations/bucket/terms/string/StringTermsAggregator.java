@@ -60,7 +60,7 @@ public class StringTermsAggregator extends FieldDataBucketAggregator {
 
     public StringTermsAggregator(String name, List<Aggregator.Factory> factories, FieldDataContext fieldDataContext,
                                  ValueTransformer valueTransformer, Terms.Order order, int requiredSize, Aggregator parent) {
-        super(name, factories, fieldDataContext, valueTransformer, parent, false);
+        super(name, factories, fieldDataContext, valueTransformer, parent, null);
         this.order = order;
         this.requiredSize = requiredSize;
     }
@@ -80,7 +80,7 @@ public class StringTermsAggregator extends FieldDataBucketAggregator {
         if (requiredSize < EntryPriorityQueue.LIMIT) {
             BucketPriorityQueue ordered = new BucketPriorityQueue(requiredSize, order.comparator());
             for (Map.Entry<HashedBytesRef, BucketCollector> entry : buckets.entrySet()) {
-                ordered.add(entry.getValue().buildBucket());
+                ordered.insertWithOverflow(entry.getValue().buildBucket());
             }
             InternalTerms.Bucket[] list = new InternalTerms.Bucket[ordered.size()];
             for (int i = ordered.size() - 1; i >= 0; i--) {
@@ -140,7 +140,7 @@ public class StringTermsAggregator extends FieldDataBucketAggregator {
                 if (!context.accept(field, value)) {
                     return;
                 }
-                onValue(doc, valueTransformer.transform(value), context);
+                onValue(doc, values, valueTransformer.transform(value), context);
                 return;
             }
 
@@ -149,12 +149,13 @@ public class StringTermsAggregator extends FieldDataBucketAggregator {
                 if (!context.accept(field, value)) {
                     continue;
                 }
-                onValue(doc, valueTransformer.transform(value), context);
+                onValue(doc, values, valueTransformer.transform(value), context);
             }
         }
 
-        private void onValue(int doc, BytesRef value, AggregationContext context) throws IOException {
-            HashedBytesRef term = new HashedBytesRef(value);
+        private void onValue(int doc, BytesValues values, BytesRef value, AggregationContext context) throws IOException {
+            // TODO this is really not good for performance... making a deep copy of the value to work with the hashmap (use hashed aggregator instead or just reuse hash)
+            HashedBytesRef term = new HashedBytesRef(values.makeSafe(value));
             BucketCollector bucket = buckets.get(term);
             if (bucket == null) {
                 bucket = new BucketCollector(term, StringTermsAggregator.this, scorer, readerContext);

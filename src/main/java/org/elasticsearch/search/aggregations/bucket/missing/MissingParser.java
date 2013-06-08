@@ -82,7 +82,7 @@ public class MissingParser implements AggregatorParser {
             if (mapper == null) {
                 return new UnmappedMissingAggregator.Factory(aggregationName);
             }
-            FieldDataContext fieldDataContext = new FieldDataContext(field, context.fieldData().getForField(mapper));
+            FieldDataContext fieldDataContext = new FieldDataContext(field, context.fieldData().getForField(mapper), context);
             return new MissingAggregator.Factory(aggregationName, fieldDataContext);
         }
 
@@ -108,7 +108,7 @@ public class MissingParser implements AggregatorParser {
             return new UnmappedMissingAggregator.Factory(aggregationName);
         }
 
-        FieldDataContext fieldDataContext = new FieldDataContext(mappedFields, indexFieldDatas);
+        FieldDataContext fieldDataContext = new FieldDataContext(mappedFields, indexFieldDatas, context);
         return new MissingAggregator.Factory(aggregationName, fieldDataContext);
 
     }

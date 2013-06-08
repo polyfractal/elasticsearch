@@ -22,6 +22,7 @@ package org.elasticsearch.search.aggregations.format;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Streamable;
+import org.elasticsearch.index.mapper.ip.IpFieldMapper;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -36,6 +37,7 @@ public interface ValueFormatter extends Streamable {
 
     public final static ValueFormatter NULL = new Null();
     public final static ValueFormatter RAW = new Raw();
+    public final static ValueFormatter IPv4 = new IP4();
 
     byte id();
 
@@ -157,7 +159,7 @@ public interface ValueFormatter extends Streamable {
             out.writeString(pattern);
         }
     }
-    
+
     public static abstract class Number implements ValueFormatter {
 
         NumberFormat format;
@@ -184,9 +186,9 @@ public interface ValueFormatter extends Streamable {
 
             String locale;
 
-            public Locale() {} // for serialization
+            Locale() {} // for serialization
 
-            Locale(String locale) {
+            public Locale(String locale) {
                 super(DecimalFormat.getInstance(java.util.Locale.forLanguageTag(locale)));
                 this.locale = locale;
             }
@@ -244,9 +246,9 @@ public interface ValueFormatter extends Streamable {
 
             String locale;
 
-            public Currency() {} // for serialization
+            Currency() {} // for serialization
 
-            Currency(String locale) {
+            public Currency(String locale) {
                 super(DecimalFormat.getCurrencyInstance(java.util.Locale.forLanguageTag(locale)));
                 this.locale = locale;
             }
@@ -267,7 +269,34 @@ public interface ValueFormatter extends Streamable {
                 out.writeString(locale);
             }
         }
+    }
 
+    public static class IP4 implements ValueFormatter {
+
+        static final byte ID = 6;
+
+        @Override
+        public byte id() {
+            return ID;
+        }
+
+        @Override
+        public String format(long value) {
+            return IpFieldMapper.longToIp(value);
+        }
+
+        @Override
+        public String format(double value) {
+            return format((long) value);
+        }
+
+        @Override
+        public void readFrom(StreamInput in) throws IOException {
+        }
+
+        @Override
+        public void writeTo(StreamOutput out) throws IOException {
+        }
     }
 
 

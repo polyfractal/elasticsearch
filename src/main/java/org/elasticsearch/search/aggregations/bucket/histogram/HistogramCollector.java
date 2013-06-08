@@ -24,8 +24,10 @@ import org.apache.lucene.search.Scorer;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.Rounding;
+import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.index.fielddata.DoubleValues;
+import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
 import org.elasticsearch.search.aggregations.bucket.FieldDataBucketAggregator;
@@ -225,19 +227,19 @@ public class HistogramCollector extends Aggregator.Collector {
      */
     public static class BucketCollector extends BucketAggregator.BucketCollector implements AggregationContext {
 
-        final FieldDataContext fieldDataContext;
         public final long key;
         final Rounding rounding;
+
+        private LongValues values;
         public long docCount;
         public List<Aggregator> aggregators;
-
-        AggregationContext currentParentContext;
 
         // this enables us to mark the bucket as matching for a specific document (see explanation above)
         boolean docMatched = false;
 
-        BucketCollector(long key, Rounding rounding, BucketAggregator parent, Scorer scorer, AtomicReaderContext context, FieldDataContext fieldDataContext) {
-            super(parent, scorer, context);
+        BucketCollector(long key, Rounding rounding, BucketAggregator parent, Scorer scorer, AtomicReaderContext reader, AggregationContext context) {
+            context.
+            super(parent, scorer, values.isMultiValued() ? this : );
             this.fieldDataContext = fieldDataContext;
             this.key = key;
             this.rounding = rounding;
@@ -287,11 +289,12 @@ public class HistogramCollector extends Aggregator.Collector {
 
         @Override
         public boolean accept(String field, BytesRef value) {
-            return false; // not applicable
+            return currentParentContext.accept(field, value);
         }
 
-        static long computeKey(long value, long interval) {
-            return value - value % interval;
+        @Override
+        public boolean accept(String field, GeoPoint value) {
+            return currentParentContext.accept(field, value);
         }
     }
 

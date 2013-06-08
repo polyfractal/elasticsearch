@@ -23,7 +23,6 @@ import com.google.common.collect.Lists;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentBuilderString;
 import org.elasticsearch.search.aggregations.*;
 import org.elasticsearch.search.aggregations.format.ValueFormatter;
 import org.elasticsearch.search.aggregations.format.ValueFormatterStreams;
@@ -133,19 +132,19 @@ public class InternalRange extends InternalAggregation implements Range {
             } else {
                 builder.startObject();
                 if (key != null) {
-                    builder.field("key", key);
+                    builder.field(CommonFields.KEY, key);
                 }
             }
             if (!Double.isInfinite(from)) {
-                builder.field(Fields.FROM, from);
+                builder.field(CommonFields.FROM, from);
                 if (valueFormatter != null) {
-                    builder.field(Fields.FROM_AS_STRING, valueFormatter.format(from));
+                    builder.field(CommonFields.FROM_AS_STRING, valueFormatter.format(from));
                 }
             }
             if (!Double.isInfinite(to)) {
-                builder.field(Fields.TO, to);
+                builder.field(CommonFields.TO, to);
                 if (valueFormatter != null) {
-                    builder.field(Fields.TO_AS_STRING, valueFormatter.format(to));
+                    builder.field(CommonFields.TO_AS_STRING, valueFormatter.format(to));
                 }
             }
             builder.field(CommonFields.DOC_COUNT, docCount);
@@ -250,13 +249,6 @@ public class InternalRange extends InternalAggregation implements Range {
             out.writeVLong(range.docCount);
             range.aggregations.writeTo(out);
         }
-    }
-
-    public static class Fields {
-        public static final XContentBuilderString FROM = new XContentBuilderString("from");
-        public static final XContentBuilderString FROM_AS_STRING = new XContentBuilderString("from_as_string");
-        public static final XContentBuilderString TO = new XContentBuilderString("to");
-        public static final XContentBuilderString TO_AS_STRING = new XContentBuilderString("to_as_string");
     }
 
     @Override

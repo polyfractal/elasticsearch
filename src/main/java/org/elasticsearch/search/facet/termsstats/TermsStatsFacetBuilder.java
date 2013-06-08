@@ -43,7 +43,7 @@ public class TermsStatsFacetBuilder extends FacetBuilder {
     private Map<String, Object> params;
 
     /**
-     * Constructs a new terms stats facet builder under the provided facet name.
+     * Constructs a new terms numeric facet builder under the provided facet name.
      */
     public TermsStatsFacetBuilder(String name) {
         super(name);

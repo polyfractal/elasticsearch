@@ -21,6 +21,7 @@ package org.elasticsearch.search.aggregations.bucket.missing;
 
 import org.apache.lucene.index.AtomicReaderContext;
 import org.elasticsearch.index.fielddata.BytesValues;
+import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
@@ -41,7 +42,7 @@ public class MissingAggregator extends FieldDataBucketAggregator {
     List<Aggregator> aggregators;
 
     public MissingAggregator(String name, List<Aggregator.Factory> factories, FieldDataContext fieldDataContext, Aggregator parent) {
-        super(name, factories, fieldDataContext, parent, false);
+        super(name, factories, fieldDataContext, parent, IndexFieldData.class);
     }
 
     @Override

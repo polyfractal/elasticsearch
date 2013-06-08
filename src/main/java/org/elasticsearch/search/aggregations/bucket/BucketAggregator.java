@@ -40,43 +40,16 @@ public abstract class BucketAggregator extends AbstractAggregator {
         this.factories = factories;
     }
 
-
-    public static abstract class Factory<A extends Aggregator, F extends Factory<A, F>> implements Aggregator.Factory<A> {
-
-        protected String name;
-        protected List<Aggregator.Factory> factories = new ArrayList<Aggregator.Factory>();
-
-        protected Factory(String name) {
-            this.name = name;
-        }
-
-        public F add(Aggregator.Factory factory) {
-            factories.add(factory);
-            return (F) this;
-        }
-
-        public F add(List<Aggregator.Factory> factories) {
-            this.factories.addAll(factories);
-            return (F) this;
-        }
-
-        public F set(List<Aggregator.Factory> factories) {
-            this.factories = factories;
-            return (F) this;
-        }
-    }
-
-    public abstract static class BucketCollector extends Collector {
+    public abstract static class BucketCollector implements Collector {
 
         public final List<Aggregator> aggregators;
         public final List<Collector> collectors;
 
-
         public BucketCollector(BucketAggregator parent) {
-            this(parent, null, null);
+            this(parent, null, null, null);
         }
 
-        public BucketCollector(BucketAggregator parent, Scorer scorer, AtomicReaderContext context) {
+        public BucketCollector(BucketAggregator parent, Scorer scorer, AtomicReaderContext reader, AggregationContext context) {
             aggregators = new ArrayList<Aggregator>(parent.factories.size());
             collectors = new ArrayList<Collector>(aggregators.size());
             for (Aggregator.Factory factory : parent.factories) {
@@ -87,8 +60,8 @@ public abstract class BucketAggregator extends AbstractAggregator {
                     if (scorer != null) {
                         collector.setScorer(scorer);
                     }
-                    if (context != null) {
-                        collector.setNextReader(context);
+                    if (reader != null) {
+                        collector.setNextReader(reader, context);
                     }
                 } catch (IOException ioe) {
                     throw  new AggregationExecutionException("Failed to aggregate bucket", ioe);
@@ -116,8 +89,6 @@ public abstract class BucketAggregator extends AbstractAggregator {
             postCollection(aggregators);
         }
 
-        protected abstract void postCollection(List<Aggregator> aggregators);
-
         @Override
         public void setScorer(Scorer scorer) throws IOException {
             for (Collector collector : collectors) {
@@ -126,28 +97,28 @@ public abstract class BucketAggregator extends AbstractAggregator {
         }
 
         @Override
-        public void collect(int doc, AggregationContext context) throws IOException {
-            context = onDoc(doc, context);
-            if (context != null) {
-                for (Collector collector : collectors) {
-                    collector.collect(doc, context);
-                }
+        public final void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException {
+            context = setReaderAngGetContext(reader, context);
+            for (Collector collector : collectors) {
+                collector.setNextReader(reader, context);
             }
         }
 
         /**
-         * Returns {@code true} if the given doc falls in this bucket. {@code false} otherwise, which means the sub
-         * aggregations will not be calculated (in other words, the sub aggregations are only calculated for the
-         * documents that fall in this bucket).
+         * Called when the parent aggregation context is set for this bucket, and returns the aggregation context of this bucket (which will
+         * be propagated to all sub aggregators/collectors)
+         *
+         * @param context   The parent context of this bucket
+         * @return          The bucket context
          */
-        protected abstract AggregationContext onDoc(int doc, AggregationContext context) throws IOException;
+        protected abstract AggregationContext setReaderAngGetContext(AtomicReaderContext reader, AggregationContext context) throws IOException;
 
-        @Override
-        public void setNextReader(AtomicReaderContext context) throws IOException {
-            for (Collector collector : collectors) {
-                collector.setNextReader(context);
-            }
-        }
+        /**
+         * Called when collection is finished
+         *
+         * @param aggregators   The sub aggregators of this bucket
+         */
+        protected abstract void postCollection(List<Aggregator> aggregators);
 
         protected InternalAggregations buildAggregations() {
             List<InternalAggregation> aggregations = new ArrayList<InternalAggregation>(aggregators.size());
@@ -158,4 +129,19 @@ public abstract class BucketAggregator extends AbstractAggregator {
         }
     }
 
+
+    public static abstract class Factory<A extends Aggregator, F extends Factory<A, F>> extends Aggregator.Factory<A> {
+
+        protected List<Aggregator.Factory> factories = new ArrayList<Aggregator.Factory>();
+
+        protected Factory(String name) {
+            super(name);
+        }
+
+        @SuppressWarnings("unchecked")
+        public F set(List<Aggregator.Factory> factories) {
+            this.factories = factories;
+            return (F) this;
+        }
+    }
 }

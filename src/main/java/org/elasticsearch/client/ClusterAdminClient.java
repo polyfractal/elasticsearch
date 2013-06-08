@@ -168,7 +168,7 @@ public interface ClusterAdminClient {
     NodesInfoRequestBuilder prepareNodesInfo(String... nodesIds);
 
     /**
-     * Nodes stats of the cluster.
+     * Nodes numeric of the cluster.
      *
      * @param request The nodes info request
      * @return The result future
@@ -177,7 +177,7 @@ public interface ClusterAdminClient {
     ActionFuture<NodesStatsResponse> nodesStats(NodesStatsRequest request);
 
     /**
-     * Nodes stats of the cluster.
+     * Nodes numeric of the cluster.
      *
      * @param request  The nodes info request
      * @param listener A listener to be notified with a result
@@ -186,7 +186,7 @@ public interface ClusterAdminClient {
     void nodesStats(NodesStatsRequest request, ActionListener<NodesStatsResponse> listener);
 
     /**
-     * Nodes stats of the cluster.
+     * Nodes numeric of the cluster.
      */
     NodesStatsRequestBuilder prepareNodesStats(String... nodesIds);
 

@@ -783,7 +783,7 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
     static class ModelNode implements Iterable<ModelIndex> {
         private final String id;
         private final Map<String, ModelIndex> indices = new HashMap<String, ModelIndex>();
-        /* cached stats - invalidated on add/remove and lazily calculated */
+        /* cached numeric - invalidated on add/remove and lazily calculated */
         private int numShards = -1;
         private int numPrimaries = -1;
 

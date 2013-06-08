@@ -103,7 +103,7 @@ public class NodeStats extends NodeOperationResponse {
     }
 
     /**
-     * Indices level stats.
+     * Indices level numeric.
      */
     @Nullable
     public NodeIndicesStats getIndices() {
@@ -151,7 +151,7 @@ public class NodeStats extends NodeOperationResponse {
     }
 
     /**
-     * File system level stats.
+     * File system level numeric.
      */
     @Nullable
     public FsStats getFs() {

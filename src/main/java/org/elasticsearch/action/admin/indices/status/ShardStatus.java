@@ -121,7 +121,7 @@ public class ShardStatus extends BroadcastShardOperationResponse {
     }
 
     /**
-     * Refresh stats.
+     * Refresh numeric.
      */
     public RefreshStats getRefreshStats() {
         return this.refreshStats;

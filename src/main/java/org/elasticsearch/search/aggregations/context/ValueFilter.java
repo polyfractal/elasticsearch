@@ -22,9 +22,7 @@ package org.elasticsearch.search.aggregations.context;
 import org.apache.lucene.util.BytesRef;
 
 /**
- * A field value filter. Determines whether a value for a specific field should be aggregated.
  *
- * @see {@link FilteredAggregationContext}
  */
 public interface ValueFilter {
 

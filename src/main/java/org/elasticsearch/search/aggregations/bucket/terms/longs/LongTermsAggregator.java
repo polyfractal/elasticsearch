@@ -24,6 +24,7 @@ import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
 import org.elasticsearch.common.collect.BoundedTreeSet;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
+import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
@@ -56,7 +57,7 @@ public class LongTermsAggregator extends FieldDataBucketAggregator {
 
     public LongTermsAggregator(String name, List<Aggregator.Factory> factories, FieldDataContext fieldDataContext,
                                ValueTransformer valueTransformer, ValueFormatter valueFormatter, Terms.Order order, int requiredSize, Aggregator parent) {
-        super(name, factories, fieldDataContext, valueTransformer, parent, true);
+        super(name, factories, fieldDataContext, valueTransformer, parent, IndexNumericFieldData.class);
         this.order = order;
         this.requiredSize = requiredSize;
         this.valueFormatter = valueFormatter;
@@ -78,14 +79,14 @@ public class LongTermsAggregator extends FieldDataBucketAggregator {
             BucketPriorityQueue ordered = new BucketPriorityQueue(requiredSize, order.comparator());
             for (Object bucketCollector : bucketCollectors.internalValues()) {
                 if (bucketCollector != null) {
-                    ordered.add(((BucketCollector) bucketCollector).buildBucket());
+                    ordered.insertWithOverflow(((BucketCollector) bucketCollector).buildBucket());
                 }
             }
             InternalTerms.Bucket[] list = new InternalTerms.Bucket[ordered.size()];
             for (int i = ordered.size() - 1; i >= 0; i--) {
                 list[i] = (LongTerms.Bucket) ordered.pop();
             }
-            return new LongTerms(name, order, requiredSize, Arrays.asList(list));
+            return new LongTerms(name, order, valueFormatter, requiredSize, Arrays.asList(list));
         } else {
             BoundedTreeSet<InternalTerms.Bucket> ordered = new BoundedTreeSet<InternalTerms.Bucket>(order.comparator(), requiredSize);
             for (Object bucketCollector : bucketCollectors.internalValues()) {

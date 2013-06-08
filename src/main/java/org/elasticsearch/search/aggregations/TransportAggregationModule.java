@@ -21,21 +21,22 @@ package org.elasticsearch.search.aggregations;
 
 import org.elasticsearch.common.inject.AbstractModule;
 import org.elasticsearch.search.aggregations.bucket.filter.InternalFilter;
+import org.elasticsearch.search.aggregations.bucket.geo.distance.InternalGeoDistance;
 import org.elasticsearch.search.aggregations.bucket.global.InternalGlobal;
-import org.elasticsearch.search.aggregations.bucket.histogram.date.InternalDateHistogram;
 import org.elasticsearch.search.aggregations.bucket.histogram.InternalHistogram;
+import org.elasticsearch.search.aggregations.bucket.histogram.date.InternalDateHistogram;
 import org.elasticsearch.search.aggregations.bucket.missing.InternalMissing;
 import org.elasticsearch.search.aggregations.bucket.range.InternalRange;
 import org.elasticsearch.search.aggregations.bucket.terms.doubles.DoubleTerms;
 import org.elasticsearch.search.aggregations.bucket.terms.longs.LongTerms;
 import org.elasticsearch.search.aggregations.bucket.terms.string.StringTerms;
-import org.elasticsearch.search.aggregations.calc.stats.avg.InternalAvg;
-import org.elasticsearch.search.aggregations.calc.stats.count.InternalCount;
-import org.elasticsearch.search.aggregations.calc.stats.max.InternalMax;
-import org.elasticsearch.search.aggregations.calc.stats.min.InternalMin;
-import org.elasticsearch.search.aggregations.calc.stats.stats.InternalExtendedStats;
-import org.elasticsearch.search.aggregations.calc.stats.stats.InternalStats;
-import org.elasticsearch.search.aggregations.calc.stats.sum.InternalSum;
+import org.elasticsearch.search.aggregations.calc.count.InternalCount;
+import org.elasticsearch.search.aggregations.calc.numeric.avg.InternalAvg;
+import org.elasticsearch.search.aggregations.calc.numeric.max.InternalMax;
+import org.elasticsearch.search.aggregations.calc.numeric.min.InternalMin;
+import org.elasticsearch.search.aggregations.calc.numeric.stats.InternalExtendedStats;
+import org.elasticsearch.search.aggregations.calc.numeric.stats.InternalStats;
+import org.elasticsearch.search.aggregations.calc.numeric.sum.InternalSum;
 
 /**
  * A module that registers all the transport streams for the aggregations
@@ -50,9 +51,9 @@ public class TransportAggregationModule extends AbstractModule {
         InternalSum.registerStreams();
         InternalMin.registerStreams();
         InternalMax.registerStreams();
-        InternalCount.registerStreams();
         InternalStats.registerStreams();
         InternalExtendedStats.registerStreams();
+        InternalCount.registerStreams();
 
         // buckets
         InternalGlobal.registerStreams();
@@ -64,5 +65,6 @@ public class TransportAggregationModule extends AbstractModule {
         InternalRange.registerStream();
         InternalHistogram.registerStream();
         InternalDateHistogram.registerStream();
+        InternalGeoDistance.registerStream();
     }
 }

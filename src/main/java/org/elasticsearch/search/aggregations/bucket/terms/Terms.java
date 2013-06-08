@@ -87,7 +87,7 @@ public interface Terms extends Aggregation, Iterable<Terms.Bucket> {
 
                 @Override
                 public int compare(Bucket o1, Bucket o2) {
-                    return o1.compareTo(o2);
+                    return o2.compareTo(o1);
                 }
             }),
             /**

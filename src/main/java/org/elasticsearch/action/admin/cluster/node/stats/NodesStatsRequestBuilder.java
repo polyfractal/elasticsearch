@@ -43,7 +43,7 @@ public class NodesStatsRequestBuilder extends NodesOperationRequestBuilder<Nodes
     }
 
     /**
-     * Clears all stats flags.
+     * Clears all numeric flags.
      */
     public NodesStatsRequestBuilder clear() {
         request.clear();
@@ -51,7 +51,7 @@ public class NodesStatsRequestBuilder extends NodesOperationRequestBuilder<Nodes
     }
 
     /**
-     * Should the node indices stats be returned.
+     * Should the node indices numeric be returned.
      */
     public NodesStatsRequestBuilder setIndices(boolean indices) {
         request.indices(indices);
@@ -59,7 +59,7 @@ public class NodesStatsRequestBuilder extends NodesOperationRequestBuilder<Nodes
     }
 
     /**
-     * Should the node indices stats be returned.
+     * Should the node indices numeric be returned.
      */
     public NodesStatsRequestBuilder setIndices(CommonStatsFlags indices) {
         request.indices(indices);
@@ -67,7 +67,7 @@ public class NodesStatsRequestBuilder extends NodesOperationRequestBuilder<Nodes
     }
 
     /**
-     * Should the node OS stats be returned.
+     * Should the node OS numeric be returned.
      */
     public NodesStatsRequestBuilder setOs(boolean os) {
         request.os(os);
@@ -75,7 +75,7 @@ public class NodesStatsRequestBuilder extends NodesOperationRequestBuilder<Nodes
     }
 
     /**
-     * Should the node OS stats be returned.
+     * Should the node OS numeric be returned.
      */
     public NodesStatsRequestBuilder setProcess(boolean process) {
         request.process(process);
@@ -83,7 +83,7 @@ public class NodesStatsRequestBuilder extends NodesOperationRequestBuilder<Nodes
     }
 
     /**
-     * Should the node JVM stats be returned.
+     * Should the node JVM numeric be returned.
      */
     public NodesStatsRequestBuilder setJvm(boolean jvm) {
         request.jvm(jvm);
@@ -91,7 +91,7 @@ public class NodesStatsRequestBuilder extends NodesOperationRequestBuilder<Nodes
     }
 
     /**
-     * Should the node thread pool stats be returned.
+     * Should the node thread pool numeric be returned.
      */
     public NodesStatsRequestBuilder setThreadPool(boolean threadPool) {
         request.threadPool(threadPool);
@@ -99,7 +99,7 @@ public class NodesStatsRequestBuilder extends NodesOperationRequestBuilder<Nodes
     }
 
     /**
-     * Should the node Network stats be returned.
+     * Should the node Network numeric be returned.
      */
     public NodesStatsRequestBuilder setNetwork(boolean network) {
         request.network(network);
@@ -107,7 +107,7 @@ public class NodesStatsRequestBuilder extends NodesOperationRequestBuilder<Nodes
     }
 
     /**
-     * Should the node file system stats be returned.
+     * Should the node file system numeric be returned.
      */
     public NodesStatsRequestBuilder setFs(boolean fs) {
         request.fs(fs);
@@ -115,7 +115,7 @@ public class NodesStatsRequestBuilder extends NodesOperationRequestBuilder<Nodes
     }
 
     /**
-     * Should the node Transport stats be returned.
+     * Should the node Transport numeric be returned.
      */
     public NodesStatsRequestBuilder setTransport(boolean transport) {
         request.transport(transport);
@@ -123,7 +123,7 @@ public class NodesStatsRequestBuilder extends NodesOperationRequestBuilder<Nodes
     }
 
     /**
-     * Should the node HTTP stats be returned.
+     * Should the node HTTP numeric be returned.
      */
     public NodesStatsRequestBuilder setHttp(boolean http) {
         request.http(http);

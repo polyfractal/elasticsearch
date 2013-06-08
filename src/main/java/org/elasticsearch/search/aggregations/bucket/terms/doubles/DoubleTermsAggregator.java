@@ -25,6 +25,7 @@ import org.apache.lucene.search.Scorer;
 import org.elasticsearch.common.collect.BoundedTreeSet;
 import org.elasticsearch.common.trove.ExtTDoubleObjectHashMap;
 import org.elasticsearch.index.fielddata.DoubleValues;
+import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
@@ -56,7 +57,7 @@ public class DoubleTermsAggregator extends FieldDataBucketAggregator {
 
     public DoubleTermsAggregator(String name, List<Aggregator.Factory> factories, FieldDataContext fieldDataContext,
                                  ValueTransformer valueTransformer, ValueFormatter valueFormatter, Terms.Order order, int requiredSize, Aggregator parent) {
-        super(name, factories, fieldDataContext, valueTransformer, parent, true);
+        super(name, factories, fieldDataContext, valueTransformer, parent, IndexNumericFieldData.class);
         this.order = order;
         this.requiredSize = requiredSize;
         this.valueFormatter = valueFormatter;
@@ -78,7 +79,7 @@ public class DoubleTermsAggregator extends FieldDataBucketAggregator {
             BucketPriorityQueue ordered = new BucketPriorityQueue(requiredSize, order.comparator());
             for (Object bucketCollector : bucketCollectors.internalValues()) {
                 if (bucketCollector != null) {
-                    ordered.add(((BucketCollector) bucketCollector).buildBucket());
+                    ordered.insertWithOverflow(((BucketCollector) bucketCollector).buildBucket());
                 }
             }
             InternalTerms.Bucket[] list = new InternalTerms.Bucket[ordered.size()];

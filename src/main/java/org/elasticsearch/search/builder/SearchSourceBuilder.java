@@ -597,7 +597,7 @@ public class SearchSourceBuilder implements ToXContent {
     }
 
     /**
-     * The stats groups this request will be aggregated under.
+     * The numeric groups this request will be aggregated under.
      */
     public SearchSourceBuilder stats(String... statsGroups) {
         this.stats = statsGroups;

@@ -21,6 +21,7 @@ package org.elasticsearch.search.aggregations.bucket.histogram;
 
 import org.elasticsearch.common.Rounding;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
+import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
@@ -45,7 +46,7 @@ public class HistogramAggregator extends FieldDataBucketAggregator implements Hi
 
     public HistogramAggregator(String name, List<Aggregator.Factory> factories, FieldDataContext fieldDataContext,
                                ValueTransformer valueTransformer, long interval, InternalOrder order, boolean keyed, Aggregator parent) {
-        super(name, factories, fieldDataContext, valueTransformer, parent, true);
+        super(name, factories, fieldDataContext, valueTransformer, parent, IndexNumericFieldData.class);
         this.rounding = new Rounding.Interval(interval);
         this.order = order;
         this.keyed = keyed;

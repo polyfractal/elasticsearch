@@ -27,7 +27,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * An extension to thread pool executor, allowing (in the future) to add specific additional stats to it.
+ * An extension to thread pool executor, allowing (in the future) to add specific additional numeric to it.
  */
 public class EsThreadPoolExecutor extends ThreadPoolExecutor {
 

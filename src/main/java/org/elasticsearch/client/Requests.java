@@ -406,9 +406,9 @@ public class Requests {
     }
 
     /**
-     * Creates a nodes stats request against one or more nodes. Pass <tt>null</tt> or an empty array for all nodes.
+     * Creates a nodes numeric request against one or more nodes. Pass <tt>null</tt> or an empty array for all nodes.
      *
-     * @param nodesIds The nodes ids to get the stats for
+     * @param nodesIds The nodes ids to get the numeric for
      * @return The nodes info request
      * @see org.elasticsearch.client.ClusterAdminClient#nodesStats(org.elasticsearch.action.admin.cluster.node.stats.NodesStatsRequest)
      */

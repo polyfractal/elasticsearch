@@ -55,7 +55,7 @@ public class ShardIndexingService extends AbstractIndexShardComponent {
     }
 
     /**
-     * Returns the stats, including type specific stats. If the types are null/0 length, then nothing
+     * Returns the numeric, including type specific numeric. If the types are null/0 length, then nothing
      * is returned for them. If they are set, then only types provided will be returned, or
      * <tt>_all</tt> for all types.
      */

@@ -169,17 +169,17 @@ public interface IndicesAdminClient {
     TypesExistsRequestBuilder prepareTypesExists(String... index);
 
     /**
-     * Indices stats.
+     * Indices numeric.
      */
     ActionFuture<IndicesStatsResponse> stats(IndicesStatsRequest request);
 
     /**
-     * Indices stats.
+     * Indices numeric.
      */
     void stats(IndicesStatsRequest request, ActionListener<IndicesStatsResponse> listener);
 
     /**
-     * Indices stats.
+     * Indices numeric.
      */
     IndicesStatsRequestBuilder prepareStats(String... indices);
 

@@ -27,7 +27,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import java.io.IOException;
 
 /**
- * A request to get node (cluster) level stats.
+ * A request to get node (cluster) level numeric.
  */
 public class NodesStatsRequest extends NodesOperationRequest<NodesStatsRequest> {
 
@@ -45,7 +45,7 @@ public class NodesStatsRequest extends NodesOperationRequest<NodesStatsRequest> 
     }
 
     /**
-     * Get stats from nodes based on the nodes ids specified. If none are passed, stats
+     * Get numeric from nodes based on the nodes ids specified. If none are passed, numeric
      * for all nodes will be returned.
      */
     public NodesStatsRequest(String... nodesIds) {
@@ -94,7 +94,7 @@ public class NodesStatsRequest extends NodesOperationRequest<NodesStatsRequest> 
     }
 
     /**
-     * Should indices stats be returned.
+     * Should indices numeric be returned.
      */
     public NodesStatsRequest indices(boolean indices) {
         if (indices) {
@@ -181,14 +181,14 @@ public class NodesStatsRequest extends NodesOperationRequest<NodesStatsRequest> 
     }
 
     /**
-     * Should the node file system stats be returned.
+     * Should the node file system numeric be returned.
      */
     public boolean fs() {
         return this.fs;
     }
 
     /**
-     * Should the node file system stats be returned.
+     * Should the node file system numeric be returned.
      */
     public NodesStatsRequest fs(boolean fs) {
         this.fs = fs;

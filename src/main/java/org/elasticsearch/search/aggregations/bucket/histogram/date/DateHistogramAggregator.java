@@ -21,6 +21,7 @@ package org.elasticsearch.search.aggregations.bucket.histogram.date;
 
 import org.elasticsearch.common.joda.TimeZoneRounding;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
+import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.format.ValueFormatter;
@@ -49,7 +50,7 @@ public class DateHistogramAggregator extends FieldDataBucketAggregator implement
     public DateHistogramAggregator(String name, List<Aggregator.Factory> factories, FieldDataContext fieldDataContext,
                                    ValueTransformer valueTransformer, TimeZoneRounding rounding, InternalDateOrder order, boolean keyed,
                                    ValueFormatter formatter, Aggregator parent) {
-        super(name, factories, fieldDataContext, valueTransformer, parent, true);
+        super(name, factories, fieldDataContext, valueTransformer, parent, IndexNumericFieldData.class);
         this.rounding = rounding;
         this.order = order;
         this.keyed = keyed;

@@ -80,7 +80,7 @@ public class ScriptTermsAggregator extends BucketAggregator {
         if (requiredSize < EntryPriorityQueue.LIMIT) {
             BucketPriorityQueue ordered = new BucketPriorityQueue(requiredSize, order.comparator());
             for (Map.Entry<HashedBytesRef, BucketCollector> entry : buckets.entrySet()) {
-                ordered.add(entry.getValue().buildBucket());
+                ordered.insertWithOverflow(entry.getValue().buildBucket());
             }
             InternalTerms.Bucket[] list = new InternalTerms.Bucket[ordered.size()];
             for (int i = ordered.size() - 1; i >= 0; i--) {

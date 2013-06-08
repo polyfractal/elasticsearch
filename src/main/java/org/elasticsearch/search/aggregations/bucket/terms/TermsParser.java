@@ -124,7 +124,7 @@ public class TermsParser implements AggregatorParser {
             }
 
             IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-            FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData);
+            FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
             if (script != null) {
                 ValueTransformer.Script valueTransformer = new ValueTransformer.Script(context, script, scriptLang, scriptParams);
                 return new TermsAggregatorFactory(aggregationName, fieldDataContext, valueTransformer, order, format, requiredSize);
@@ -157,7 +157,7 @@ public class TermsParser implements AggregatorParser {
             return null; // skipping terms aggregation on unmapped fields
         }
 
-        FieldDataContext fieldDataContext = new FieldDataContext(mappedFields, indexFieldDatas);
+        FieldDataContext fieldDataContext = new FieldDataContext(mappedFields, indexFieldDatas, context);
 
         if (script == null) {
             return new TermsAggregatorFactory(aggregationName, fieldDataContext, order, format, requiredSize);

@@ -299,7 +299,7 @@ public class SimpleQueryTests extends AbstractSharedClusterTest {
         // try the same with multi match query
         searchResponse = client().prepareSearch().setQuery(QueryBuilders.multiMatchQuery("the quick brown", "field1", "field2").cutoffFrequency(3).operator(MatchQueryBuilder.Operator.AND)).execute().actionGet();
         assertThat(searchResponse.getHits().totalHits(), equalTo(3l));
-        assertThat(searchResponse.getHits().getHits()[0].getId(), equalTo("3")); // better score due to different query stats
+        assertThat(searchResponse.getHits().getHits()[0].getId(), equalTo("3")); // better score due to different query numeric
         assertThat(searchResponse.getHits().getHits()[1].getId(), equalTo("1"));
         assertThat(searchResponse.getHits().getHits()[2].getId(), equalTo("2"));
     }

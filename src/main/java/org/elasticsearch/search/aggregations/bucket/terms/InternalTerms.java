@@ -135,7 +135,7 @@ public abstract class InternalTerms extends InternalAggregation implements Terms
             BucketPriorityQueue ordered = new BucketPriorityQueue(requiredSize, order.comparator());
             for (Map.Entry<Text, List<Bucket>> entry : buckets.entrySet()) {
                 List<Bucket> sameTermBuckets = entry.getValue();
-                ordered.add(sameTermBuckets.get(0).reduce(sameTermBuckets));
+                ordered.insertWithOverflow(sameTermBuckets.get(0).reduce(sameTermBuckets));
             }
             Bucket[] list = new Bucket[ordered.size()];
             for (int i = ordered.size() - 1; i >= 0; i--) {

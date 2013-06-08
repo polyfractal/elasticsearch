@@ -20,6 +20,11 @@
 package org.elasticsearch.search.aggregations.context;
 
 import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.common.geo.GeoPoint;
+import org.elasticsearch.index.fielddata.BytesValues;
+import org.elasticsearch.index.fielddata.DoubleValues;
+import org.elasticsearch.index.fielddata.GeoPointValues;
+import org.elasticsearch.index.fielddata.LongValues;
 
 /**
  * The aggregation context is passed down the collector hierarchy during the aggregation process. The context may
@@ -29,6 +34,15 @@ import org.apache.lucene.util.BytesRef;
  */
 public interface AggregationContext {
 
+    DoubleValues doubleValues();
+
+    LongValues longValues();
+
+    BytesValues bytesValues();
+
+    GeoPointValues geoPointValues();
+
+
     /**
      * Determines whether the given double value for the given field should be aggregated.
      *
@@ -36,7 +50,7 @@ public interface AggregationContext {
      * @param value The value
      * @return {@code true} if the value should be aggregated, {@code false} otherwise.
      */
-    boolean accept(String field, double value);
+    boolean accept(int doc, String valueSourceId, double value);
 
     /**
      * Determines whether the given long value for the given field should be aggregated.
@@ -45,7 +59,7 @@ public interface AggregationContext {
      * @param value The value
      * @return {@code true} if the value should be aggregated, {@code false} otherwise.
      */
-    boolean accept(String field, long value);
+    boolean accept(int doc, String valueSourceId, long value);
 
     /**
      * Determines whether the given bytesref value for the given field should be aggregated.
@@ -54,6 +68,15 @@ public interface AggregationContext {
      * @param value The value
      * @return {@code true} if the value should be aggregated, {@code false} otherwise.
      */
-    boolean accept(String field, BytesRef value);
+    boolean accept(int doc, String valueSourceId, BytesRef value);
+
+    /**
+     * Determines whether the given geo point value for the given field should be aggregated.
+     *
+     * @param field The field
+     * @param value The value
+     * @return {@code true} if the value should be aggregated, {@code false} otherwise.
+     */
+    boolean accept(int doc, String valueSourceId, GeoPoint value);
 
 }

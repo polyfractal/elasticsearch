@@ -20,6 +20,7 @@
 package org.elasticsearch.search.aggregations.bucket.terms;
 
 import org.elasticsearch.index.fielddata.IndexNumericFieldData;
+import org.elasticsearch.index.mapper.ip.IpFieldMapper;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
@@ -73,13 +74,18 @@ public class TermsAggregatorFactory extends BucketAggregator.Factory<BucketAggre
             throw new AggregationExecutionException("Terms aggregation [" + name + "] is missing a field context");
         }
 
+        // handling IPv4 case
+        if (fieldDataContext.fieldMapper(0) instanceof IpFieldMapper) {
+            ValueFormatter formatter = ValueFormatter.IPv4;
+            return new LongTermsAggregator(name, factories, fieldDataContext, valueTransformer, formatter, order, requiredSize, parent);
+        }
+
         //sampling the first index field data to figure out the data type
         if (fieldDataContext.indexFieldDatas()[0] instanceof IndexNumericFieldData) {
             ValueFormatter formatter = formatPattern == null ? null : new ValueFormatter.Number.Pattern(formatPattern);
             if (((IndexNumericFieldData) fieldDataContext.indexFieldDatas()[0]).getNumericType().isFloatingPoint()) {
                 return new DoubleTermsAggregator(name, factories, fieldDataContext, valueTransformer, formatter, order, requiredSize, parent);
             } else {
-
                 return new LongTermsAggregator(name, factories, fieldDataContext, valueTransformer, formatter, order, requiredSize, parent);
             }
         } else {

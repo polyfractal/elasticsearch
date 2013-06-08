@@ -44,7 +44,7 @@ import java.io.IOException;
 import java.io.Serializable;
 
 /**
- * Global information on indices stats running on a specific node.
+ * Global information on indices numeric running on a specific node.
  */
 public class NodeIndicesStats implements Streamable, Serializable, ToXContent {
 

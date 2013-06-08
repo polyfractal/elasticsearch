@@ -21,10 +21,8 @@ package org.elasticsearch.search.aggregations;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import org.apache.lucene.search.Collector;
-import org.apache.lucene.search.Filter;
-import org.apache.lucene.search.MultiCollector;
-import org.apache.lucene.search.Query;
+import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.search.*;
 import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.lucene.search.Queries;
@@ -34,9 +32,11 @@ import org.elasticsearch.common.lucene.search.XFilteredQuery;
 import org.elasticsearch.search.SearchParseElement;
 import org.elasticsearch.search.SearchPhase;
 import org.elasticsearch.search.aggregations.bucket.global.GlobalAggregator;
+import org.elasticsearch.search.aggregations.context.DefaultAggregationContext;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.search.query.QueryPhaseExecutionException;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -75,7 +75,7 @@ public class AggregationPhase implements SearchPhase {
                 if (!(aggregator instanceof GlobalAggregator)) {
                     Aggregator.Collector collector = aggregator.collector();
                     if (collector != null) {
-                        context.searcher().addMainQueryCollector(collector);
+                        context.searcher().addMainQueryCollector(new AggregatorCollectorWrapper(collector));
                     }
                 }
             }
@@ -98,7 +98,7 @@ public class AggregationPhase implements SearchPhase {
         for (Aggregator aggregator : context.aggregations().aggregators()) {
             if (aggregator instanceof GlobalAggregator) {
                 Filter filter = Queries.MATCH_ALL_FILTER;
-                Collector collector = aggregator.collector();
+                Collector collector = new AggregatorCollectorWrapper(aggregator.collector());
                 if (filtersByCollector == null) {
                     filtersByCollector = Maps.newHashMap();
                 }
@@ -140,6 +140,35 @@ public class AggregationPhase implements SearchPhase {
         }
         context.queryResult().aggregations(new InternalAggregations(aggregations));
 
+    }
 
+
+    static class AggregatorCollectorWrapper extends XCollector {
+
+        private final Aggregator.Collector collector;
+
+        AggregatorCollectorWrapper(Aggregator.Collector collector) {
+            this.collector = collector;
+        }
+
+        @Override
+        public void setScorer(Scorer scorer) throws IOException {
+            collector.setScorer(scorer);
+        }
+
+        @Override
+        public void collect(int doc) throws IOException {
+            collector.collect(doc);
+        }
+
+        @Override
+        public void setNextReader(AtomicReaderContext context) throws IOException {
+            collector.setNextReader(context, DefaultAggregationContext.INSTANCE);
+        }
+
+        @Override
+        public boolean acceptsDocsOutOfOrder() {
+            return true;
+        }
     }
 }

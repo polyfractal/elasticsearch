@@ -27,20 +27,20 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import java.io.IOException;
 
 /**
- * A request to get indices level stats. Allow to enable different stats to be returned.
+ * A request to get indices level numeric. Allow to enable different numeric to be returned.
  * <p/>
  * <p>By default, the {@link #docs(boolean)}, {@link #store(boolean)}, {@link #indexing(boolean)}
- * are enabled. Other stats can be enabled as well.
+ * are enabled. Other numeric can be enabled as well.
  * <p/>
- * <p>All the stats to be returned can be cleared using {@link #clear()}, at which point, specific
- * stats can be enabled.
+ * <p>All the numeric to be returned can be cleared using {@link #clear()}, at which point, specific
+ * numeric can be enabled.
  */
 public class IndicesStatsRequest extends BroadcastOperationRequest<IndicesStatsRequest> {
 
     private CommonStatsFlags flags = new CommonStatsFlags();
 
     /**
-     * Sets all flags to return all stats.
+     * Sets all flags to return all numeric.
      */
     public IndicesStatsRequest all() {
         flags.all();
@@ -48,7 +48,7 @@ public class IndicesStatsRequest extends BroadcastOperationRequest<IndicesStatsR
     }
 
     /**
-     * Clears all stats.
+     * Clears all numeric.
      */
     public IndicesStatsRequest clear() {
         flags.clear();
@@ -56,8 +56,8 @@ public class IndicesStatsRequest extends BroadcastOperationRequest<IndicesStatsR
     }
 
     /**
-     * Document types to return stats for. Mainly affects {@link #indexing(boolean)} when
-     * enabled, returning specific indexing stats for those types.
+     * Document types to return numeric for. Mainly affects {@link #indexing(boolean)} when
+     * enabled, returning specific indexing numeric for those types.
      */
     public IndicesStatsRequest types(String... types) {
         flags.types(types);
@@ -65,15 +65,15 @@ public class IndicesStatsRequest extends BroadcastOperationRequest<IndicesStatsR
     }
 
     /**
-     * Document types to return stats for. Mainly affects {@link #indexing(boolean)} when
-     * enabled, returning specific indexing stats for those types.
+     * Document types to return numeric for. Mainly affects {@link #indexing(boolean)} when
+     * enabled, returning specific indexing numeric for those types.
      */
     public String[] types() {
         return this.flags.types();
     }
 
     /**
-     * Sets specific search group stats to retrieve the stats for. Mainly affects search
+     * Sets specific search group numeric to retrieve the numeric for. Mainly affects search
      * when enabled.
      */
     public IndicesStatsRequest groups(String... groups) {

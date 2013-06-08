@@ -35,7 +35,7 @@ public class CommonStatsFlags implements Streamable, Cloneable {
     private String[] fieldDataFields = null;
 
     /**
-     * Sets all flags to return all stats.
+     * Sets all flags to return all numeric.
      */
     public CommonStatsFlags all() {
         flags = EnumSet.allOf(Flag.class);
@@ -46,7 +46,7 @@ public class CommonStatsFlags implements Streamable, Cloneable {
     }
 
     /**
-     * Clears all stats.
+     * Clears all numeric.
      */
     public CommonStatsFlags clear() {
         flags = EnumSet.noneOf(Flag.class);
@@ -65,8 +65,8 @@ public class CommonStatsFlags implements Streamable, Cloneable {
     }
 
     /**
-     * Document types to return stats for. Mainly affects {@link #indexing(boolean)} when
-     * enabled, returning specific indexing stats for those types.
+     * Document types to return numeric for. Mainly affects {@link #indexing(boolean)} when
+     * enabled, returning specific indexing numeric for those types.
      */
     public CommonStatsFlags types(String... types) {
         this.types = types;
@@ -74,15 +74,15 @@ public class CommonStatsFlags implements Streamable, Cloneable {
     }
 
     /**
-     * Document types to return stats for. Mainly affects {@link #indexing(boolean)} when
-     * enabled, returning specific indexing stats for those types.
+     * Document types to return numeric for. Mainly affects {@link #indexing(boolean)} when
+     * enabled, returning specific indexing numeric for those types.
      */
     public String[] types() {
         return this.types;
     }
 
     /**
-     * Sets specific search group stats to retrieve the stats for. Mainly affects search
+     * Sets specific search group numeric to retrieve the numeric for. Mainly affects search
      * when enabled.
      */
     public CommonStatsFlags groups(String... groups) {
@@ -95,7 +95,7 @@ public class CommonStatsFlags implements Streamable, Cloneable {
     }
 
     /**
-     * Sets specific search group stats to retrieve the stats for. Mainly affects search
+     * Sets specific search group numeric to retrieve the numeric for. Mainly affects search
      * when enabled.
      */
     public CommonStatsFlags fieldDataFields(String... fieldDataFields) {

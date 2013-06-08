@@ -212,7 +212,7 @@ public class DateHistogramParser implements AggregatorParser {
                 throw new SearchParseException(context, "date histogram can only be aggregated on date fields but  [" + field + "] is not a date field");
             }
             IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-            FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData);
+            FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
             if (searchScript != null) {
                 return new DateHistogramAggregator.Factory(aggregationName, fieldDataContext, new ValueTransformer.Script(searchScript), rounding, order, keyed,formatter);
             }
@@ -244,7 +244,7 @@ public class DateHistogramParser implements AggregatorParser {
             return new UnmappedDateHistogramAggregator.Factory(aggregationName, order, keyed);
         }
 
-        FieldDataContext fieldDataContext = new FieldDataContext(mappedFields, indexFieldDatas);
+        FieldDataContext fieldDataContext = new FieldDataContext(mappedFields, indexFieldDatas, context);
         if (searchScript != null) {
             return new DateHistogramAggregator.Factory(aggregationName, fieldDataContext, new ValueTransformer.Script(searchScript), rounding, order, keyed, formatter);
         }

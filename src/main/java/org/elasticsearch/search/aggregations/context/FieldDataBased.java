@@ -29,9 +29,4 @@ public interface FieldDataBased {
      */
     FieldDataContext fieldDataContext();
 
-    /**
-     * @return  The value transformer that will be used to transform the field value before it's aggregated.
-     */
-    ValueTransformer valueTransformer();
-
 }

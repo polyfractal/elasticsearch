@@ -137,7 +137,7 @@ public class HistogramParser implements AggregatorParser {
                 return new UnmappedHistogramAggregator.Factory(aggregationName, order, keyed);
             }
             IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-            FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData);
+            FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
             if (searchScript != null) {
                 return new HistogramAggregator.Factory(aggregationName, fieldDataContext, new ValueTransformer.Script(searchScript), interval, order, keyed);
             }
@@ -166,7 +166,7 @@ public class HistogramParser implements AggregatorParser {
             return new UnmappedHistogramAggregator.Factory(aggregationName, order, keyed);
         }
 
-        FieldDataContext fieldDataContext = new FieldDataContext(mappedFields, indexFieldDatas);
+        FieldDataContext fieldDataContext = new FieldDataContext(mappedFields, indexFieldDatas, context);
         if (searchScript != null) {
             return new HistogramAggregator.Factory(aggregationName, fieldDataContext, new ValueTransformer.Script(searchScript), interval, order, keyed);
         }

@@ -22,7 +22,9 @@ package org.elasticsearch.search.aggregations.bucket.range;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.index.fielddata.DoubleValues;
+import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
@@ -64,15 +66,13 @@ public class RangeAggregator extends FieldDataBucketAggregator {
     }
 
     private final boolean keyed;
-    private final ValueFormatter valueFormatter;
 
     List<RangeCollector> rangeCollectors;
 
     RangeAggregator(String name, List<Aggregator.Factory> factories, FieldDataContext fieldDataContext,
                     ValueTransformer valueTransformer, ValueFormatter valueFormatter, List<Range> ranges, boolean keyed, Aggregator parent) {
-        super(name, factories, fieldDataContext, valueTransformer, parent, true);
+        super(name, factories, fieldDataContext, valueTransformer, parent, IndexNumericFieldData.class);
         this.keyed = keyed;
-        this.valueFormatter = valueFormatter;
         rangeCollectors = new ArrayList<RangeCollector>(ranges.size());
         for (Range range : ranges) {
             List<Aggregator> aggregators = new ArrayList<Aggregator>(factories.size());
@@ -191,21 +191,15 @@ public class RangeAggregator extends FieldDataBucketAggregator {
                 return null;
             }
 
-            boolean matches = false;
             for (int i = 0; i < values.length; i++) {
                 String field = fieldDataContext.field(i);
                 if (matches(doc, field, values[i], context)) {
-                    matches = true;
-                    break;
+                    docCount++;
+                    return this;
                 }
             }
 
-            if (!matches) {
-                return null;
-            }
-
-            docCount++;
-            return this;
+            return null;
         }
 
         private boolean matches(int doc, String field, DoubleValues values, AggregationContext context) {
@@ -251,7 +245,12 @@ public class RangeAggregator extends FieldDataBucketAggregator {
 
         @Override
         public boolean accept(String field, BytesRef value) {
-            return false; // not applicable as this aggregator only works on numeric values.
+            return currentParentContext.accept(field, value);
+        }
+
+        @Override
+        public boolean accept(String field, GeoPoint value) {
+            return currentParentContext.accept(field, value);
         }
     }
 

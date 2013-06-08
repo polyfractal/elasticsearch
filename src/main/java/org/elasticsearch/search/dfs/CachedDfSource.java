@@ -52,7 +52,7 @@ public class CachedDfSource extends IndexSearcher {
     public TermStatistics termStatistics(Term term, TermContext context) throws IOException {
         TermStatistics termStatistics = aggregatedDfs.termStatistics().get(term);
         if (termStatistics == null) {
-            // we don't have stats for this - this might be a must_not clauses etc. that doesn't allow extract terms on the query
+            // we don't have numeric for this - this might be a must_not clauses etc. that doesn't allow extract terms on the query
            return super.termStatistics(term, context);
         }
         return termStatistics;
@@ -62,7 +62,7 @@ public class CachedDfSource extends IndexSearcher {
     public CollectionStatistics collectionStatistics(String field) throws IOException {
         CollectionStatistics collectionStatistics = aggregatedDfs.fieldStatistics().get(field);
         if (collectionStatistics == null) {
-            // we don't have stats for this - this might be a must_not clauses etc. that doesn't allow extract terms on the query
+            // we don't have numeric for this - this might be a must_not clauses etc. that doesn't allow extract terms on the query
            return super.collectionStatistics(field);
         }
         return collectionStatistics;

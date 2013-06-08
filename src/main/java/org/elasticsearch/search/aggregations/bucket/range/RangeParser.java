@@ -150,7 +150,7 @@ public class RangeParser implements AggregatorParser {
                 valueFormatter = mapper instanceof DateFieldMapper ? new ValueFormatter.DateTime(format) : new ValueFormatter.Number.Pattern(format);
             }
             IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-            FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData);
+            FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
             if (searchScript != null) {
                 return new RangeAggregator.Factory(aggregationName, fieldDataContext, new ValueTransformer.Script(searchScript), valueFormatter, ranges, keyed);
             }
@@ -183,7 +183,7 @@ public class RangeParser implements AggregatorParser {
             return new UnmappedRangeAggregator.Factory(aggregationName, ranges, keyed);
         }
 
-        FieldDataContext fieldDataContext = new FieldDataContext(mappedFields, indexFieldDatas);
+        FieldDataContext fieldDataContext = new FieldDataContext(mappedFields, indexFieldDatas, context);
         if (searchScript != null) {
             return new RangeAggregator.Factory(aggregationName, fieldDataContext, new ValueTransformer.Script(searchScript), valueFormatter, ranges, keyed);
         }

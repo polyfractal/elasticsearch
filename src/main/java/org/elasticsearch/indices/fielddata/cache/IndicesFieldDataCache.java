@@ -204,7 +204,7 @@ public class IndicesFieldDataCache extends AbstractComponent implements RemovalL
         public final Object readerKey;
 
         @Nullable
-        public IndexFieldDataCache.Listener listener; // optional stats listener
+        public IndexFieldDataCache.Listener listener; // optional numeric listener
         long sizeInBytes = -1; // optional size in bytes (we keep it here in case the values are soft references)
 
 

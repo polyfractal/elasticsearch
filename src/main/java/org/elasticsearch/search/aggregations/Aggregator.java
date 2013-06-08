@@ -19,9 +19,9 @@
 
 package org.elasticsearch.search.aggregations;
 
-import org.elasticsearch.common.lucene.search.XCollector;
+import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.search.Scorer;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.DefaultAggregationContext;
 
 import java.io.IOException;
 
@@ -58,29 +58,15 @@ public interface Aggregator<A extends InternalAggregation> {
     /**
      * The lucene collector that will be responsible for the aggregation
      */
-    static abstract class Collector extends XCollector {
+    static interface Collector {
 
-        /**
-         * Called directly after the document collection is finished. This is an opportunity for the collector to update
-         * its aggregator with the collected data.
-         */
-        @Override
-        public abstract void postCollection();
+        void setScorer(Scorer scorer) throws IOException;
 
-        @Override
-        public final void collect(int doc) throws IOException {
-            collect(doc, new DefaultAggregationContext());
-        }
+        void collect(int doc) throws IOException;
 
-        public abstract void collect(int doc, AggregationContext context) throws IOException;
+        void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException;
 
-        /**
-         * By default all aggregation collectors support out of order doc collection.
-         */
-        @Override
-        public boolean acceptsDocsOutOfOrder() {
-            return true;
-        }
+        void postCollection();
 
     }
 
@@ -89,9 +75,15 @@ public interface Aggregator<A extends InternalAggregation> {
      *
      * @param <A> The type of the aggregator.
      */
-    static interface Factory<A extends Aggregator> {
+    static abstract class Factory<A extends Aggregator> {
 
-        A create(Aggregator parent);
+        protected String name;
+
+        protected Factory(String name) {
+            this.name = name;
+        }
+
+        public abstract A create(Aggregator parent);
 
     }
 

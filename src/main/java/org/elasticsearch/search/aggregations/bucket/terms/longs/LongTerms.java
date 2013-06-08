@@ -85,8 +85,14 @@ public class LongTerms extends InternalTerms {
 
         @Override
         protected int compareTerm(Terms.Bucket other) {
-            long res = this.term - other.getTermAsNumber().longValue();
-            return res > 0 ? 1 : res < 0 ? -1 : 0;  // required to avoid int overflow
+            long otherTerm = other.getTermAsNumber().longValue();
+            if (this.term > otherTerm) {
+                return 1;
+            }
+            if (this.term < otherTerm) {
+                return -1;
+            }
+            return 0;
         }
     }
 

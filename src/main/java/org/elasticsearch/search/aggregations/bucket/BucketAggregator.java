@@ -19,9 +19,13 @@
 
 package org.elasticsearch.search.aggregations.bucket;
 
+import com.google.common.collect.Lists;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
-import org.elasticsearch.search.aggregations.*;
+import org.elasticsearch.search.aggregations.AbstractAggregator;
+import org.elasticsearch.search.aggregations.Aggregator;
+import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 
 import java.io.IOException;
@@ -33,76 +37,85 @@ import java.util.List;
  */
 public abstract class BucketAggregator extends AbstractAggregator {
 
-    protected final List<Aggregator.Factory> factories;
-
-    protected BucketAggregator(String name, List<Aggregator.Factory> factories, Aggregator parent) {
+    protected BucketAggregator(String name, Aggregator parent) {
         super(name, parent);
-        this.factories = factories;
     }
+
 
     public abstract static class BucketCollector implements Collector {
 
-        public final List<Aggregator> aggregators;
-        public final List<Collector> collectors;
+        public final Aggregator[] aggregators;
+        public final Collector[] collectors;
 
-        public BucketCollector(BucketAggregator parent) {
-            this(parent, null, null, null);
-        }
-
-        public BucketCollector(BucketAggregator parent, Scorer scorer, AtomicReaderContext reader, AggregationContext context) {
-            aggregators = new ArrayList<Aggregator>(parent.factories.size());
-            collectors = new ArrayList<Collector>(aggregators.size());
-            for (Aggregator.Factory factory : parent.factories) {
-                Aggregator aggregator = factory.create(parent);
-                aggregators.add(aggregator);
-                Collector collector = aggregator.collector();
-                try {
-                    if (scorer != null) {
-                        collector.setScorer(scorer);
-                    }
-                    if (reader != null) {
-                        collector.setNextReader(reader, context);
-                    }
-                } catch (IOException ioe) {
-                    throw  new AggregationExecutionException("Failed to aggregate bucket", ioe);
-                }
-                collectors.add(collector);
+        public BucketCollector(Aggregator[] aggregators) {
+            this.aggregators = aggregators;
+            this.collectors = new Collector[aggregators.length];
+            for (int i = 0; i < aggregators.length; i++) {
+                collectors[i] = aggregators[i].collector();
             }
         }
 
-        public BucketCollector(List<Aggregator> aggregators) {
+        public BucketCollector(Aggregator[] aggregators, AtomicReaderContext reader, Scorer scorer, AggregationContext context) {
             this.aggregators = aggregators;
-            this.collectors = new ArrayList<Collector>(aggregators.size());
-            for (Aggregator aggregator : aggregators) {
-                Collector collector = aggregator.collector();
-                if (collector != null) {
-                    collectors.add(collector);
+            this.collectors = new Collector[aggregators.length];
+            for (int i = 0; i < aggregators.length; i++) {
+                collectors[i] = aggregators[i].collector();
+                if (reader != null) {
+                    collectors[i].setNextReader(reader, context);
                 }
             }
         }
 
         @Override
         public final void postCollection() {
-            for (Collector collector : collectors) {
-                collector.postCollection();
+            for (int i = 0; i < collectors.length; i++) {
+                if (collectors[i] != null) {
+                    collectors[i].postCollection();
+                }
             }
             postCollection(aggregators);
         }
 
         @Override
         public void setScorer(Scorer scorer) throws IOException {
-            for (Collector collector : collectors) {
-                collector.setScorer(scorer);
+            for (int i = 0; i < collectors.length; i++) {
+                if (collectors[i] != null) {
+                    collectors[i].setScorer(scorer);
+                }
             }
         }
 
         @Override
         public final void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException {
             context = setReaderAngGetContext(reader, context);
-            for (Collector collector : collectors) {
-                collector.setNextReader(reader, context);
+            for (int i = 0; i < collectors.length; i++) {
+                if (collectors[i] != null) {
+                    collectors[i].setNextReader(reader, context);
+                }
             }
         }
+
+
+        @Override
+        public final void collect(int doc) throws IOException {
+            if (onDoc(doc)) {
+                for (int i = 0; i < collectors.length; i++) {
+                    if (collectors[i] != null) {
+                        collectors[i].collect(doc);
+                    }
+                }
+            }
+        }
+
+        /**
+         * Called to aggregate the data in the given doc and returns whether the given doc falls within this bucket.
+         *
+         * @param doc   The doc to aggregate
+         * @return      {@code true} if the given doc matched this bucket, {@code false} otherwise.
+         * @throws IOException
+         */
+        protected abstract boolean onDoc(int doc) throws IOException;
+
 
         /**
          * Called when the parent aggregation context is set for this bucket, and returns the aggregation context of this bucket (which will
@@ -118,10 +131,10 @@ public abstract class BucketAggregator extends AbstractAggregator {
          *
          * @param aggregators   The sub aggregators of this bucket
          */
-        protected abstract void postCollection(List<Aggregator> aggregators);
+        protected abstract void postCollection(Aggregator[] aggregators);
 
         protected InternalAggregations buildAggregations() {
-            List<InternalAggregation> aggregations = new ArrayList<InternalAggregation>(aggregators.size());
+            List<InternalAggregation> aggregations = Lists.newArrayListWithCapacity(aggregators.length);
             for (Aggregator aggregator : aggregators) {
                 aggregations.add(aggregator.buildAggregation());
             }

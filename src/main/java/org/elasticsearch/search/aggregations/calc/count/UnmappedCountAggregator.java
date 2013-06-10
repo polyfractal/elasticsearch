@@ -42,12 +42,10 @@ public class UnmappedCountAggregator extends AbstractAggregator {
         return new InternalCount(name, 0);
     }
 
-    public static class Factory implements Aggregator.Factory<UnmappedCountAggregator> {
-
-        private final String name;
+    public static class Factory extends Aggregator.Factory<UnmappedCountAggregator> {
 
         public Factory(String name) {
-            this.name = name;
+            super(name);
         }
 
         @Override

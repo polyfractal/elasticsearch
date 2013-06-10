@@ -44,13 +44,12 @@ public class UnmappedStatsAggregator<S extends Stats> extends CalcAggregator {
         return statsFactory.createUnmapped(name);
     }
 
-    public static class Factory<S extends Stats> implements Aggregator.Factory<UnmappedStatsAggregator<S>> {
+    public static class Factory<S extends Stats> extends Aggregator.Factory<UnmappedStatsAggregator<S>> {
 
-        private final String name;
         private final Stats.Factory<S> statsFactory;
 
         public Factory(String name, Stats.Factory<S> statsFactory) {
-            this.name = name;
+            super(name);
             this.statsFactory = statsFactory;
         }
 

@@ -21,106 +21,68 @@ package org.elasticsearch.search.aggregations.calc;
 
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
-import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
-import org.elasticsearch.search.aggregations.context.values.FieldDataValuesSource;
-import org.elasticsearch.search.aggregations.context.values.ScriptValuesSource;
-import org.elasticsearch.search.aggregations.context.values.ValuesSource;
+import org.elasticsearch.search.aggregations.context.ValuesSource;
 
 import java.io.IOException;
 
 /**
  *
  */
-public abstract class ValuesSourceCalcAggregator extends CalcAggregator {
+public abstract class ValuesSourceCalcAggregator<VS extends ValuesSource> extends CalcAggregator {
 
-    protected final ValuesSource valuesSource;
+    protected final VS valuesSource;
 
-    public ValuesSourceCalcAggregator(String name, ValuesSource valuesSource, Aggregator parent) {
+    public ValuesSourceCalcAggregator(String name, VS valuesSource, Aggregator parent) {
         super(name, parent);
         this.valuesSource = valuesSource;
     }
 
-    protected static abstract class Collector implements Aggregator.Collector {
+    protected static abstract class Collector<VS extends ValuesSource> implements Aggregator.Collector {
 
-        protected ValuesSource valuesSource;
+        protected VS valuesSource;
 
-        protected Collector(ValuesSource valuesSource) {
+        protected Collector(VS valuesSource) {
             this.valuesSource = valuesSource;
         }
 
         @Override
         public void setScorer(Scorer scorer) throws IOException {
-            valuesSource.setNextScorer(scorer);
+            if (valuesSource != null) {
+                valuesSource.setNextScorer(scorer);
+            }
         }
 
         @Override
         public final void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException {
-            valuesSource.setNextReader(reader);
+            if (valuesSource != null) {
+                valuesSource.setNextReader(reader);
+            } else {
+                valuesSource = extractValuesSourceFromContext(context);
+            }
             setNextValues(valuesSource, context);
         }
 
-        protected abstract void setNextValues(ValuesSource valuesSource, AggregationContext context) throws IOException;
+        /**
+         * Extracts the appropriate values source from the given aggregation context. The returned values source cannot
+         * be {@code null}. If the underlying implementation cannot find the appropriate values source in the context
+         * it should throw an exception.
+         *
+         * @param context   The aggregation context
+         * @return          The value source
+         */
+        protected abstract VS extractValuesSourceFromContext(AggregationContext context);
 
-    }
+        /**
+         * Calls on the underlying implementation to set the next values on which this aggregator will act.
+         *
+         * @param valuesSource  The value source this aggregator is working with
+         * @param context       The aggregation context
+         * @throws IOException
+         */
+        protected abstract void setNextValues(VS valuesSource, AggregationContext context) throws IOException;
 
-    protected abstract static class FieldDataFactory<A extends ValuesSourceCalcAggregator> extends Factory<A> {
-
-        private final FieldDataContext fieldDataContext;
-        private final SearchScript valueScript;
-
-        public FieldDataFactory(String name, FieldDataContext fieldDataContext) {
-            this(name, fieldDataContext, null);
-        }
-
-        public FieldDataFactory(String name, FieldDataContext fieldDataContext, SearchScript valueScript) {
-            super(name);
-            this.fieldDataContext = fieldDataContext;
-            this.valueScript = valueScript;
-        }
-
-        @Override
-        public final A create(Aggregator parent) {
-            if (valueScript != null) {
-                return create(new FieldDataValuesSource(fieldDataContext.field(), fieldDataContext.indexFieldData(), valueScript), parent);
-            }
-            return create(new FieldDataValuesSource(fieldDataContext.field(), fieldDataContext.indexFieldData()), parent);
-        }
-
-        protected abstract A create(ValuesSource source, Aggregator parent);
-    }
-
-    protected abstract static class ScriptFactory<A extends ValuesSourceCalcAggregator> extends Factory<A> {
-
-        private final SearchScript script;
-
-        protected ScriptFactory(String name, SearchScript script) {
-            super(name);
-            this.script = script;
-        }
-
-        @Override
-        public final A create(Aggregator parent) {
-            return create(new ScriptValuesSource(script), parent);
-        }
-
-        protected abstract A create(ValuesSource source, Aggregator parent);
-    }
-
-    protected abstract static class ContextBasedFactory<A extends ValuesSourceCalcAggregator> extends Factory<A> {
-
-        protected ContextBasedFactory(String name) {
-            super(name);
-        }
-
-        @Override
-        public A create(Aggregator parent) {
-            return create(ValuesSource.EMPTY, parent);
-        }
-
-        protected abstract A create(ValuesSource source, Aggregator parent);
     }
 
 }

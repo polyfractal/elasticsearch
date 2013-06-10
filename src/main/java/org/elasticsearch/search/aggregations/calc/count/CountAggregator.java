@@ -20,14 +20,12 @@
 package org.elasticsearch.search.aggregations.calc.count;
 
 import org.elasticsearch.index.fielddata.BytesValues;
-import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.calc.BytesCalcAggregator;
-import org.elasticsearch.search.aggregations.calc.ValuesSourceCalcAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
-import org.elasticsearch.search.aggregations.context.values.ValuesSource;
+import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 
 import java.io.IOException;
 
@@ -38,7 +36,7 @@ public class CountAggregator extends BytesCalcAggregator {
 
     long value;
 
-    public CountAggregator(String name, ValuesSource valuesSource, Aggregator parent) {
+    public CountAggregator(String name, BytesValuesSource valuesSource, Aggregator parent) {
         super(name, valuesSource, parent);
     }
 
@@ -56,7 +54,7 @@ public class CountAggregator extends BytesCalcAggregator {
 
         long value;
 
-        Collector(ValuesSource valuesSource) {
+        Collector(BytesValuesSource valuesSource) {
             super(name, valuesSource);
         }
 
@@ -80,27 +78,27 @@ public class CountAggregator extends BytesCalcAggregator {
         }
     }
 
-    public static class FieldDataFactory extends ValuesSourceCalcAggregator.FieldDataFactory<CountAggregator> {
+    public static class FieldDataFactory extends BytesCalcAggregator.FieldDataFactory<CountAggregator> {
 
         public FieldDataFactory(String name, FieldDataContext fieldDataContext) {
             super(name, fieldDataContext);
         }
 
         @Override
-        protected CountAggregator create(ValuesSource source, Aggregator parent) {
+        protected CountAggregator create(BytesValuesSource source, Aggregator parent) {
             return new CountAggregator(name, source, parent);
         }
 
     }
 
-    public static class ContextBasedFactory extends ValuesSourceCalcAggregator.ContextBasedFactory<CountAggregator> {
+    public static class ContextBasedFactory extends BytesCalcAggregator.ContextBasedFactory<CountAggregator> {
 
         public ContextBasedFactory(String name) {
             super(name);
         }
 
         @Override
-        protected CountAggregator create(ValuesSource source, Aggregator parent) {
+        protected CountAggregator create(BytesValuesSource source, Aggregator parent) {
             return new CountAggregator(name, source, parent);
         }
 

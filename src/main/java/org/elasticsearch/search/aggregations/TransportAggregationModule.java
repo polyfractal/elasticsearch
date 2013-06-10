@@ -20,16 +20,16 @@
 package org.elasticsearch.search.aggregations;
 
 import org.elasticsearch.common.inject.AbstractModule;
-import org.elasticsearch.search.aggregations.bucket.filter.InternalFilter;
-import org.elasticsearch.search.aggregations.bucket.geo.distance.InternalGeoDistance;
-import org.elasticsearch.search.aggregations.bucket.global.InternalGlobal;
-import org.elasticsearch.search.aggregations.bucket.histogram.InternalHistogram;
-import org.elasticsearch.search.aggregations.bucket.histogram.date.InternalDateHistogram;
-import org.elasticsearch.search.aggregations.bucket.missing.InternalMissing;
-import org.elasticsearch.search.aggregations.bucket.range.InternalRange;
-import org.elasticsearch.search.aggregations.bucket.terms.doubles.DoubleTerms;
-import org.elasticsearch.search.aggregations.bucket.terms.longs.LongTerms;
-import org.elasticsearch.search.aggregations.bucket.terms.string.StringTerms;
+import org.elasticsearch.search.aggregations.bucket.single.filter.InternalFilter;
+import org.elasticsearch.search.aggregations.bucket.multi.geo.distance.InternalGeoDistance;
+import org.elasticsearch.search.aggregations.bucket.single.global.InternalGlobal;
+import org.elasticsearch.search.aggregations.bucket.multi.histogram.InternalHistogram;
+import org.elasticsearch.search.aggregations.bucket.multi.histogram.date.InternalDateHistogram;
+import org.elasticsearch.search.aggregations.bucket.single.missing.InternalMissing;
+import org.elasticsearch.search.aggregations.bucket.multi.range.InternalRange;
+import org.elasticsearch.search.aggregations.bucket.multi.terms.doubles.DoubleTerms;
+import org.elasticsearch.search.aggregations.bucket.multi.terms.longs.LongTerms;
+import org.elasticsearch.search.aggregations.bucket.multi.terms.string.StringTerms;
 import org.elasticsearch.search.aggregations.calc.count.InternalCount;
 import org.elasticsearch.search.aggregations.calc.numeric.avg.InternalAvg;
 import org.elasticsearch.search.aggregations.calc.numeric.max.InternalMax;

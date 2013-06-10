@@ -20,58 +20,54 @@
 package org.elasticsearch.search.aggregations.bucket;
 
 import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.search.Scorer;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.values.ValuesSource;
+import org.elasticsearch.search.aggregations.context.ValuesSource;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  *
  */
-public abstract class ValuesSourceBucketAggregator extends BucketAggregator {
+public abstract class ValuesSourceBucketAggregator<VS extends ValuesSource> extends BucketAggregator {
 
-    private final ValuesSource valuesSource;
+    protected final VS valuesSource;
 
-    public ValuesSourceBucketAggregator(String name, List<Aggregator.Factory> factories, ValuesSource valuesSource, Aggregator parent) {
-        super(name, factories, parent);
+    public ValuesSourceBucketAggregator(String name, VS valuesSource, Aggregator parent) {
+        super(name, parent);
         this.valuesSource = valuesSource;
     }
 
-    public abstract static class BucketCollector extends BucketAggregator.BucketCollector {
+    protected static abstract class BucketCollector<VS extends ValuesSource> extends BucketAggregator.BucketCollector {
 
-        protected final ValuesSource valuesSource;
+        protected VS valuesSource;
 
-        public BucketCollector(BucketAggregator parent, ValuesSource valuesSource) {
-            super(parent);
-            this.valuesSource = valuesSource;
-        }
-
-        public BucketCollector(BucketAggregator parent, ValuesSource valuesSource, Scorer scorer, AtomicReaderContext reader, AggregationContext context) {
-            super(parent, scorer, reader, context);
-            this.valuesSource = valuesSource;
-        }
-
-        public BucketCollector(List<Aggregator> aggregators, ValuesSource valuesSource) {
+        public BucketCollector(Aggregator[] aggregators, VS valuesSource) {
             super(aggregators);
             this.valuesSource = valuesSource;
         }
 
         @Override
-        public void setScorer(Scorer scorer) throws IOException {
-            super.setScorer(scorer);
-            valuesSource.setNextScorer(scorer);
-        }
-
-        @Override
-        protected final AggregationContext setReaderAngGetContext(AtomicReaderContext reader, AggregationContext context) throws IOException {
-            valuesSource.setNextReader(reader);
+        protected AggregationContext setReaderAngGetContext(AtomicReaderContext reader, AggregationContext context) throws IOException {
+            VS valuesSource = this.valuesSource;
+            if (valuesSource != null) {
+                valuesSource.setNextReader(reader);
+            } else {
+                valuesSource = extractValuesSourceFromContext(context);
+            }
             return setNextValues(valuesSource, context);
         }
 
-        protected abstract AggregationContext setNextValues(ValuesSource valuesSource, AggregationContext context) throws IOException;
+        protected abstract AggregationContext setNextValues(VS valuesSource, AggregationContext context) throws IOException;
 
+        /**
+         * Extracts the appropriate values source from the given aggregation context. The returned values source cannot
+         * be {@code null}. If the underlying implementation cannot find the appropriate values source in the context
+         * it should throw an exception.
+         *
+         * @param context   The aggregation context
+         * @return          The value source
+         */
+        protected abstract VS extractValuesSourceFromContext(AggregationContext context);
     }
 }

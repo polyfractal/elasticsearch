@@ -24,7 +24,7 @@ import org.elasticsearch.common.collect.MapBuilder;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.search.SearchParseException;
-import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -110,10 +110,10 @@ public class AggregatorParsers {
                 }
 
                 if (subFactories != null) {
-                    if (!(factory instanceof BucketAggregator.Factory)) {
+                    if (!(factory instanceof SingleBucketAggregator.Factory)) {
                         throw new SearchParseException(context, "Aggregator of type [" + aggregatorType + "] cannot accept sub-aggregations");
                     }
-                    BucketAggregator.Factory compoundFactory = (BucketAggregator.Factory) factory;
+                    SingleBucketAggregator.Factory compoundFactory = (SingleBucketAggregator.Factory) factory;
                     compoundFactory.set(subFactories);
                 }
 

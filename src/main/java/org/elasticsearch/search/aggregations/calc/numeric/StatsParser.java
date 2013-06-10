@@ -84,10 +84,10 @@ public class StatsParser<S extends Stats> implements AggregatorParser {
 
         if (field == null) {
             if (searchScript != null) {
-                return new NumericAggregator.ScriptFactory<S>(aggregationName, searchScript, statsFactory);
+                return new NumberAggregator.ScriptFactory<S>(aggregationName, searchScript, statsFactory);
             }
             // both "field" and "script" don't exist, so we fall back to the field context of the ancestors
-            return new NumericAggregator.ContextBasedFactory<S>(aggregationName, statsFactory);
+            return new NumberAggregator.ContextBasedFactory<S>(aggregationName, statsFactory);
         }
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
@@ -95,9 +95,9 @@ public class StatsParser<S extends Stats> implements AggregatorParser {
             IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
             FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
             if (searchScript == null) {
-                return new NumericAggregator.FieldDataFactory<S>(aggregationName, statsFactory, fieldDataContext);
+                return new NumberAggregator.FieldDataFactory<S>(aggregationName, statsFactory, fieldDataContext);
             } else {
-                return new NumericAggregator.FieldDataFactory<S>(aggregationName, statsFactory, fieldDataContext, searchScript);
+                return new NumberAggregator.FieldDataFactory<S>(aggregationName, statsFactory, fieldDataContext, searchScript);
             }
         }
 

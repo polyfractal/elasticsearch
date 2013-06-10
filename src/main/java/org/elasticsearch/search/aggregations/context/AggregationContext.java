@@ -21,10 +21,10 @@ package org.elasticsearch.search.aggregations.context;
 
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.geo.GeoPoint;
-import org.elasticsearch.index.fielddata.BytesValues;
-import org.elasticsearch.index.fielddata.DoubleValues;
-import org.elasticsearch.index.fielddata.GeoPointValues;
-import org.elasticsearch.index.fielddata.LongValues;
+import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
+import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
+import org.elasticsearch.search.aggregations.context.geopoints.GeoPointValuesSource;
+import org.elasticsearch.search.aggregations.context.longs.LongValuesSource;
 
 /**
  * The aggregation context is passed down the collector hierarchy during the aggregation process. The context may
@@ -34,49 +34,49 @@ import org.elasticsearch.index.fielddata.LongValues;
  */
 public interface AggregationContext {
 
-    DoubleValues doubleValues();
+    DoubleValuesSource doubleValuesSource();
 
-    LongValues longValues();
+    LongValuesSource longValuesSource();
 
-    BytesValues bytesValues();
+    BytesValuesSource bytesValuesSource();
 
-    GeoPointValues geoPointValues();
+    GeoPointValuesSource geoPointValuesSource();
 
 
     /**
      * Determines whether the given double value for the given field should be aggregated.
      *
-     * @param field The field
-     * @param value The value
+     * @param valueSourceKey    The key of the value source
+     * @param value             The value
      * @return {@code true} if the value should be aggregated, {@code false} otherwise.
      */
-    boolean accept(int doc, String valueSourceId, double value);
+    boolean accept(int doc, String valueSourceKey, double value);
 
     /**
      * Determines whether the given long value for the given field should be aggregated.
      *
-     * @param field The field
-     * @param value The value
+     * @param valueSourceKey    The key of the value source
+     * @param value             The value
      * @return {@code true} if the value should be aggregated, {@code false} otherwise.
      */
-    boolean accept(int doc, String valueSourceId, long value);
+    boolean accept(int doc, String valueSourceKey, long value);
 
     /**
      * Determines whether the given bytesref value for the given field should be aggregated.
      *
-     * @param field The field
-     * @param value The value
+     * @param valueSourceKey    The key of the value source
+     * @param value             The value
      * @return {@code true} if the value should be aggregated, {@code false} otherwise.
      */
-    boolean accept(int doc, String valueSourceId, BytesRef value);
+    boolean accept(int doc, String valueSourceKey, BytesRef value);
 
     /**
      * Determines whether the given geo point value for the given field should be aggregated.
      *
-     * @param field The field
-     * @param value The value
+     * @param valueSourceKey    The key of the value source
+     * @param value             The value
      * @return {@code true} if the value should be aggregated, {@code false} otherwise.
      */
-    boolean accept(int doc, String valueSourceId, GeoPoint value);
+    boolean accept(int doc, String valueSourceKey, GeoPoint value);
 
 }

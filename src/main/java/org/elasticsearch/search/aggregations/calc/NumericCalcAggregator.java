@@ -20,44 +20,50 @@
 package org.elasticsearch.search.aggregations.calc;
 
 import org.elasticsearch.index.fielddata.DoubleValues;
+import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.values.ValuesSource;
+import org.elasticsearch.search.aggregations.context.FieldDataContext;
+import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
 
 import java.io.IOException;
 
 /**
  *
  */
-public abstract class NumericCalcAggregator extends ValuesSourceCalcAggregator  {
+public abstract class NumericCalcAggregator extends ValuesSourceCalcAggregator<DoubleValuesSource>  {
 
-    public NumericCalcAggregator(String name, ValuesSource valuesSource, Aggregator parent) {
+    public NumericCalcAggregator(String name, DoubleValuesSource valuesSource, Aggregator parent) {
         super(name, valuesSource, parent);
     }
 
-    protected static abstract class Collector extends ValuesSourceCalcAggregator.Collector {
+    protected static abstract class Collector extends ValuesSourceCalcAggregator.Collector<DoubleValuesSource> {
 
         private final String aggregatorName;
         private DoubleValues values;
         private AggregationContext context;
 
-        protected Collector(String aggregatorName, ValuesSource valuesSource) {
+        protected Collector(String aggregatorName, DoubleValuesSource valuesSource) {
             super(valuesSource);
             this.aggregatorName = aggregatorName;
         }
 
         @Override
-        protected void setNextValues(ValuesSource valuesSource, AggregationContext context) throws IOException {
-            this.context = context;
-            values = valuesSource.doubleValues();
-            if (values == null) {
-                values = context.doubleValues();
-            }
-            if (values == null) {
+        protected DoubleValuesSource extractValuesSourceFromContext(AggregationContext context) {
+            DoubleValuesSource valuesSource = context.doubleValuesSource();
+            if (valuesSource == null) {
                 throw new AggregationExecutionException("Missing numeric values in aggregation context for aggregator [" + aggregatorName + "]");
             }
+            return valuesSource;
         }
+
+        @Override
+        protected void setNextValues(DoubleValuesSource valuesSource, AggregationContext context) throws IOException {
+            this.context = context;
+            values = valuesSource.values();
+        }
+
 
         @Override
         public final void collect(int doc) throws IOException {
@@ -65,5 +71,63 @@ public abstract class NumericCalcAggregator extends ValuesSourceCalcAggregator  
         }
 
         protected abstract void collect(int doc, DoubleValues values, AggregationContext context) throws IOException;
+    }
+
+
+    protected abstract static class FieldDataFactory<A extends NumericCalcAggregator> extends Factory<A> {
+
+        private final FieldDataContext fieldDataContext;
+        private final SearchScript valueScript;
+
+        public FieldDataFactory(String name, FieldDataContext fieldDataContext) {
+            this(name, fieldDataContext, null);
+        }
+
+        public FieldDataFactory(String name, FieldDataContext fieldDataContext, SearchScript valueScript) {
+            super(name);
+            this.fieldDataContext = fieldDataContext;
+            this.valueScript = valueScript;
+        }
+
+        @Override
+        public final A create(Aggregator parent) {
+            if (valueScript != null) {
+                return create(new DoubleValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData(), valueScript), parent);
+            }
+            return create(new DoubleValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData()), parent);
+        }
+
+        protected abstract A create(DoubleValuesSource source, Aggregator parent);
+    }
+
+    protected abstract static class ScriptFactory<A extends ValuesSourceCalcAggregator> extends Factory<A> {
+
+        private final SearchScript script;
+
+        protected ScriptFactory(String name, SearchScript script) {
+            super(name);
+            this.script = script;
+        }
+
+        @Override
+        public final A create(Aggregator parent) {
+            return create(new DoubleValuesSource.Script(script), parent);
+        }
+
+        protected abstract A create(DoubleValuesSource source, Aggregator parent);
+    }
+
+    protected abstract static class ContextBasedFactory<A extends ValuesSourceCalcAggregator> extends Factory<A> {
+
+        protected ContextBasedFactory(String name) {
+            super(name);
+        }
+
+        @Override
+        public A create(Aggregator parent) {
+            return create(null, parent);
+        }
+
+        protected abstract A create(DoubleValuesSource source, Aggregator parent);
     }
 }

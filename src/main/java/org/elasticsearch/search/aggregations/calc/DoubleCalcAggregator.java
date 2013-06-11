@@ -21,7 +21,6 @@ package org.elasticsearch.search.aggregations.calc;
 
 import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.script.SearchScript;
-import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
@@ -32,9 +31,9 @@ import java.io.IOException;
 /**
  *
  */
-public abstract class NumericCalcAggregator extends ValuesSourceCalcAggregator<DoubleValuesSource>  {
+public abstract class DoubleCalcAggregator extends ValuesSourceCalcAggregator<DoubleValuesSource>  {
 
-    public NumericCalcAggregator(String name, DoubleValuesSource valuesSource, Aggregator parent) {
+    public DoubleCalcAggregator(String name, DoubleValuesSource valuesSource, Aggregator parent) {
         super(name, valuesSource, DoubleValuesSource.class, parent);
     }
 
@@ -47,15 +46,6 @@ public abstract class NumericCalcAggregator extends ValuesSourceCalcAggregator<D
         protected Collector(String aggregatorName, DoubleValuesSource valuesSource) {
             super(valuesSource);
             this.aggregatorName = aggregatorName;
-        }
-
-        @Override
-        protected DoubleValuesSource extractValuesSourceFromContext(AggregationContext context) {
-            DoubleValuesSource valuesSource = context.doubleValuesSource();
-            if (valuesSource == null) {
-                throw new AggregationExecutionException("Missing numeric values in aggregation context for aggregator [" + aggregatorName + "]");
-            }
-            return valuesSource;
         }
 
         @Override
@@ -74,7 +64,7 @@ public abstract class NumericCalcAggregator extends ValuesSourceCalcAggregator<D
     }
 
 
-    protected abstract static class FieldDataFactory<A extends NumericCalcAggregator> extends Factory<A> {
+    protected abstract static class FieldDataFactory<A extends DoubleCalcAggregator> extends Factory<A> {
 
         private final FieldDataContext fieldDataContext;
         private final SearchScript valueScript;

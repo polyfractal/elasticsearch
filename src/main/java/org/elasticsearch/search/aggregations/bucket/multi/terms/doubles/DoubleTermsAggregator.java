@@ -139,7 +139,7 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
             String valuesSourceKey = valuesSource.key();
             if (!values.isMultiValued()) {
                 double term = values.getValue(doc);
-                if (!context.accept(doc, valuesSourceKey, term)) {
+                if (!context.accept(valuesSourceKey, term)) {
                     return;
                 }
                 BucketCollector bucket = bucketCollectors.get(term);
@@ -164,7 +164,7 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
             List<BucketCollector> matchedBuckets = null;
             for (DoubleValues.Iter iter = values.getIter(doc); iter.hasNext();) {
                 double term = iter.next();
-                if (!context.accept(doc, valuesSourceKey, term)) {
+                if (!context.accept(valuesSourceKey, term)) {
                     continue;
                 }
                 BucketCollector bucket = bucketCollectors.get(term);

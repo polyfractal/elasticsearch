@@ -19,12 +19,12 @@
 
 package org.elasticsearch.search.aggregations.calc.numeric.max;
 
-import org.elasticsearch.search.aggregations.calc.numeric.StatsParser;
+import org.elasticsearch.search.aggregations.calc.numeric.NumericAggregatorParser;
 
 /**
  *
  */
-public class MaxParser extends StatsParser<InternalMax> {
+public class MaxParser extends NumericAggregatorParser<InternalMax> {
 
     public MaxParser() {
         super(InternalMax.TYPE.name(), new InternalMax.Factory());

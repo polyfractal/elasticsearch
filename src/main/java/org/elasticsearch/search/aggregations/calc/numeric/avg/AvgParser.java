@@ -19,12 +19,12 @@
 
 package org.elasticsearch.search.aggregations.calc.numeric.avg;
 
-import org.elasticsearch.search.aggregations.calc.numeric.StatsParser;
+import org.elasticsearch.search.aggregations.calc.numeric.NumericAggregatorParser;
 
 /**
  *
  */
-public class AvgParser extends StatsParser<InternalAvg> {
+public class AvgParser extends NumericAggregatorParser<InternalAvg> {
 
     public AvgParser() {
         super(InternalAvg.TYPE.name(), new InternalAvg.Factory());

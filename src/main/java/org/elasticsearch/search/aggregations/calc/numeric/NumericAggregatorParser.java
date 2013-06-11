@@ -34,12 +34,12 @@ import java.util.Map;
 /**
  *
  */
-public class StatsParser<S extends Stats> implements AggregatorParser {
+public class NumericAggregatorParser<S extends NumericAggregation> implements AggregatorParser {
 
     private final String type;
-    private final Stats.Factory<S> statsFactory;
+    private final NumericAggregation.Factory<S> statsFactory;
 
-    public StatsParser(String type, Stats.Factory<S> statsFactory) {
+    public NumericAggregatorParser(String type, NumericAggregation.Factory<S> statsFactory) {
         this.type = type;
         this.statsFactory = statsFactory;
     }
@@ -84,10 +84,10 @@ public class StatsParser<S extends Stats> implements AggregatorParser {
 
         if (field == null) {
             if (searchScript != null) {
-                return new NumberAggregator.ScriptFactory<S>(aggregationName, searchScript, statsFactory);
+                return new NumericAggregator.ScriptFactory<S>(aggregationName, searchScript, statsFactory);
             }
             // both "field" and "script" don't exist, so we fall back to the field context of the ancestors
-            return new NumberAggregator.ContextBasedFactory<S>(aggregationName, statsFactory);
+            return new NumericAggregator.ContextBasedFactory<S>(aggregationName, statsFactory);
         }
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
@@ -95,12 +95,12 @@ public class StatsParser<S extends Stats> implements AggregatorParser {
             IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
             FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
             if (searchScript == null) {
-                return new NumberAggregator.FieldDataFactory<S>(aggregationName, statsFactory, fieldDataContext);
+                return new NumericAggregator.FieldDataFactory<S>(aggregationName, statsFactory, fieldDataContext);
             } else {
-                return new NumberAggregator.FieldDataFactory<S>(aggregationName, statsFactory, fieldDataContext, searchScript);
+                return new NumericAggregator.FieldDataFactory<S>(aggregationName, statsFactory, fieldDataContext, searchScript);
             }
         }
 
-        return new UnmappedStatsAggregator.Factory<S>(aggregationName, statsFactory);
+        return new UnmappedNumericAggregator.Factory<S>(aggregationName, statsFactory);
     }
 }

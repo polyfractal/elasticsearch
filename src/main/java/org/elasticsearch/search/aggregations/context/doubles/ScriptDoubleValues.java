@@ -23,6 +23,7 @@ import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.context.ScriptValues;
 
+import java.lang.reflect.Array;
 import java.util.Iterator;
 import java.util.List;
 
@@ -58,7 +59,7 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
         if (this.docId != docId) {
             this.docId = docId;
             script.setNextDocId(docId);
-            value = script.runAsDouble();
+            value = script.run();
         }
         if (value == null) {
             return false;
@@ -69,8 +70,8 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
             return true;
         }
 
-        if (value instanceof double[]) {
-            return ((double[]) value).length != 0;
+        if (value.getClass().isArray()) {
+            return Array.getLength(value) != 0;
         }
         if (value instanceof List) {
             return !((List) value).isEmpty();
@@ -87,7 +88,7 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
         if (this.docId != docId) {
             this.docId = docId;
             script.setNextDocId(docId);
-            value = script.runAsDouble();
+            value = script.run();
         }
 
         // shortcutting on single valued
@@ -95,11 +96,11 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
             return (Double) value;
         }
 
-        if (value instanceof double[]) {
-            return ((double[]) value)[0];
+        if (value.getClass().isArray()) {
+            return ((Number) Array.get(value, 0)).doubleValue();
         }
         if (value instanceof List) {
-            return (Double) ((List) value).get(0);
+            return ((Number) ((List) value).get(0)).doubleValue();
         }
         if (value instanceof Iterator) {
             return ((Iterator<Number>) value).next().doubleValue();
@@ -112,7 +113,7 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
         if (this.docId != docId) {
             this.docId = docId;
             script.setNextDocId(docId);
-            value = script.runAsDouble();
+            value = script.run();
         }
 
         // shortcutting on single valued
@@ -120,8 +121,8 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
             return super.getIter(docId);
         }
 
-        if (value instanceof double[]) {
-            iter.reset((double[]) value);
+        if (value.getClass().isArray()) {
+            iter.reset(value);
             return iter;
         }
         if (value instanceof List) {
@@ -139,13 +140,15 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
 
     static class InternalIter implements Iter {
 
-        double[] array;
+        Object array;
+        int arrayLength;
         int i = 0;
 
         Iterator<Number> iterator;
 
-        void reset(double[] array) {
+        void reset(Object array) {
             this.array = array;
+            this.arrayLength = Array.getLength(array);
             this.iterator = null;
         }
 
@@ -159,7 +162,7 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
             if (iterator != null) {
                 return iterator.hasNext();
             }
-            return i + 1 < array.length;
+            return i + 1 < arrayLength;
         }
 
         @Override
@@ -167,7 +170,7 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
             if (iterator != null) {
                 return iterator.next().doubleValue();
             }
-            return array[++i];
+            return ((Number) Array.get(array, ++i)).doubleValue();
         }
     }
 }

@@ -24,11 +24,11 @@ import org.elasticsearch.search.aggregations.Aggregator;
 /**
  *
  */
-public class UnmappedStatsAggregator<S extends Stats> extends Aggregator {
+public class UnmappedNumericAggregator<S extends NumericAggregation> extends Aggregator {
 
-    private final Stats.Factory<S> statsFactory;
+    private final NumericAggregation.Factory<S> statsFactory;
 
-    public UnmappedStatsAggregator(String name, Stats.Factory<S> statsFactory, Aggregator parent) {
+    public UnmappedNumericAggregator(String name, NumericAggregation.Factory<S> statsFactory, Aggregator parent) {
         super(name, parent);
         this.statsFactory = statsFactory;
     }
@@ -43,18 +43,18 @@ public class UnmappedStatsAggregator<S extends Stats> extends Aggregator {
         return statsFactory.createUnmapped(name);
     }
 
-    public static class Factory<S extends Stats> extends Aggregator.Factory<UnmappedStatsAggregator<S>> {
+    public static class Factory<S extends NumericAggregation> extends Aggregator.Factory<UnmappedNumericAggregator<S>> {
 
-        private final Stats.Factory<S> statsFactory;
+        private final NumericAggregation.Factory<S> statsFactory;
 
-        public Factory(String name, Stats.Factory<S> statsFactory) {
+        public Factory(String name, NumericAggregation.Factory<S> statsFactory) {
             super(name);
             this.statsFactory = statsFactory;
         }
 
         @Override
-        public UnmappedStatsAggregator<S> create(Aggregator parent) {
-            return new UnmappedStatsAggregator<S>(name, statsFactory, parent);
+        public UnmappedNumericAggregator<S> create(Aggregator parent) {
+            return new UnmappedNumericAggregator<S>(name, statsFactory, parent);
         }
     }
 

@@ -26,11 +26,11 @@ import org.elasticsearch.search.aggregations.format.ValueFormatter;
 /**
  *
  */
-public abstract class Stats extends InternalAggregation implements CalcAggregation {
+public abstract class NumericAggregation extends InternalAggregation implements CalcAggregation {
 
     protected ValueFormatter valueFormatter;
 
-    public static abstract class SingleValue extends Stats implements CalcAggregation.SingleValue {
+    public static abstract class SingleValue extends NumericAggregation implements CalcAggregation.SingleValue {
 
         protected SingleValue() {}
 
@@ -41,7 +41,7 @@ public abstract class Stats extends InternalAggregation implements CalcAggregati
         public abstract double value();
     }
 
-    public static abstract class MultiValue extends Stats implements CalcAggregation.MultiValue {
+    public static abstract class MultiValue extends NumericAggregation implements CalcAggregation.MultiValue {
 
         protected MultiValue() {}
 
@@ -53,15 +53,15 @@ public abstract class Stats extends InternalAggregation implements CalcAggregati
 
     }
 
-    protected Stats() {} // for serialization
+    protected NumericAggregation() {} // for serialization
 
-    protected Stats(String name) {
+    protected NumericAggregation(String name) {
         super(name);
     }
 
     public abstract void collect(int doc, double value);
 
-    public static interface Factory<S extends Stats> {
+    public static interface Factory<S extends NumericAggregation> {
 
         S create(String name);
 

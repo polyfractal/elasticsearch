@@ -152,12 +152,12 @@ public class RangeAggregator extends DoubleBucketAggregator {
             String valueSourceKey = valuesSource.key();
             if (!values.isMultiValued()) {
                 double value = values.getValue(doc);
-                return context.accept(doc, valueSourceKey, value) && range.matches(value);
+                return context.accept(valueSourceKey, value) && range.matches(value);
             }
 
             for (DoubleValues.Iter iter = values.getIter(doc); iter.hasNext();) {
                 double value = iter.next();
-                if (context.accept(doc, valueSourceKey, value) && range.matches(value)) {
+                if (context.accept(valueSourceKey, value) && range.matches(value)) {
                     return true;
                 }
             }
@@ -169,7 +169,7 @@ public class RangeAggregator extends DoubleBucketAggregator {
         }
 
         @Override
-        public boolean accept(int doc, double value, DoubleValues values) {
+        public boolean accept(double value) {
             return range.matches(value);
         }
 

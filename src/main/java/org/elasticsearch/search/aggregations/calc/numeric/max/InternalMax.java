@@ -24,7 +24,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.aggregations.AggregationStreams;
 import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.calc.numeric.Stats;
+import org.elasticsearch.search.aggregations.calc.numeric.NumericAggregation;
 import org.elasticsearch.search.aggregations.format.ValueFormatterStreams;
 
 import java.io.IOException;
@@ -33,7 +33,7 @@ import java.util.List;
 /**
 *
 */
-public class InternalMax extends Stats.SingleValue implements Max {
+public class InternalMax extends NumericAggregation.SingleValue implements Max {
 
     public final static Type TYPE = new Type("max");
 
@@ -138,7 +138,7 @@ public class InternalMax extends Stats.SingleValue implements Max {
         return builder;
     }
 
-    public static class Factory implements Stats.Factory<InternalMax> {
+    public static class Factory implements NumericAggregation.Factory<InternalMax> {
         @Override
         public InternalMax create(String name) {
             return new InternalMax(name);

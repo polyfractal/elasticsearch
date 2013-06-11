@@ -56,23 +56,9 @@ public abstract class ValuesSourceCalcAggregator<VS extends ValuesSource> extend
 
         @Override
         public final void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException {
-            if (valuesSource != null) {
-                valuesSource.setNextReader(reader);
-            } else {
-                valuesSource = extractValuesSourceFromContext(context);
-            }
+            valuesSource.setNextReader(reader);
             setNextValues(valuesSource, context);
         }
-
-        /**
-         * Extracts the appropriate values source from the given aggregation context. The returned values source cannot
-         * be {@code null}. If the underlying implementation cannot find the appropriate values source in the context
-         * it should throw an exception.
-         *
-         * @param context   The aggregation context
-         * @return          The value source
-         */
-        protected abstract VS extractValuesSourceFromContext(AggregationContext context);
 
         /**
          * Calls on the underlying implementation to set the next values on which this aggregator will act.

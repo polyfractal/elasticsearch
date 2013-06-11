@@ -24,7 +24,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.aggregations.AggregationStreams;
 import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.calc.numeric.Stats;
+import org.elasticsearch.search.aggregations.calc.numeric.NumericAggregation;
 import org.elasticsearch.search.aggregations.format.ValueFormatterStreams;
 
 import java.io.IOException;
@@ -33,7 +33,7 @@ import java.util.List;
 /**
 *
 */
-public class InternalSum extends Stats.SingleValue implements Sum {
+public class InternalSum extends NumericAggregation.SingleValue implements Sum {
 
     public final static Type TYPE = new Type("sum");
 
@@ -136,7 +136,7 @@ public class InternalSum extends Stats.SingleValue implements Sum {
         return builder;
     }
 
-    public static class Factory implements Stats.Factory<InternalSum> {
+    public static class Factory implements NumericAggregation.Factory<InternalSum> {
         @Override
         public InternalSum create(String name) {
             return new InternalSum(name);

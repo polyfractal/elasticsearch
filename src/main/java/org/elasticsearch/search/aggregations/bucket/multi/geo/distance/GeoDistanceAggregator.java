@@ -147,11 +147,11 @@ public class GeoDistanceAggregator extends GeoPointBucketAggregator {
                 return false;
             }
             if (!values.isMultiValued()) {
-                return range.matches(values.getValue(doc)) && context.accept(doc, valuesSourceKey, values.getValue(doc));
+                return range.matches(values.getValue(doc)) && context.accept(valuesSourceKey, values.getValue(doc));
             }
             for (GeoPointValues.Iter iter = values.getIter(doc); iter.hasNext();) {
                 GeoPoint point = iter.next();
-                if (range.matches(point) && context.accept(doc, valuesSourceKey, point)) {
+                if (range.matches(point) && context.accept(valuesSourceKey, point)) {
                     return true;
                 }
             }
@@ -163,7 +163,7 @@ public class GeoDistanceAggregator extends GeoPointBucketAggregator {
         }
 
         @Override
-        public boolean accept(int doc, GeoPoint value, GeoPointValues values) {
+        public boolean accept(GeoPoint value) {
             return range.matches(value);
         }
 

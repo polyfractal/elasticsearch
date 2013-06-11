@@ -23,6 +23,7 @@ import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.context.ScriptValues;
 
+import java.lang.reflect.Array;
 import java.util.Iterator;
 import java.util.List;
 
@@ -58,7 +59,7 @@ public class ScriptLongValues extends LongValues implements ScriptValues {
         if (this.docId != docId) {
             this.docId = docId;
             script.setNextDocId(docId);
-            value = script.runAsLong();
+            value = script.run();
         }
         if (value == null) {
             return false;
@@ -69,17 +70,16 @@ public class ScriptLongValues extends LongValues implements ScriptValues {
             return true;
         }
 
-        if (value instanceof long[]) {
-            return ((long[]) value).length != 0;
+        if (value.getClass().isArray()) {
+            return Array.getLength(value) != 0;
         }
         if (value instanceof List) {
             return !((List) value).isEmpty();
         }
         if (value instanceof Iterator) {
-            return ((Iterator<Number>) value).hasNext();
+            return ((Iterator) value).hasNext();
         }
         return true;
-//        throw new AggregationExecutionException("value of type [" + value.getClass().getName() + "] is not supported as long script output");
     }
 
     @Override
@@ -87,7 +87,7 @@ public class ScriptLongValues extends LongValues implements ScriptValues {
         if (this.docId != docId) {
             this.docId = docId;
             script.setNextDocId(docId);
-            value = script.runAsLong();
+            value = script.run();
         }
 
         // shortcutting on single valued
@@ -95,14 +95,14 @@ public class ScriptLongValues extends LongValues implements ScriptValues {
             return (Long) value;
         }
 
-        if (value instanceof long[]) {
-            return ((long[]) value)[0];
+        if (value.getClass().isArray()) {
+            return ((Number) Array.get(value, 0)).longValue();
         }
         if (value instanceof List) {
-            return (Long) ((List) value).get(0);
+            return ((Number) ((List) value).get(0)).longValue();
         }
         if (value instanceof Iterator) {
-            return ((Iterator<Long>) value).next();
+            return ((Iterator<Number>) value).next().longValue();
         }
         return (Long) value;
     }
@@ -112,7 +112,7 @@ public class ScriptLongValues extends LongValues implements ScriptValues {
         if (this.docId != docId) {
             this.docId = docId;
             script.setNextDocId(docId);
-            value = script.runAsLong();
+            value = script.run();
         }
 
         // shortcutting on single valued
@@ -120,16 +120,16 @@ public class ScriptLongValues extends LongValues implements ScriptValues {
             return super.getIter(docId);
         }
 
-        if (value instanceof long[]) {
-            iter.array = (long[]) value;
+        if (value.getClass().isArray()) {
+            iter.reset(value);
             return iter;
         }
         if (value instanceof List) {
-            iter.reset(((List<Long>) value).iterator());
+            iter.reset(((List<Number>) value).iterator());
             return iter;
         }
         if (value instanceof Iterator) {
-            iter.reset((Iterator<Long>) value);
+            iter.reset((Iterator<Number>) value);
             return iter;
         }
 
@@ -139,17 +139,19 @@ public class ScriptLongValues extends LongValues implements ScriptValues {
 
     static class InternalIter implements Iter {
 
-        long[] array;
+        Object array;
+        int arrayLength;
         int i = 0;
 
-        Iterator<Long> iterator;
+        Iterator<Number> iterator;
 
-        void reset(long[] array) {
+        void reset(Object array) {
             this.array = array;
+            this.arrayLength = Array.getLength(array);
             this.iterator = null;
         }
 
-        void reset(Iterator<Long> iterator) {
+        void reset(Iterator<Number> iterator) {
             this.iterator = iterator;
             this.array = null;
         }
@@ -159,15 +161,15 @@ public class ScriptLongValues extends LongValues implements ScriptValues {
             if (iterator != null) {
                 return iterator.hasNext();
             }
-            return i + 1 < array.length;
+            return i + 1 < arrayLength;
         }
 
         @Override
         public long next() {
             if (iterator != null) {
-                return iterator.next();
+                return iterator.next().longValue();
             }
-            return array[++i];
+            return ((Number) Array.get(array, ++i)).longValue();
         }
     }
 }

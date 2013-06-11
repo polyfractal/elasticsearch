@@ -34,15 +34,6 @@ import org.elasticsearch.search.aggregations.context.longs.LongValuesSource;
  */
 public interface AggregationContext {
 
-    DoubleValuesSource doubleValuesSource();
-
-    LongValuesSource longValuesSource();
-
-    BytesValuesSource bytesValuesSource();
-
-    GeoPointValuesSource geoPointValuesSource();
-
-
     /**
      * Determines whether the given double value for the given field should be aggregated.
      *
@@ -50,7 +41,7 @@ public interface AggregationContext {
      * @param value             The value
      * @return {@code true} if the value should be aggregated, {@code false} otherwise.
      */
-    boolean accept(int doc, String valueSourceKey, double value);
+    boolean accept(String valueSourceKey, double value);
 
     /**
      * Determines whether the given long value for the given field should be aggregated.
@@ -59,7 +50,7 @@ public interface AggregationContext {
      * @param value             The value
      * @return {@code true} if the value should be aggregated, {@code false} otherwise.
      */
-    boolean accept(int doc, String valueSourceKey, long value);
+    boolean accept(String valueSourceKey, long value);
 
     /**
      * Determines whether the given bytesref value for the given field should be aggregated.
@@ -68,7 +59,7 @@ public interface AggregationContext {
      * @param value             The value
      * @return {@code true} if the value should be aggregated, {@code false} otherwise.
      */
-    boolean accept(int doc, String valueSourceKey, BytesRef value);
+    boolean accept(String valueSourceKey, BytesRef value);
 
     /**
      * Determines whether the given geo point value for the given field should be aggregated.
@@ -77,6 +68,6 @@ public interface AggregationContext {
      * @param value             The value
      * @return {@code true} if the value should be aggregated, {@code false} otherwise.
      */
-    boolean accept(int doc, String valueSourceKey, GeoPoint value);
+    boolean accept(String valueSourceKey, GeoPoint value);
 
 }

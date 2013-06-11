@@ -76,7 +76,7 @@ public class MissingAggregator extends SingleBytesBucketAggregator {
         }
 
         @Override
-        public boolean accept(int doc, BytesRef value, BytesValues values) {
+        public boolean accept(BytesRef value) {
             // doesn't matter what we return here... this method will never be called anyway
             // if a doc made it down the hierarchy, by definition the doc has no values for the field
             // so there's no way this method will be called with a value for this field

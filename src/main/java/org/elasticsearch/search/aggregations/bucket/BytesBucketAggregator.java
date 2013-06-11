@@ -29,9 +29,6 @@ import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
-import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
-import org.elasticsearch.search.aggregations.context.geopoints.GeoPointValuesSource;
-import org.elasticsearch.search.aggregations.context.longs.LongValuesSource;
 
 import java.io.IOException;
 import java.util.List;
@@ -75,49 +72,29 @@ public abstract class BytesBucketAggregator extends ValuesSourceBucketAggregator
         protected abstract boolean onDoc(int doc, BytesValues values, AggregationContext context) throws IOException;
 
         @Override
-        public DoubleValuesSource doubleValuesSource() {
-            return parentContext.doubleValuesSource();
+        public boolean accept(String valueSourceKey, double value) {
+            return parentContext.accept(valueSourceKey, value);
         }
 
         @Override
-        public LongValuesSource longValuesSource() {
-            return parentContext.longValuesSource();
+        public boolean accept(String valueSourceKey, long value) {
+            return parentContext.accept(valueSourceKey, value);
         }
 
         @Override
-        public BytesValuesSource bytesValuesSource() {
-            return valuesSource;
+        public boolean accept(String valueSourceKey, GeoPoint value) {
+            return parentContext.accept(valueSourceKey, value);
         }
 
         @Override
-        public GeoPointValuesSource geoPointValuesSource() {
-            return parentContext.geoPointValuesSource();
-        }
-
-        @Override
-        public boolean accept(int doc, String valueSourceKey, double value) {
-            return parentContext.accept(doc, valueSourceKey, value);
-        }
-
-        @Override
-        public boolean accept(int doc, String valueSourceKey, long value) {
-            return parentContext.accept(doc, valueSourceKey, value);
-        }
-
-        @Override
-        public boolean accept(int doc, String valueSourceKey, GeoPoint value) {
-            return parentContext.accept(doc, valueSourceKey, value);
-        }
-
-        @Override
-        public boolean accept(int doc, String valueSourceKey, BytesRef value) {
+        public boolean accept(String valueSourceKey, BytesRef value) {
             if (valuesSource.key().equals(valueSourceKey)) {
-                return accept(doc, value, values);
+                return accept(value);
             }
             return true;
         }
 
-        public abstract boolean accept(int doc, BytesRef value, BytesValues values);
+        public abstract boolean accept(BytesRef value);
     }
 
     protected abstract static class FieldDataFactory<A extends BytesBucketAggregator> extends CompoundFactory<A> {

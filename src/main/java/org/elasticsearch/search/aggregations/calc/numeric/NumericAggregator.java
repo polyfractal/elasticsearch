@@ -22,7 +22,7 @@ package org.elasticsearch.search.aggregations.calc.numeric;
 import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.calc.NumericCalcAggregator;
+import org.elasticsearch.search.aggregations.calc.DoubleCalcAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
 import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
@@ -32,13 +32,13 @@ import java.io.IOException;
 /**
  *
  */
-public class NumberAggregator<S extends Stats> extends NumericCalcAggregator {
+public class NumericAggregator<S extends NumericAggregation> extends DoubleCalcAggregator {
 
-    private final Stats.Factory<S> statsFactory;
+    private final NumericAggregation.Factory<S> statsFactory;
 
     S stats;
 
-    public NumberAggregator(String name, DoubleValuesSource valuesSource, Stats.Factory<S> statsFactory, Aggregator parent) {
+    public NumericAggregator(String name, DoubleValuesSource valuesSource, NumericAggregation.Factory<S> statsFactory, Aggregator parent) {
         super(name, valuesSource, parent);
         this.statsFactory = statsFactory;
     }
@@ -50,13 +50,13 @@ public class NumberAggregator<S extends Stats> extends NumericCalcAggregator {
     }
 
     @Override
-    public Stats buildAggregation() {
+    public NumericAggregation buildAggregation() {
         return stats;
     }
 
     //========================================= Collector ===============================================//
 
-    class Collector extends NumericCalcAggregator.Collector {
+    class Collector extends DoubleCalcAggregator.Collector {
 
         S stats;
 
@@ -73,7 +73,7 @@ public class NumberAggregator<S extends Stats> extends NumericCalcAggregator {
 
             if (!values.isMultiValued()) {
                 double value = values.getValue(doc);
-                if (context.accept(doc, valuesSource.key(), value)) {
+                if (context.accept(valuesSource.key(), value)) {
                     stats.collect(doc, value);
                 }
                 return;
@@ -81,7 +81,7 @@ public class NumberAggregator<S extends Stats> extends NumericCalcAggregator {
 
             for (DoubleValues.Iter iter = values.getIter(doc); iter.hasNext();) {
                 double value = iter.next();
-                if (context.accept(doc, valuesSource.key(), value)) {
+                if (context.accept(valuesSource.key(), value)) {
                     stats.collect(doc, value);
                 }
             }
@@ -89,64 +89,64 @@ public class NumberAggregator<S extends Stats> extends NumericCalcAggregator {
 
         @Override
         public void postCollection() {
-            NumberAggregator.this.stats = stats;
+            NumericAggregator.this.stats = stats;
         }
     }
 
     //========================================== Builders ===============================================//
 
-    public static class FieldDataFactory<S extends Stats> extends NumericCalcAggregator.FieldDataFactory<NumberAggregator<S>> {
+    public static class FieldDataFactory<S extends NumericAggregation> extends DoubleCalcAggregator.FieldDataFactory<NumericAggregator<S>> {
 
-        private final Stats.Factory<S> statsFactory;
+        private final NumericAggregation.Factory<S> statsFactory;
 
-        public FieldDataFactory(String name, Stats.Factory<S> statsFactory) {
+        public FieldDataFactory(String name, NumericAggregation.Factory<S> statsFactory) {
             super(name, null);
             this.statsFactory = statsFactory;
         }
 
-        public FieldDataFactory(String name, Stats.Factory<S> statsFactory, FieldDataContext fieldDataContext) {
+        public FieldDataFactory(String name, NumericAggregation.Factory<S> statsFactory, FieldDataContext fieldDataContext) {
             super(name, fieldDataContext);
             this.statsFactory = statsFactory;
         }
 
-        public FieldDataFactory(String name, Stats.Factory<S> statsFactory, FieldDataContext fieldDataContext, SearchScript valueScript) {
+        public FieldDataFactory(String name, NumericAggregation.Factory<S> statsFactory, FieldDataContext fieldDataContext, SearchScript valueScript) {
             super(name, fieldDataContext, valueScript);
             this.statsFactory = statsFactory;
         }
 
         @Override
-        protected NumberAggregator<S> create(DoubleValuesSource source, Aggregator parent) {
-            return new NumberAggregator<S>(name, source, statsFactory, parent);
+        protected NumericAggregator<S> create(DoubleValuesSource source, Aggregator parent) {
+            return new NumericAggregator<S>(name, source, statsFactory, parent);
         }
     }
 
-    public static class ScriptFactory<S extends Stats> extends NumericCalcAggregator.ScriptFactory<NumberAggregator<S>> {
+    public static class ScriptFactory<S extends NumericAggregation> extends DoubleCalcAggregator.ScriptFactory<NumericAggregator<S>> {
 
-        private final Stats.Factory<S> statsFactory;
+        private final NumericAggregation.Factory<S> statsFactory;
 
-        public ScriptFactory(String name, SearchScript script, Stats.Factory<S> statsFactory) {
+        public ScriptFactory(String name, SearchScript script, NumericAggregation.Factory<S> statsFactory) {
             super(name, script);
             this.statsFactory = statsFactory;
         }
 
         @Override
-        protected NumberAggregator<S> create(DoubleValuesSource source, Aggregator parent) {
-            return new NumberAggregator<S>(name, source, statsFactory, parent);
+        protected NumericAggregator<S> create(DoubleValuesSource source, Aggregator parent) {
+            return new NumericAggregator<S>(name, source, statsFactory, parent);
         }
     }
 
-    public static class ContextBasedFactory<S extends Stats> extends NumericCalcAggregator.ContextBasedFactory<NumberAggregator<S>> {
+    public static class ContextBasedFactory<S extends NumericAggregation> extends DoubleCalcAggregator.ContextBasedFactory<NumericAggregator<S>> {
 
-        private final Stats.Factory<S> statsFactory;
+        private final NumericAggregation.Factory<S> statsFactory;
 
-        public ContextBasedFactory(String name, Stats.Factory<S> statsFactory) {
+        public ContextBasedFactory(String name, NumericAggregation.Factory<S> statsFactory) {
             super(name);
             this.statsFactory = statsFactory;
         }
 
         @Override
-        protected NumberAggregator<S> create(DoubleValuesSource source, Aggregator parent) {
-            return new NumberAggregator<S>(name, source, statsFactory, parent);
+        protected NumericAggregator<S> create(DoubleValuesSource source, Aggregator parent) {
+            return new NumericAggregator<S>(name, source, statsFactory, parent);
         }
     }
 

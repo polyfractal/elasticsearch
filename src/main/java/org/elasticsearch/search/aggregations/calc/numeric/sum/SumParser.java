@@ -19,12 +19,12 @@
 
 package org.elasticsearch.search.aggregations.calc.numeric.sum;
 
-import org.elasticsearch.search.aggregations.calc.numeric.StatsParser;
+import org.elasticsearch.search.aggregations.calc.numeric.NumericAggregatorParser;
 
 /**
  *
  */
-public class SumParser extends StatsParser<InternalSum> {
+public class SumParser extends NumericAggregatorParser<InternalSum> {
 
     public SumParser() {
         super(InternalSum.TYPE.name(), new InternalSum.Factory());

@@ -137,7 +137,7 @@ public class StringTermsAggregator extends BytesBucketAggregator {
             BytesRef scratch = new BytesRef();
             if (!values.isMultiValued()) {
                 int hash = values.getValueHashed(doc, scratch);
-                if (!context.accept(doc, valuesSourceKey, scratch)) {
+                if (!context.accept(valuesSourceKey, scratch)) {
                     return;
                 }
                 HashedBytesRef term = new HashedBytesRef(scratch, hash);
@@ -167,7 +167,7 @@ public class StringTermsAggregator extends BytesBucketAggregator {
             for (BytesValues.Iter iter = values.getIter(doc); iter.hasNext();) {
                 BytesRef value = iter.next();
                 int hash = iter.hash();
-                if (!context.accept(doc, valuesSourceKey, value)) {
+                if (!context.accept(valuesSourceKey, value)) {
                     continue;
                 }
                 HashedBytesRef term = new HashedBytesRef(value, hash);

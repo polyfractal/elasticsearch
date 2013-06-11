@@ -132,7 +132,7 @@ public class HistogramCollector implements Aggregator.Collector {
             // so we can just collect it
 
             double value = values.getValue(doc);
-            if (!context.accept(doc, valuesSource.key(), value)) {
+            if (!context.accept(valuesSource.key(), value)) {
                 return;
             }
             long key = rounding.round((long) value);
@@ -168,7 +168,7 @@ public class HistogramCollector implements Aggregator.Collector {
         List<BucketCollector> matchedBuckets = Lists.newArrayListWithCapacity(4);
         for (DoubleValues.Iter iter = values.getIter(doc); iter.hasNext();) {
             double value = iter.next();
-            if (!context.accept(doc, valuesSourceKey, value)) {
+            if (!context.accept(valuesSourceKey, value)) {
                 continue;
             }
             long key = rounding.round((long) value);
@@ -213,7 +213,7 @@ public class HistogramCollector implements Aggregator.Collector {
         }
 
         @Override
-        public boolean accept(int doc, double value, DoubleValues values) {
+        public boolean accept(double value) {
             return this.key == rounding.round((long) value);
         }
 

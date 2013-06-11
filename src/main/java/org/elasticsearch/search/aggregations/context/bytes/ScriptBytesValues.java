@@ -24,6 +24,7 @@ import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.context.ScriptValues;
 
+import java.lang.reflect.Array;
 import java.util.Iterator;
 import java.util.List;
 
@@ -61,7 +62,7 @@ public class ScriptBytesValues extends BytesValues implements ScriptValues {
         if (this.docId != docId) {
             this.docId = docId;
             script.setNextDocId(docId);
-            value = script.runAsLong();
+            value = script.run();
         }
         if (value != null) {
             return false;
@@ -72,8 +73,8 @@ public class ScriptBytesValues extends BytesValues implements ScriptValues {
             return true;
         }
 
-        if (value instanceof Object[]) {
-            return ((Object[]) value).length > 0;
+        if (value.getClass().isArray()) {
+            return Array.getLength(value) > 0;
         }
         if (value instanceof List) {
             return !((List) value).isEmpty();
@@ -98,8 +99,8 @@ public class ScriptBytesValues extends BytesValues implements ScriptValues {
             return ret;
         }
 
-        if (value instanceof Object[]) {
-            ret.copyChars(((Object[]) value)[0].toString());
+        if (value.getClass().isArray()) {
+            ret.copyChars(Array.get(value, 0).toString());
             return ret;
         }
         if (value instanceof List) {
@@ -124,7 +125,7 @@ public class ScriptBytesValues extends BytesValues implements ScriptValues {
         if (this.docId != docId) {
             this.docId = docId;
             script.setNextDocId(docId);
-            value = script.runAsLong();
+            value = script.run();
         }
 
         // shortcutting single valued
@@ -134,8 +135,8 @@ public class ScriptBytesValues extends BytesValues implements ScriptValues {
             return singleIter;
         }
 
-        if (value instanceof Object[]) {
-            iter.reset((Object[]) value);
+        if (value.getClass().isArray()) {
+            iter.reset(value);
             return iter;
         }
         if (value instanceof List) {
@@ -154,15 +155,17 @@ public class ScriptBytesValues extends BytesValues implements ScriptValues {
 
     static class InternalIter implements Iter {
 
-        Object[] array;
+        Object array;
+        int arrayLength;
         int i = 0;
 
         Iterator iterator;
 
         final BytesRef scratch = new BytesRef();
 
-        void reset(Object[] array) {
+        void reset(Object array) {
             this.array = array;
+            this.arrayLength = Array.getLength(array);
             this.iterator = null;
         }
 
@@ -176,7 +179,7 @@ public class ScriptBytesValues extends BytesValues implements ScriptValues {
             if (iterator != null) {
                 return iterator.hasNext();
             }
-            return i + 1 < array.length;
+            return i + 1 < arrayLength;
         }
 
         @Override
@@ -185,7 +188,7 @@ public class ScriptBytesValues extends BytesValues implements ScriptValues {
                 scratch.copyChars(iterator.next().toString());
                 return scratch;
             }
-            scratch.copyChars(array[++i].toString());
+            scratch.copyChars(Array.get(array, ++i).toString());
             return scratch;
         }
 

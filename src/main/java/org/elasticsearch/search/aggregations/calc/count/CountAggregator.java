@@ -64,11 +64,15 @@ public class CountAggregator extends BytesCalcAggregator {
                 return;
             }
             if (!values.isMultiValued()) {
-                value++;
+                if (context.accept(valuesSource.key(), values.getValue(doc))) {
+                    value++;
+                }
                 return;
             }
-            for (BytesValues.Iter iter  = values.getIter(doc); iter.hasNext(); iter.next()) {
-                value++;
+            for (BytesValues.Iter iter  = values.getIter(doc); iter.hasNext();) {
+                if (context.accept(valuesSource.key(), iter.next())) {
+                    value++;
+                }
             }
         }
 

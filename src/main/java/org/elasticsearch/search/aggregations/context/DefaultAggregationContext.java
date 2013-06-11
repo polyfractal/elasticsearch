@@ -21,10 +21,6 @@ package org.elasticsearch.search.aggregations.context;
 
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.geo.GeoPoint;
-import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
-import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
-import org.elasticsearch.search.aggregations.context.geopoints.GeoPointValuesSource;
-import org.elasticsearch.search.aggregations.context.longs.LongValuesSource;
 
 /**
  * The default aggregation context (a fast one) which determines that all values for all fields should be aggregated.
@@ -34,42 +30,22 @@ public class DefaultAggregationContext implements AggregationContext {
     public static final DefaultAggregationContext INSTANCE = new DefaultAggregationContext();
 
     @Override
-    public DoubleValuesSource doubleValuesSource() {
-        return null;
-    }
-
-    @Override
-    public LongValuesSource longValuesSource() {
-        return null;
-    }
-
-    @Override
-    public BytesValuesSource bytesValuesSource() {
-        return null;
-    }
-
-    @Override
-    public GeoPointValuesSource geoPointValuesSource() {
-        return null;
-    }
-
-    @Override
-    public boolean accept(int doc, String field, double value) {
+    public boolean accept(String valuesSourceKey, double value) {
         return true;
     }
 
     @Override
-    public boolean accept(int doc, String field, long value) {
+    public boolean accept(String valuesSourceKey, long value) {
         return true;
     }
 
     @Override
-    public boolean accept(int doc, String field, BytesRef value) {
+    public boolean accept(String valuesSourceKey, BytesRef value) {
         return true;
     }
 
     @Override
-    public boolean accept(int doc, String field, GeoPoint value) {
+    public boolean accept(String valuesSourceKey, GeoPoint value) {
         return true;
     }
 }

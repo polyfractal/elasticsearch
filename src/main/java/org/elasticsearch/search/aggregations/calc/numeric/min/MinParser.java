@@ -19,12 +19,12 @@
 
 package org.elasticsearch.search.aggregations.calc.numeric.min;
 
-import org.elasticsearch.search.aggregations.calc.numeric.StatsParser;
+import org.elasticsearch.search.aggregations.calc.numeric.NumericAggregatorParser;
 
 /**
  *
  */
-public class MinParser extends StatsParser<InternalMin> {
+public class MinParser extends NumericAggregatorParser<InternalMin> {
 
     public MinParser() {
         super(InternalMin.TYPE.name(), new InternalMin.Factory());

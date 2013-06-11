@@ -139,7 +139,7 @@ public class LongTermsAggregator extends LongBucketAggregator {
             String valuesSourceKey = valuesSource.key();
             if (!values.isMultiValued()) {
                 long term = values.getValue(doc);
-                if (!context.accept(doc, valuesSourceKey, term)) {
+                if (!context.accept(valuesSourceKey, term)) {
                     return;
                 }
                 BucketCollector bucket = bucketCollectors.get(term);
@@ -163,7 +163,7 @@ public class LongTermsAggregator extends LongBucketAggregator {
             List<BucketCollector> matchedBuckets = null;
             for (LongValues.Iter iter = values.getIter(doc); iter.hasNext();) {
                 long term = iter.next();
-                if (!context.accept(doc, valuesSourceKey, term)) {
+                if (!context.accept(valuesSourceKey, term)) {
                     continue;
                 }
                 BucketCollector bucket = bucketCollectors.get(term);

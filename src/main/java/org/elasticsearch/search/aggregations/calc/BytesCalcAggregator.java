@@ -50,16 +50,6 @@ public abstract class BytesCalcAggregator extends ValuesSourceCalcAggregator<Byt
         }
 
         @Override
-        protected BytesValuesSource extractValuesSourceFromContext(AggregationContext context) {
-            BytesValuesSource valuesSource = context.bytesValuesSource();
-            if (valuesSource == null) {
-                throw new AggregationExecutionException("Missing values in aggregation context for aggregator [" + aggregatorName + "]");
-            }
-            return valuesSource;
-        }
-
-
-        @Override
         protected void setNextValues(BytesValuesSource valuesSource, AggregationContext context) throws IOException {
             this.context = context;
             values = valuesSource.values();

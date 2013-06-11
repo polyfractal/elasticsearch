@@ -19,10 +19,12 @@
 
 package org.elasticsearch.search.aggregations.calc.numeric.stats;
 
+import org.elasticsearch.search.aggregations.calc.numeric.NumericAggregatorParser;
+
 /**
  *
  */
-public class ExtendedStatsParser extends org.elasticsearch.search.aggregations.calc.numeric.StatsParser<InternalExtendedStats> {
+public class ExtendedStatsParser extends NumericAggregatorParser<InternalExtendedStats> {
 
     public ExtendedStatsParser() {
         super(InternalExtendedStats.TYPE.name(), new InternalExtendedStats.Factory());

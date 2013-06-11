@@ -25,6 +25,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentBuilderString;
 import org.elasticsearch.search.aggregations.AggregationStreams;
 import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.calc.numeric.NumericAggregation;
 
 import java.io.IOException;
 
@@ -133,7 +134,7 @@ public class InternalExtendedStats extends InternalStats implements ExtendedStat
         return builder;
     }
 
-    public static class Factory implements org.elasticsearch.search.aggregations.calc.numeric.Stats.Factory<InternalExtendedStats> {
+    public static class Factory implements NumericAggregation.Factory<InternalExtendedStats> {
         @Override
         public InternalExtendedStats create(String name) {
             return new InternalExtendedStats(name);

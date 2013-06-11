@@ -19,13 +19,13 @@
 
 package org.elasticsearch.search.aggregations.bucket.single.filter;
 
-import com.google.common.collect.Lists;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.util.Bits;
 import org.elasticsearch.common.lucene.docset.DocIdSets;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 
@@ -52,12 +52,8 @@ public class FilterAggregator extends SingleBucketAggregator {
     }
 
     @Override
-    public InternalFilter buildAggregation(Aggregator[] aggregators) {
-        List<InternalAggregation> aggregationResults = Lists.newArrayListWithCapacity(aggregators.length);
-        for (int i = 0; i < aggregators.length; i++) {
-            aggregationResults.add(aggregators[i].buildAggregation());
-        }
-        return new InternalFilter(name, docCount, aggregationResults);
+    protected InternalAggregation buildAggregation(InternalAggregations aggregations) {
+        return new InternalFilter(name, docCount, aggregations);
     }
 
     class Collector extends SingleBucketAggregator.BucketCollector {
@@ -66,7 +62,7 @@ public class FilterAggregator extends SingleBucketAggregator {
         private long docCount;
 
         Collector(Aggregator[] aggregators) {
-            super(aggregators);
+            super(name, aggregators);
         }
 
         @Override
@@ -91,7 +87,7 @@ public class FilterAggregator extends SingleBucketAggregator {
 
     }
 
-    public static class Factory extends SingleBucketAggregator.Factory<FilterAggregator, Factory> {
+    public static class Factory extends Aggregator.CompoundFactory<FilterAggregator> {
 
         private org.apache.lucene.search.Filter filter;
 

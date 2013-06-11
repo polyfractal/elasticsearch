@@ -20,22 +20,22 @@
 package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
 import com.google.common.collect.Lists;
+import org.elasticsearch.search.aggregations.AbstractAggregator;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
 
 import java.util.List;
 
 /**
  * A histogram aggregator knows how to "aggregate" unmapped fields
  */
-public class UnmappedHistogramAggregator extends SingleBucketAggregator {
+public class UnmappedHistogramAggregator extends AbstractAggregator {
 
     private final InternalOrder order;
     private final boolean keyed;
 
     public UnmappedHistogramAggregator(String name, InternalOrder order, boolean keyed, Aggregator parent) {
-        super(name, null, parent);
+        super(name, parent);
         this.order = order;
         this.keyed = keyed;
     }
@@ -51,7 +51,7 @@ public class UnmappedHistogramAggregator extends SingleBucketAggregator {
         return new InternalHistogram(name, buckets, order, keyed);
     }
 
-    public static class Factory extends SingleBucketAggregator.Factory<UnmappedHistogramAggregator, Factory> {
+    public static class Factory extends Aggregator.CompoundFactory<UnmappedHistogramAggregator> {
 
         private final InternalOrder order;
         private final boolean keyed;

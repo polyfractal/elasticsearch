@@ -24,8 +24,6 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.aggregations.*;
-import org.elasticsearch.search.aggregations.format.ValueFormatter;
-import org.elasticsearch.search.aggregations.format.ValueFormatterStreams;
 
 import java.io.IOException;
 import java.util.*;
@@ -57,14 +55,12 @@ public class InternalRange extends InternalAggregation implements Range {
         private long docCount;
         private InternalAggregations aggregations;
         private String key;
-        private ValueFormatter valueFormatter;
 
-        public Bucket(String key, double from, double to, long docCount, ValueFormatter valueFormatter, InternalAggregations aggregations) {
+        public Bucket(String key, double from, double to, long docCount, InternalAggregations aggregations) {
             this.key = key;
             this.from = from;
             this.to = to;
             this.docCount = docCount;
-            this.valueFormatter = valueFormatter;
             this.aggregations = aggregations;
         }
 
@@ -78,18 +74,8 @@ public class InternalRange extends InternalAggregation implements Range {
         }
 
         @Override
-        public String getFromAsString() {
-            return valueFormatter == null ? String.valueOf(from) : valueFormatter.format(from);
-        }
-
-        @Override
         public double getTo() {
             return to;
-        }
-
-        @Override
-        public String getToAsString() {
-            return valueFormatter == null ? String.valueOf(to) : valueFormatter.format(to);
         }
 
         @Override
@@ -137,15 +123,9 @@ public class InternalRange extends InternalAggregation implements Range {
             }
             if (!Double.isInfinite(from)) {
                 builder.field(CommonFields.FROM, from);
-                if (valueFormatter != null) {
-                    builder.field(CommonFields.FROM_AS_STRING, valueFormatter.format(from));
-                }
             }
             if (!Double.isInfinite(to)) {
                 builder.field(CommonFields.TO, to);
-                if (valueFormatter != null) {
-                    builder.field(CommonFields.TO_AS_STRING, valueFormatter.format(to));
-                }
             }
             builder.field(CommonFields.DOC_COUNT, docCount);
             aggregations.toXContentInternal(builder, params);
@@ -229,8 +209,7 @@ public class InternalRange extends InternalAggregation implements Range {
         List<Bucket> ranges = Lists.newArrayListWithCapacity(size);
         for (int i = 0; i < size; i++) {
             String key = in.readOptionalString();
-            ValueFormatter valueFormatter = ValueFormatterStreams.readOptional(in);
-            ranges.add(new Bucket(key, in.readDouble(), in.readDouble(), in.readVLong(), valueFormatter, InternalAggregations.readAggregations(in)));
+            ranges.add(new Bucket(key, in.readDouble(), in.readDouble(), in.readVLong(), InternalAggregations.readAggregations(in)));
         }
         this.ranges = ranges;
         this.rangeMap = null;
@@ -243,7 +222,6 @@ public class InternalRange extends InternalAggregation implements Range {
         out.writeVInt(ranges.size());
         for (Bucket range : ranges) {
             out.writeOptionalString(range.key);
-            ValueFormatterStreams.writeOptional(range.valueFormatter, out);
             out.writeDouble(range.from);
             out.writeDouble(range.to);
             out.writeVLong(range.docCount);

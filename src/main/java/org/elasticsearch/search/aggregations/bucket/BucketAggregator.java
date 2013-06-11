@@ -22,14 +22,10 @@ package org.elasticsearch.search.aggregations.bucket;
 import com.google.common.collect.Lists;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
-import org.elasticsearch.search.aggregations.AbstractAggregator;
-import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.InternalAggregations;
+import org.elasticsearch.search.aggregations.*;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -41,13 +37,31 @@ public abstract class BucketAggregator extends AbstractAggregator {
         super(name, parent);
     }
 
+    public static Aggregator[] createAggregators(List<Aggregator.Factory> factories, Aggregator parent) {
+        int i = 0;
+        Aggregator[] aggregators = new Aggregator[factories.size()];
+        for (Aggregator.Factory factory : factories) {
+            aggregators[i++] = factory.create(parent);
+        }
+        return aggregators;
+    }
+
+    public static InternalAggregations buildAggregations(Aggregator[] aggregators) {
+        List<InternalAggregation> aggregations = Lists.newArrayListWithCapacity(aggregators.length);
+        for (int i = 0; i < aggregators.length; i++) {
+            aggregations.add(aggregators[i].buildAggregation());
+        }
+        return new InternalAggregations(aggregations);
+    }
 
     public abstract static class BucketCollector implements Collector {
 
+        protected final String aggregationName;
         public final Aggregator[] aggregators;
         public final Collector[] collectors;
 
-        public BucketCollector(Aggregator[] aggregators) {
+        public BucketCollector(String aggregatorName, Aggregator[] aggregators) {
+            this.aggregationName = aggregatorName;
             this.aggregators = aggregators;
             this.collectors = new Collector[aggregators.length];
             for (int i = 0; i < aggregators.length; i++) {
@@ -55,14 +69,25 @@ public abstract class BucketAggregator extends AbstractAggregator {
             }
         }
 
-        public BucketCollector(Aggregator[] aggregators, AtomicReaderContext reader, Scorer scorer, AggregationContext context) {
-            this.aggregators = aggregators;
+        public BucketCollector(String aggregationName, List<Aggregator.Factory> factories, AtomicReaderContext reader, Scorer scorer, AggregationContext context, Aggregator parent) {
+            this.aggregationName = aggregationName;
+            this.aggregators = new Aggregator[factories.size()];
             this.collectors = new Collector[aggregators.length];
-            for (int i = 0; i < aggregators.length; i++) {
+            int i = 0;
+            for (Aggregator.Factory factory : factories) {
+                aggregators[i] = factory.create(parent);
                 collectors[i] = aggregators[i].collector();
-                if (reader != null) {
-                    collectors[i].setNextReader(reader, context);
+                try {
+                    if (reader != null) {
+                        collectors[i].setNextReader(reader, context);
+                    }
+                    if (scorer != null) {
+                        collectors[i].setScorer(scorer);
+                    }
+                } catch (IOException ioe) {
+                    throw new AggregationExecutionException("Failed to aggregate [" + aggregationName + "]", ioe);
                 }
+                i++;
             }
         }
 
@@ -133,28 +158,6 @@ public abstract class BucketAggregator extends AbstractAggregator {
          */
         protected abstract void postCollection(Aggregator[] aggregators);
 
-        protected InternalAggregations buildAggregations() {
-            List<InternalAggregation> aggregations = Lists.newArrayListWithCapacity(aggregators.length);
-            for (Aggregator aggregator : aggregators) {
-                aggregations.add(aggregator.buildAggregation());
-            }
-            return new InternalAggregations(aggregations);
-        }
     }
 
-
-    public static abstract class Factory<A extends Aggregator, F extends Factory<A, F>> extends Aggregator.Factory<A> {
-
-        protected List<Aggregator.Factory> factories = new ArrayList<Aggregator.Factory>();
-
-        protected Factory(String name) {
-            super(name);
-        }
-
-        @SuppressWarnings("unchecked")
-        public F set(List<Aggregator.Factory> factories) {
-            this.factories = factories;
-            return (F) this;
-        }
-    }
 }

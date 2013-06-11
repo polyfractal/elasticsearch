@@ -67,7 +67,7 @@ public class CountAggregator extends BytesCalcAggregator {
                 value++;
                 return;
             }
-            for (BytesValues.Iter iter  = values.getIter(doc); iter.hasNext();) {
+            for (BytesValues.Iter iter  = values.getIter(doc); iter.hasNext(); iter.next()) {
                 value++;
             }
         }

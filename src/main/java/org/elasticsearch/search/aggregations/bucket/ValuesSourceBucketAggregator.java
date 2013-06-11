@@ -20,54 +20,123 @@
 package org.elasticsearch.search.aggregations.bucket;
 
 import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.search.Scorer;
+import org.elasticsearch.search.aggregations.AbstractValuesSourceAggregator;
+import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
+import org.elasticsearch.search.aggregations.context.ValuesSourceBased;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  *
  */
-public abstract class ValuesSourceBucketAggregator<VS extends ValuesSource> extends BucketAggregator {
+public abstract class ValuesSourceBucketAggregator<VS extends ValuesSource> extends AbstractValuesSourceAggregator<VS> implements ValuesSourceBased {
 
-    protected final VS valuesSource;
-
-    public ValuesSourceBucketAggregator(String name, VS valuesSource, Aggregator parent) {
-        super(name, parent);
-        this.valuesSource = valuesSource;
+    public ValuesSourceBucketAggregator(String name, VS valuesSource, Class<VS> valuesSourceType, Aggregator parent) {
+        super(name, valuesSource, valuesSourceType, parent);
     }
 
-    protected static abstract class BucketCollector<VS extends ValuesSource> extends BucketAggregator.BucketCollector {
+    @Override
+    public ValuesSource valuesSource() {
+        return valuesSource;
+    }
 
-        protected VS valuesSource;
+    protected static abstract class BucketCollector<VS extends ValuesSource> implements Collector {
 
-        public BucketCollector(Aggregator[] aggregators, VS valuesSource) {
-            super(aggregators);
+        protected final VS valuesSource;
+        protected final String aggregationName;
+        public final Aggregator[] aggregators;
+        public final Collector[] collectors;
+
+        protected AggregationContext parentContext;
+
+        public BucketCollector(String aggregatorName, VS valuesSource, Aggregator[] aggregators) {
             this.valuesSource = valuesSource;
+            this.aggregationName = aggregatorName;
+            this.aggregators = aggregators;
+            this.collectors = new Collector[aggregators.length];
+            for (int i = 0; i < aggregators.length; i++) {
+                collectors[i] = aggregators[i].collector();
+            }
+        }
+
+        public BucketCollector(String aggregationName, VS valuesSource, List<Aggregator.Factory> factories, AtomicReaderContext reader,
+                               Scorer scorer, AggregationContext context, Aggregator parent) {
+            this.valuesSource = valuesSource;
+            this.aggregationName = aggregationName;
+            this.aggregators = new Aggregator[factories.size()];
+            this.collectors = new Collector[aggregators.length];
+            int i = 0;
+            for (Aggregator.Factory factory : factories) {
+                aggregators[i] = factory.create(parent);
+                collectors[i] = aggregators[i].collector();
+                try {
+                    if (reader != null) {
+                        collectors[i].setNextReader(reader, context);
+                    }
+                    if (scorer != null) {
+                        collectors[i].setScorer(scorer);
+                    }
+                } catch (IOException ioe) {
+                    throw new AggregationExecutionException("Failed to aggregate [" + aggregationName + "]", ioe);
+                }
+                i++;
+            }
         }
 
         @Override
-        protected AggregationContext setReaderAngGetContext(AtomicReaderContext reader, AggregationContext context) throws IOException {
-            VS valuesSource = this.valuesSource;
-            if (valuesSource != null) {
-                valuesSource.setNextReader(reader);
-            } else {
-                valuesSource = extractValuesSourceFromContext(context);
+        public final void postCollection() {
+            for (int i = 0; i < collectors.length; i++) {
+                if (collectors[i] != null) {
+                    collectors[i].postCollection();
+                }
             }
-            return setNextValues(valuesSource, context);
+            postCollection(aggregators);
+        }
+
+        @Override
+        public void setScorer(Scorer scorer) throws IOException {
+            for (int i = 0; i < collectors.length; i++) {
+                if (collectors[i] != null) {
+                    collectors[i].setScorer(scorer);
+                }
+            }
+        }
+
+        @Override
+        public final void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException {
+            this.parentContext = context;
+            valuesSource.setNextReader(reader);
+            context = setNextValues(valuesSource, context);
+            for (int i = 0; i < collectors.length; i++) {
+                if (collectors[i] != null) {
+                    collectors[i].setNextReader(reader, context);
+                }
+            }
+        }
+
+
+        @Override
+        public final void collect(int doc) throws IOException {
+            if (onDoc(doc, parentContext)) {
+                for (int i = 0; i < collectors.length; i++) {
+                    if (collectors[i] != null) {
+                        collectors[i].collect(doc);
+                    }
+                }
+            }
         }
 
         protected abstract AggregationContext setNextValues(VS valuesSource, AggregationContext context) throws IOException;
 
-        /**
-         * Extracts the appropriate values source from the given aggregation context. The returned values source cannot
-         * be {@code null}. If the underlying implementation cannot find the appropriate values source in the context
-         * it should throw an exception.
-         *
-         * @param context   The aggregation context
-         * @return          The value source
-         */
-        protected abstract VS extractValuesSourceFromContext(AggregationContext context);
+        protected abstract boolean onDoc(int doc, AggregationContext context) throws IOException;
+
+        protected abstract void postCollection(Aggregator[] aggregators);
+
     }
+
 }

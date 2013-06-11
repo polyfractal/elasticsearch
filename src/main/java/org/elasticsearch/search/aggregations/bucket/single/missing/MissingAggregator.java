@@ -19,13 +19,13 @@
 
 package org.elasticsearch.search.aggregations.bucket.single.missing;
 
-import com.google.common.collect.Lists;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.InternalAggregations;
+import org.elasticsearch.search.aggregations.bucket.BytesBucketAggregator;
 import org.elasticsearch.search.aggregations.bucket.single.BytesSingleBucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
+import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 
@@ -39,38 +39,30 @@ public class MissingAggregator extends BytesSingleBucketAggregator {
 
     long docCount;
 
-    public MissingAggregator(String name, List<Aggregator.Factory> factories, Aggregator parent) {
-        super(name, factories, parent);
-    }
-
     public MissingAggregator(String name, List<Aggregator.Factory> factories, BytesValuesSource valuesSource, Aggregator parent) {
         super(name, factories, valuesSource, parent);
     }
 
     @Override
     public Collector collector(Aggregator[] aggregators) {
-        return new Collector(name, aggregators, valuesSource);
+        return new Collector(name, valuesSource, aggregators);
     }
 
     @Override
-    public InternalMissing buildAggregation(Aggregator[] aggregators) {
-        List<InternalAggregation> aggregationResults = Lists.newArrayListWithCapacity(aggregators.length);
-        for (Aggregator aggregator : aggregators) {
-            aggregationResults.add(aggregator.buildAggregation());
-        }
-        return new InternalMissing(name, docCount, aggregationResults);
+    public InternalMissing buildAggregation(InternalAggregations aggregations) {
+        return new InternalMissing(name, docCount, aggregations);
     }
 
-    class Collector extends BytesSingleBucketAggregator.BucketCollector {
+    class Collector extends BytesBucketAggregator.BucketCollector {
 
         private long docCount;
 
-        Collector(String aggregatorName, Aggregator[] aggregators, BytesValuesSource valuesSource) {
-            super(aggregatorName, aggregators, valuesSource);
+        Collector(String aggregatorName, BytesValuesSource valuesSource, Aggregator[] aggregators) {
+            super(aggregatorName,valuesSource,  aggregators);
         }
 
         @Override
-        protected boolean onDoc(int doc, BytesValues values) throws IOException {
+        protected boolean onDoc(int doc, BytesValues values, AggregationContext context) throws IOException {
             if (!values.hasValue(doc)) {
                 docCount++;
                 return true;
@@ -92,7 +84,7 @@ public class MissingAggregator extends BytesSingleBucketAggregator {
         }
     }
 
-    public static class Factory extends SingleBucketAggregator.Factory<MissingAggregator, Factory> {
+    public static class Factory extends Aggregator.CompoundFactory<MissingAggregator> {
 
         private final FieldDataContext fieldDataContext;
 
@@ -107,8 +99,8 @@ public class MissingAggregator extends BytesSingleBucketAggregator {
 
         @Override
         public MissingAggregator create(Aggregator parent) {
-            BytesValuesSource valuesSource = fieldDataContext != null ?
-                    new BytesValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData()) : null;
+            BytesValuesSource valuesSource = fieldDataContext == null ? null :
+                    new BytesValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData());
             return new MissingAggregator(name, factories, valuesSource, parent);
         }
 

@@ -20,52 +20,50 @@
 package org.elasticsearch.search.aggregations.bucket.multi.terms.longs;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
 import org.elasticsearch.common.collect.BoundedTreeSet;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
-import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.FieldDataBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.multi.LongMultiBucketAggregator;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.BucketPriorityQueue;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalTerms;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
-import org.elasticsearch.search.aggregations.context.ValueTransformer;
-import org.elasticsearch.search.aggregations.format.ValueFormatter;
+import org.elasticsearch.search.aggregations.context.longs.LongValuesSource;
 import org.elasticsearch.search.facet.terms.support.EntryPriorityQueue;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.buildAggregations;
 
 /**
  *
  */
-public class LongTermsAggregator extends FieldDataBucketAggregator {
+public class LongTermsAggregator extends LongMultiBucketAggregator {
 
+    private final List<Aggregator.Factory> factories;
     private final Terms.Order order;
     private final int requiredSize;
-    private final ValueFormatter valueFormatter;
 
     ExtTLongObjectHashMap<BucketCollector> bucketCollectors;
 
-    public LongTermsAggregator(String name, List<Aggregator.Factory> factories, FieldDataContext fieldDataContext,
-                               ValueTransformer valueTransformer, ValueFormatter valueFormatter, Terms.Order order, int requiredSize, Aggregator parent) {
-        super(name, factories, fieldDataContext, valueTransformer, parent, IndexNumericFieldData.class);
+    public LongTermsAggregator(String name, List<Aggregator.Factory> factories, LongValuesSource valuesSource,
+                               Terms.Order order, int requiredSize, Aggregator parent) {
+        super(name, valuesSource, parent);
+        this.factories = factories;
         this.order = order;
         this.requiredSize = requiredSize;
-        this.valueFormatter = valueFormatter;
     }
 
     @Override
     public Collector collector() {
-        return new Collector(fieldDataContext);
+        return new Collector();
     }
 
     @Override
@@ -86,7 +84,7 @@ public class LongTermsAggregator extends FieldDataBucketAggregator {
             for (int i = ordered.size() - 1; i >= 0; i--) {
                 list[i] = (LongTerms.Bucket) ordered.pop();
             }
-            return new LongTerms(name, order, valueFormatter, requiredSize, Arrays.asList(list));
+            return new LongTerms(name, order, requiredSize, Arrays.asList(list));
         } else {
             BoundedTreeSet<InternalTerms.Bucket> ordered = new BoundedTreeSet<InternalTerms.Bucket>(order.comparator(), requiredSize);
             for (Object bucketCollector : bucketCollectors.internalValues()) {
@@ -94,27 +92,23 @@ public class LongTermsAggregator extends FieldDataBucketAggregator {
                     ordered.add(((BucketCollector) bucketCollector).buildBucket());
                 }
             }
-            return new LongTerms(name, order, valueFormatter, requiredSize, ordered);
+            return new LongTerms(name, order, requiredSize, ordered);
         }
     }
 
-    class Collector extends Aggregator.Collector {
+    class Collector implements Aggregator.Collector {
 
         final ExtTLongObjectHashMap<BucketCollector> bucketCollectors = new ExtTLongObjectHashMap<BucketCollector>();
-        final FieldDataContext fieldDataContext;
-        final LongValues[] values;
-        Scorer scorer;
-        AtomicReaderContext readerContext;
 
-        Collector(FieldDataContext fieldDataContext) {
-            this.fieldDataContext = fieldDataContext;
-            this.values = new LongValues[fieldDataContext.indexFieldDatas().length];
-        }
+        LongValues values;
+        Scorer scorer;
+        AtomicReaderContext reader;
+        AggregationContext context;
 
         @Override
         public void setScorer(Scorer scorer) throws IOException {
             this.scorer = scorer;
-            valueTransformer.setScorer(scorer);
+            valuesSource.setNextScorer(scorer);
             for (Object bucketCollector : bucketCollectors.internalValues()) {
                 if (bucketCollector != null) {
                     ((BucketCollector) bucketCollector).setScorer(scorer);
@@ -123,59 +117,66 @@ public class LongTermsAggregator extends FieldDataBucketAggregator {
         }
 
         @Override
-        public void collect(int doc, AggregationContext context) throws IOException {
-            valueTransformer.setNextDocId(doc);
-            if (values.length == 1) {
-                onDoc(doc, fieldDataContext.fields()[0], values[0], context);
-            } else {
-                for (int i = 0; i < values.length; i++) {
-                    onDoc(doc, fieldDataContext.fields()[i], values[i], context);
+        public void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException {
+            this.reader = reader;
+            this.context = context;
+            valuesSource.setNextReader(reader);
+            values = valuesSource.values();
+            for (Object bucketCollector : bucketCollectors.internalValues()) {
+                if (bucketCollector != null) {
+                    ((BucketCollector) bucketCollector).setNextReader(reader, context);
                 }
-            }
-        }
-
-        private void onDoc(int doc, String field, LongValues values, AggregationContext context) throws IOException {
-            if (!values.hasValue(doc)) {
-                return;
-            }
-            if (!values.isMultiValued()) {
-                long term = valueTransformer.transform(values.getValue(doc));
-                if (!context.accept(field, term)) {
-                    return;
-                }
-                BucketCollector bucket = bucketCollectors.get(term);
-                if (bucket == null) {
-                    bucket = new BucketCollector(term, 0, LongTermsAggregator.this, scorer, readerContext);
-                    bucketCollectors.put(term, bucket);
-                }
-                bucket.collect(doc, context);
-                return;
-            }
-
-            for (LongValues.Iter iter = values.getIter(doc); iter.hasNext();) {
-                long term = valueTransformer.transform(iter.next());
-                if (!context.accept(field, term)) {
-                    continue;
-                }
-                BucketCollector bucket = bucketCollectors.get(term);
-                if (bucket == null) {
-                    bucket = new BucketCollector(term, 0, LongTermsAggregator.this, scorer, readerContext);
-                    bucketCollectors.put(term, bucket);
-                }
-                bucket.collect(doc, context);
             }
         }
 
         @Override
-        public void setNextReader(AtomicReaderContext context) throws IOException {
-            this.readerContext = context;
-            valueTransformer.setNextReader(context);
-            fieldDataContext.loadLongValues(context, values);
-            for (Object bucketCollector : bucketCollectors.internalValues()) {
-                if (bucketCollector != null) {
-                    ((BucketCollector) bucketCollector).setNextReader(context);
+        public void collect(int doc) throws IOException {
+
+            if (!values.hasValue(doc)) {
+                return;
+            }
+
+            String valuesSourceKey = valuesSource.key();
+            if (!values.isMultiValued()) {
+                long term = values.getValue(doc);
+                if (!context.accept(doc, valuesSourceKey, term)) {
+                    return;
+                }
+                BucketCollector bucket = bucketCollectors.get(term);
+                if (bucket == null) {
+                    bucket = new BucketCollector(term, reader, scorer, context, LongTermsAggregator.this);
+                    bucketCollectors.put(term, bucket);
+                }
+                bucket.collect(doc);
+                return;
+            }
+
+            List<BucketCollector> matchedBuckets = findMatchingBuckets(doc, valuesSourceKey, values);
+            if (matchedBuckets != null) {
+                for (int i = 0; i < matchedBuckets.size(); i++) {
+                    matchedBuckets.get(i).collect(doc);
                 }
             }
+        }
+
+        private List<BucketCollector> findMatchingBuckets(int doc, String valuesSourceKey, LongValues values) {
+            List<BucketCollector> matchedBuckets = null;
+            for (LongValues.Iter iter = values.getIter(doc); iter.hasNext();) {
+                long term = iter.next();
+                if (!context.accept(doc, valuesSourceKey, term)) {
+                    continue;
+                }
+                BucketCollector bucket = bucketCollectors.get(term);
+                if (bucket == null) {
+                    bucket = new BucketCollector(term, reader, scorer, context, LongTermsAggregator.this);
+                    bucketCollectors.put(term, bucket);
+                }
+                if (matchedBuckets == null) {
+                    matchedBuckets = Lists.newArrayListWithCapacity(4);
+                }
+                matchedBuckets.add(bucket);
+            }
+            return matchedBuckets;
         }
 
         @Override
@@ -189,32 +190,34 @@ public class LongTermsAggregator extends FieldDataBucketAggregator {
         }
     }
 
-    static class BucketCollector extends SingleBucketAggregator.BucketCollector {
+    static class BucketCollector extends BucketAggregator.BucketCollector {
 
-        long term;
-        long count;
+        final long term;
 
-        BucketCollector(long term, long count, LongTermsAggregator parent, Scorer scorer, AtomicReaderContext context) {
-            super(parent, scorer, context);
+        long docCount;
+
+        BucketCollector(long term, AtomicReaderContext reader, Scorer scorer, AggregationContext context, LongTermsAggregator parent) {
+            super(parent.name, parent.factories, reader, scorer, context, parent);
             this.term = term;
-            this.count = count;
         }
 
         @Override
-        protected void postCollection(List<Aggregator> aggregators) {
+        protected boolean onDoc(int doc) throws IOException {
+            docCount++;
+            return true;
         }
 
-        protected AggregationContext onDoc(int docId, AggregationContext context) throws IOException {
-            count++;
+        @Override
+        protected AggregationContext setReaderAngGetContext(AtomicReaderContext reader, AggregationContext context) throws IOException {
             return context;
         }
 
+        @Override
+        protected void postCollection(Aggregator[] aggregators) {
+        }
+
         LongTerms.Bucket buildBucket() {
-            List<InternalAggregation> aggregations = new ArrayList<InternalAggregation>(aggregators.size());
-            for (Aggregator aggregator : aggregators) {
-                aggregations.add(aggregator.buildAggregation());
-            }
-            return new LongTerms.Bucket(term, count, aggregations);
+            return new LongTerms.Bucket(term, docCount, buildAggregations(aggregators));
         }
     }
 

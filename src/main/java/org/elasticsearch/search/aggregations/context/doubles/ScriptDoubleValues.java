@@ -21,7 +21,7 @@ package org.elasticsearch.search.aggregations.context.doubles;
 
 import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.script.SearchScript;
-import org.elasticsearch.search.aggregations.AggregationExecutionException;
+import org.elasticsearch.search.aggregations.context.ScriptValues;
 
 import java.util.Iterator;
 import java.util.List;
@@ -29,18 +29,28 @@ import java.util.List;
 /**
  *
  */
-public class ScriptDoubleValues extends DoubleValues  {
+public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
 
     final SearchScript script;
     final InternalIter iter;
 
-    private int docId;
+    private int docId = -1;
     private Object value;
 
     public ScriptDoubleValues(SearchScript script) {
-        super(true);
+        this(script, true);
+    }
+
+    public ScriptDoubleValues(SearchScript script, boolean multiValue) {
+        super(multiValue);
         this.script = script;
         this.iter = new InternalIter();
+    }
+
+    @Override
+    public void clearCache() {
+        docId = -1;
+        value = null;
     }
 
     @Override
@@ -53,6 +63,12 @@ public class ScriptDoubleValues extends DoubleValues  {
         if (value == null) {
             return false;
         }
+
+        // shortcutting on single valued
+        if (!isMultiValued()) {
+            return true;
+        }
+
         if (value instanceof double[]) {
             return ((double[]) value).length != 0;
         }
@@ -62,7 +78,8 @@ public class ScriptDoubleValues extends DoubleValues  {
         if (value instanceof Iterator) {
             return ((Iterator<Number>) value).hasNext();
         }
-        throw new AggregationExecutionException("Unsupported double script value [" + value.toString() + "]");
+
+        return true;
     }
 
     @Override
@@ -72,6 +89,12 @@ public class ScriptDoubleValues extends DoubleValues  {
             script.setNextDocId(docId);
             value = script.runAsDouble();
         }
+
+        // shortcutting on single valued
+        if (!isMultiValued()) {
+            return (Double) value;
+        }
+
         if (value instanceof double[]) {
             return ((double[]) value)[0];
         }
@@ -91,6 +114,12 @@ public class ScriptDoubleValues extends DoubleValues  {
             script.setNextDocId(docId);
             value = script.runAsDouble();
         }
+
+        // shortcutting on single valued
+        if (!isMultiValued()) {
+            return super.getIter(docId);
+        }
+
         if (value instanceof double[]) {
             iter.reset((double[]) value);
             return iter;

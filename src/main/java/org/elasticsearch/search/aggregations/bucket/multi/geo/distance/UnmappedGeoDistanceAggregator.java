@@ -53,13 +53,12 @@ public class UnmappedGeoDistanceAggregator extends AbstractAggregator {
         return new InternalGeoDistance(name, buckets);
     }
 
-    public static class Factory implements Aggregator.Factory<UnmappedGeoDistanceAggregator> {
+    public static class Factory extends Aggregator.CompoundFactory<UnmappedGeoDistanceAggregator> {
 
-        private final String name;
         private final List<GeoDistanceAggregator.DistanceRange> ranges;
 
         public Factory(String name, List<GeoDistanceAggregator.DistanceRange> ranges) {
-            this.name = name;
+            super(name);
             this.ranges = ranges;
         }
 

@@ -49,19 +49,18 @@ public class UnmappedRangeAggregator extends AbstractAggregator {
     public InternalRange buildAggregation() {
         List<InternalRange.Bucket> buckets = new ArrayList<InternalRange.Bucket>(ranges.size());
         for (RangeAggregator.Range range : ranges) {
-            buckets.add(new InternalRange.Bucket(range.key, range.from, range.to, 0, null, InternalAggregations.EMPTY));
+            buckets.add(new InternalRange.Bucket(range.key, range.from, range.to, 0, InternalAggregations.EMPTY));
         }
         return new InternalRange(name, buckets, keyed);
     }
 
-    public static class Factory implements Aggregator.Factory<UnmappedRangeAggregator> {
+    public static class Factory extends Aggregator.CompoundFactory<UnmappedRangeAggregator> {
 
-        private final String name;
         private final List<RangeAggregator.Range> ranges;
         private final boolean keyed;
 
         public Factory(String name, List<RangeAggregator.Range> ranges, boolean keyed) {
-            this.name = name;
+            super(name);
             this.ranges = ranges;
             this.keyed = keyed;
         }

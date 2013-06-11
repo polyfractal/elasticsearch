@@ -21,11 +21,10 @@ package org.elasticsearch.search.aggregations.bucket.single.missing;
 
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.search.aggregations.AggregationStreams;
-import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregation;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  *
@@ -51,8 +50,8 @@ public class InternalMissing extends SingleBucketAggregation<InternalMissing> im
     InternalMissing() {
     }
 
-    InternalMissing(String name, long docCount, List<InternalAggregation> subAggregations) {
-        super(name, docCount, subAggregations);
+    InternalMissing(String name, long docCount, InternalAggregations aggregations) {
+        super(name, docCount, aggregations);
     }
 
     @Override

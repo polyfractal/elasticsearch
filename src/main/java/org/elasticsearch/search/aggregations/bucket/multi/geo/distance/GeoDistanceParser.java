@@ -19,7 +19,6 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.geo.distance;
 
-import com.google.common.collect.Lists;
 import org.elasticsearch.common.geo.GeoDistance;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.unit.DistanceUnit;
@@ -50,13 +49,10 @@ public class GeoDistanceParser implements AggregatorParser {
     public Aggregator.Factory parse(String aggregationName, XContentParser parser, SearchContext context) throws IOException {
 
         String field = null;
-        List<String> fields = null;
         List<GeoDistanceAggregator.DistanceRange> ranges = null;
         GeoPoint origin = null;
         DistanceUnit unit = DistanceUnit.KILOMETERS;
         GeoDistance distanceType = GeoDistance.ARC;
-
-        boolean fieldExists = false;
 
         XContentParser.Token token;
         String currentFieldName = null;
@@ -65,7 +61,6 @@ public class GeoDistanceParser implements AggregatorParser {
                 currentFieldName = parser.currentName();
             } else if (token == XContentParser.Token.VALUE_STRING) {
                 if ("field".equals(currentFieldName)) {
-                    fieldExists = true;
                     field = parser.text();
                 } else if ("unit".equals(currentFieldName)) {
                     unit = DistanceUnit.fromString(parser.text());
@@ -76,13 +71,7 @@ public class GeoDistanceParser implements AggregatorParser {
                     origin.resetFromString(parser.text());
                 }
             } else if (token == XContentParser.Token.START_ARRAY) {
-                if ("field".equals(currentFieldName)) {
-                    fieldExists = true;
-                    fields = new ArrayList<String>();
-                    while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
-                        fields.add(parser.text());
-                    }
-                } else if ("ranges".equals(currentFieldName)) {
+                if ("ranges".equals(currentFieldName)) {
                     ranges = new ArrayList<GeoDistanceAggregator.DistanceRange>();
                     while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
                         double from = Double.NEGATIVE_INFINITY;
@@ -157,44 +146,18 @@ public class GeoDistanceParser implements AggregatorParser {
             range.distanceType = distanceType;
         }
 
-        if (!fieldExists) {
+        if (field == null) {
             // "field" doesn't exist, so we fall back to the context of the ancestors
-            return new GeoDistanceAggregator.Factory(aggregationName, ranges, null);
+            return new GeoDistanceAggregator.ContextBasedFactory(aggregationName, ranges);
         }
 
-        if (field != null) {
-            FieldMapper mapper = context.smartNameFieldMapper(field);
-            if (mapper == null) {
-                return new UnmappedGeoDistanceAggregator.Factory(aggregationName, ranges);
-            }
-            IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-            FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
-            return new GeoDistanceAggregator.Factory(aggregationName, ranges, fieldDataContext);
-        }
-
-        // fields is specified by the user
-
-        if (fields.isEmpty()) {
-            // the user specified an empty array... so we're falling back to the field context of the ancestors
-            //TODO what do we do if the script is defined and the user defined an empty array of fields?
-            return new GeoDistanceAggregator.Factory(aggregationName, ranges, null);
-        }
-
-        List<String> mappedFields = Lists.newArrayListWithCapacity(4);
-        List<IndexFieldData> indexFieldDatas = Lists.newArrayListWithCapacity(4);
-        for (String fieldName : fields) {
-            FieldMapper mapper = context.smartNameFieldMapper(fieldName);
-            if (mapper != null) {
-                mappedFields.add(fieldName);
-                indexFieldDatas.add(context.fieldData().getForField(mapper));
-            }
-        }
-
-        if (mappedFields.isEmpty()) {
+        FieldMapper mapper = context.smartNameFieldMapper(field);
+        if (mapper == null) {
             return new UnmappedGeoDistanceAggregator.Factory(aggregationName, ranges);
         }
+        IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
+        FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
 
-        FieldDataContext fieldDataContext = new FieldDataContext(mappedFields, indexFieldDatas, context);
-        return new GeoDistanceAggregator.Factory(aggregationName, ranges, fieldDataContext);
+        return new GeoDistanceAggregator.FieldDataFactory(aggregationName, fieldDataContext, ranges);
     }
 }

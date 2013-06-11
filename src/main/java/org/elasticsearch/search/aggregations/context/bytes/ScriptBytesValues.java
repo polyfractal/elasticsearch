@@ -22,6 +22,7 @@ package org.elasticsearch.search.aggregations.context.bytes;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.script.SearchScript;
+import org.elasticsearch.search.aggregations.context.ScriptValues;
 
 import java.util.Iterator;
 import java.util.List;
@@ -29,7 +30,7 @@ import java.util.List;
 /**
  *
  */
-public class ScriptBytesValues extends BytesValues {
+public class ScriptBytesValues extends BytesValues implements ScriptValues {
 
     final SearchScript script;
     final InternalIter iter;
@@ -40,9 +41,19 @@ public class ScriptBytesValues extends BytesValues {
     private BytesRef scratch = new BytesRef();
 
     public ScriptBytesValues(SearchScript script) {
-        super(true);
+        this(script, true);
+    }
+
+    public ScriptBytesValues(SearchScript script, boolean multiValue) {
+        super(multiValue);
         this.script = script;
         this.iter = new InternalIter();
+    }
+
+    @Override
+    public void clearCache() {
+        docId = -1;
+        value = null;
     }
 
     @Override
@@ -52,7 +63,25 @@ public class ScriptBytesValues extends BytesValues {
             script.setNextDocId(docId);
             value = script.runAsLong();
         }
-        return value != null;
+        if (value != null) {
+            return false;
+        }
+
+        // shortcutting on single valued
+        if (!isMultiValued()) {
+            return true;
+        }
+
+        if (value instanceof Object[]) {
+            return ((Object[]) value).length > 0;
+        }
+        if (value instanceof List) {
+            return !((List) value).isEmpty();
+        }
+        if (value instanceof Iterator) {
+            return ((Iterator) value).hasNext();
+        }
+        return true;
     }
 
     @Override
@@ -62,6 +91,13 @@ public class ScriptBytesValues extends BytesValues {
             script.setNextDocId(docId);
             value = script.run();
         }
+
+        // shortcutting single valued
+        if (!isMultiValued()) {
+            ret.copyChars(value.toString());
+            return ret;
+        }
+
         if (value instanceof Object[]) {
             ret.copyChars(((Object[]) value)[0].toString());
             return ret;
@@ -90,6 +126,14 @@ public class ScriptBytesValues extends BytesValues {
             script.setNextDocId(docId);
             value = script.runAsLong();
         }
+
+        // shortcutting single valued
+        if (!isMultiValued()) {
+            scratch.copyChars(value.toString());
+            singleIter.reset(scratch, 0);
+            return singleIter;
+        }
+
         if (value instanceof Object[]) {
             iter.reset((Object[]) value);
             return iter;

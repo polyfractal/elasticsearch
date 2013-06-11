@@ -17,64 +17,25 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.calc;
+package org.elasticsearch.search.aggregations.bucket.multi;
 
-import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.script.SearchScript;
-import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.context.AggregationContext;
+import org.elasticsearch.search.aggregations.bucket.ValuesSourceBucketAggregator;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
-
-import java.io.IOException;
 
 /**
  *
  */
-public abstract class BytesCalcAggregator extends ValuesSourceCalcAggregator<BytesValuesSource>  {
+public abstract class BytesMultiBucketAggregator extends ValuesSourceBucketAggregator<BytesValuesSource> {
 
-    public BytesCalcAggregator(String name, BytesValuesSource valuesSource, Aggregator parent) {
+    public BytesMultiBucketAggregator(String name, BytesValuesSource valuesSource, Aggregator parent) {
         super(name, valuesSource, BytesValuesSource.class, parent);
     }
 
-    protected static abstract class Collector extends ValuesSourceCalcAggregator.Collector<BytesValuesSource> {
 
-        private final String aggregatorName;
-        private BytesValues values;
-        private AggregationContext context;
-
-        protected Collector(String aggregatorName, BytesValuesSource valuesSource) {
-            super(valuesSource);
-            this.aggregatorName = aggregatorName;
-        }
-
-        @Override
-        protected BytesValuesSource extractValuesSourceFromContext(AggregationContext context) {
-            BytesValuesSource valuesSource = context.bytesValuesSource();
-            if (valuesSource == null) {
-                throw new AggregationExecutionException("Missing values in aggregation context for aggregator [" + aggregatorName + "]");
-            }
-            return valuesSource;
-        }
-
-
-        @Override
-        protected void setNextValues(BytesValuesSource valuesSource, AggregationContext context) throws IOException {
-            this.context = context;
-            values = valuesSource.values();
-        }
-
-
-        @Override
-        public final void collect(int doc) throws IOException {
-            collect(doc, values, context);
-        }
-
-        protected abstract void collect(int doc, BytesValues values, AggregationContext context) throws IOException;
-    }
-
-    protected abstract static class FieldDataFactory<A extends BytesCalcAggregator> extends Factory<A> {
+    protected abstract static class FieldDataFactory<A extends DoubleMultiBucketAggregator> extends CompoundFactory<A> {
 
         private final FieldDataContext fieldDataContext;
         private final SearchScript valueScript;
@@ -100,7 +61,7 @@ public abstract class BytesCalcAggregator extends ValuesSourceCalcAggregator<Byt
         protected abstract A create(BytesValuesSource source, Aggregator parent);
     }
 
-    protected abstract static class ScriptFactory<A extends BytesCalcAggregator> extends Factory<A> {
+    protected abstract static class ScriptFactory<A extends DoubleMultiBucketAggregator> extends CompoundFactory<A> {
 
         private final SearchScript script;
 
@@ -117,7 +78,7 @@ public abstract class BytesCalcAggregator extends ValuesSourceCalcAggregator<Byt
         protected abstract A create(BytesValuesSource source, Aggregator parent);
     }
 
-    protected abstract static class ContextBasedFactory<A extends ValuesSourceCalcAggregator> extends Factory<A> {
+    protected abstract static class ContextBasedFactory<A extends DoubleMultiBucketAggregator> extends CompoundFactory<A> {
 
         protected ContextBasedFactory(String name) {
             super(name);

@@ -19,13 +19,14 @@
 
 package org.elasticsearch.search.aggregations.bucket.single.missing;
 
+import org.apache.lucene.index.AtomicReaderContext;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -34,49 +35,48 @@ import java.util.List;
 public class UnmappedMissingAggregator extends SingleBucketAggregator {
 
     long docCount;
-    List<Aggregator> aggregators;
 
     UnmappedMissingAggregator(String name, List<Aggregator.Factory> factories, Aggregator parent) {
         super(name, factories, parent);
     }
 
     @Override
-    public Collector collector() {
-        return new Collector();
+    protected InternalAggregation buildAggregation(InternalAggregations aggregations) {
+        return new InternalMissing(name, docCount, aggregations);
     }
 
     @Override
-    public InternalMissing buildAggregation() {
-        List<InternalAggregation> aggregationResults = new ArrayList<InternalAggregation>(aggregators.size());
-        for (Aggregator aggregator : aggregators) {
-            aggregationResults.add(aggregator.buildAggregation());
-        }
-        return new InternalMissing(name, docCount, aggregationResults);
+    protected Aggregator.Collector collector(Aggregator[] aggregators) {
+        return new Collector(aggregators);
     }
 
     class Collector extends BucketCollector {
 
-        private long count;
+        private long docCount;
 
-        Collector() {
-            super(UnmappedMissingAggregator.this);
+        Collector(Aggregator[] aggregators) {
+            super(name, aggregators);
         }
 
         @Override
-        protected AggregationContext onDoc(int doc, AggregationContext context) throws IOException {
-            count++;
+        protected boolean onDoc(int doc) throws IOException {
+            docCount++;
+            return true;
+        }
+
+        @Override
+        protected AggregationContext setReaderAngGetContext(AtomicReaderContext reader, AggregationContext context) throws IOException {
             return context;
         }
 
         @Override
-        protected void postCollection(List<Aggregator> aggregators) {
-            UnmappedMissingAggregator.this.docCount = count;
-            UnmappedMissingAggregator.this.aggregators = aggregators;
+        protected void postCollection(Aggregator[] aggregators) {
+            UnmappedMissingAggregator.this.docCount = docCount;
         }
 
     }
 
-    public static class Factory extends SingleBucketAggregator.Factory<UnmappedMissingAggregator, Factory> {
+    public static class Factory extends Aggregator.CompoundFactory<UnmappedMissingAggregator> {
 
         public Factory(String name) {
             super(name);

@@ -19,18 +19,14 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.range;
 
-import com.google.common.collect.Lists;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
-import org.elasticsearch.index.mapper.core.DateFieldMapper;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.SearchParseException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
-import org.elasticsearch.search.aggregations.context.ValueTransformer;
-import org.elasticsearch.search.aggregations.format.ValueFormatter;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -52,15 +48,11 @@ public class RangeParser implements AggregatorParser {
     public Aggregator.Factory parse(String aggregationName, XContentParser parser, SearchContext context) throws IOException {
 
         String field = null;
-        List<String> fields = null;
         List<RangeAggregator.Range> ranges = null;
         String script = null;
         String scriptLang = null;
         Map<String, Object> scriptParams = null;
         boolean keyed = false;
-        String format = null;
-
-        boolean fieldExists = false;
 
         XContentParser.Token token;
         String currentFieldName = null;
@@ -69,23 +61,14 @@ public class RangeParser implements AggregatorParser {
                 currentFieldName = parser.currentName();
             } else if (token == XContentParser.Token.VALUE_STRING) {
                 if ("field".equals(currentFieldName)) {
-                    fieldExists = true;
                     field = parser.text();
                 } else if ("script".equals(currentFieldName)) {
                     script = parser.text();
                 } else if ("script_lang".equals(currentFieldName) || "scriptLang".equals(currentFieldName)) {
                     scriptLang = parser.text();
-                } else if ("format".equals(currentFieldName)) {
-                    format = parser.text();
                 }
             } else if (token == XContentParser.Token.START_ARRAY) {
-                if ("field".equals(currentFieldName)) {
-                    fieldExists = true;
-                    fields = new ArrayList<String>();
-                    while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
-                        fields.add(parser.text());
-                    }
-                } else if ("ranges".equals(currentFieldName)) {
+                if ("ranges".equals(currentFieldName)) {
                     ranges = new ArrayList<RangeAggregator.Range>();
                     while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
                         double from = Double.NEGATIVE_INFINITY;
@@ -130,63 +113,29 @@ public class RangeParser implements AggregatorParser {
             searchScript = context.scriptService().search(context.lookup(), scriptLang, script, scriptParams);
         }
 
-        if (!fieldExists) {
+        if (field == null) {
 
             if (searchScript != null) {
-                return new ScriptRangeAggregator.Factory(aggregationName, searchScript, ranges, keyed);
+                return new RangeAggregator.ScriptFactory(aggregationName, searchScript, ranges, keyed);
             }
 
             // "field" doesn't exist, so we fall back to the context of the ancestors
-            return new RangeAggregator.Factory(aggregationName, null, ranges, keyed);
+            return new RangeAggregator.ContextBasedFactory(aggregationName, ranges, keyed);
         }
 
-        if (field != null) {
-            FieldMapper mapper = context.smartNameFieldMapper(field);
-            if (mapper == null) {
-                return new UnmappedRangeAggregator.Factory(aggregationName, ranges, keyed);
-            }
-            ValueFormatter valueFormatter = null;
-            if (format != null) {
-                valueFormatter = mapper instanceof DateFieldMapper ? new ValueFormatter.DateTime(format) : new ValueFormatter.Number.Pattern(format);
-            }
-            IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-            FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
-            if (searchScript != null) {
-                return new RangeAggregator.Factory(aggregationName, fieldDataContext, new ValueTransformer.Script(searchScript), valueFormatter, ranges, keyed);
-            }
-            return new RangeAggregator.Factory(aggregationName, fieldDataContext, valueFormatter, ranges, keyed);
-        }
 
-        // fields is specified by the user
-
-        if (fields.isEmpty()) {
-            // the user specified an empty array... so we're falling back to the field context of the ancestors
-            //TODO what do we do if the script is defined and the user defined an empty array of fields?
-            return new RangeAggregator.Factory(aggregationName, null, ranges, keyed);
-        }
-
-        List<String> mappedFields = Lists.newArrayListWithCapacity(4);
-        List<IndexFieldData> indexFieldDatas = Lists.newArrayListWithCapacity(4);
-        ValueFormatter valueFormatter = null;
-        for (String fieldName : fields) {
-            FieldMapper mapper = context.smartNameFieldMapper(fieldName);
-            if (mapper != null) {
-                if (format != null && valueFormatter == null) {
-                    valueFormatter = mapper instanceof DateFieldMapper ? new ValueFormatter.DateTime(format) : new ValueFormatter.Number.Pattern(format);
-                }
-                mappedFields.add(fieldName);
-                indexFieldDatas.add(context.fieldData().getForField(mapper));
-            }
-        }
-
-        if (mappedFields.isEmpty()) {
+        FieldMapper mapper = context.smartNameFieldMapper(field);
+        if (mapper == null) {
             return new UnmappedRangeAggregator.Factory(aggregationName, ranges, keyed);
         }
 
-        FieldDataContext fieldDataContext = new FieldDataContext(mappedFields, indexFieldDatas, context);
+        IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
+        FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
         if (searchScript != null) {
-            return new RangeAggregator.Factory(aggregationName, fieldDataContext, new ValueTransformer.Script(searchScript), valueFormatter, ranges, keyed);
+            return new RangeAggregator.FieldDataFactory(aggregationName, fieldDataContext, searchScript, ranges, keyed);
         }
-        return new RangeAggregator.Factory(aggregationName, fieldDataContext, valueFormatter, ranges, keyed);
+
+        return new RangeAggregator.FieldDataFactory(aggregationName, fieldDataContext, ranges, keyed);
+
     }
 }

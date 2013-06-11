@@ -61,7 +61,7 @@ public class MoreTypes {
 
     /**
      * Returns an equivalent type that's safe for use in a key. The returned type will be free of
-     * primitive types. Type literals of primitives will return the corresponding wrapper types.
+     * primitive types. ScriptValueType literals of primitives will return the corresponding wrapper types.
      *
      * @throws ConfigurationException if {@code type} contains a type variable
      */
@@ -149,7 +149,7 @@ public class MoreTypes {
         } else if (type instanceof ParameterizedType) {
             ParameterizedType parameterizedType = (ParameterizedType) type;
 
-            // I'm not exactly sure why getRawType() returns Type instead of Class.
+            // I'm not exactly sure why getRawType() returns ScriptValueType instead of Class.
             // Neal isn't either but suspects some pathological case related
             // to nested classes exists.
             Type rawType = parameterizedType.getRawType();

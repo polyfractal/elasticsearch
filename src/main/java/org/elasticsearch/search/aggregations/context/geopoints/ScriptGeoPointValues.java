@@ -17,9 +17,10 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.context.longs;
+package org.elasticsearch.search.aggregations.context.geopoints;
 
-import org.elasticsearch.index.fielddata.LongValues;
+import org.elasticsearch.common.geo.GeoPoint;
+import org.elasticsearch.index.fielddata.GeoPointValues;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.context.ScriptValues;
 
@@ -29,22 +30,26 @@ import java.util.List;
 /**
  *
  */
-public class ScriptLongValues extends LongValues implements ScriptValues {
+public class ScriptGeoPointValues implements GeoPointValues, ScriptValues {
 
+    final boolean multiValue;
     final SearchScript script;
     final InternalIter iter;
+    final InternalSafeIter safeIter;
+    final InternalIter.Single singleIter = new Iter.Single();
 
     private int docId = -1;
     private Object value;
 
-    public ScriptLongValues(SearchScript script) {
+    public ScriptGeoPointValues(SearchScript script) {
         this(script, true);
     }
 
-    public ScriptLongValues(SearchScript script, boolean multiValue) {
-        super(multiValue);
+    public ScriptGeoPointValues(SearchScript script, boolean multiValue) {
+        this.multiValue = multiValue;
         this.script = script;
         this.iter = new InternalIter();
+        this.safeIter = new InternalSafeIter();
     }
 
     @Override
@@ -54,11 +59,16 @@ public class ScriptLongValues extends LongValues implements ScriptValues {
     }
 
     @Override
+    public boolean isMultiValued() {
+        return multiValue;
+    }
+
+    @Override
     public boolean hasValue(int docId) {
         if (this.docId != docId) {
             this.docId = docId;
             script.setNextDocId(docId);
-            value = script.runAsLong();
+            value = script.run();
         }
         if (value == null) {
             return false;
@@ -69,42 +79,47 @@ public class ScriptLongValues extends LongValues implements ScriptValues {
             return true;
         }
 
-        if (value instanceof long[]) {
-            return ((long[]) value).length != 0;
+        if (value instanceof GeoPoint[]) {
+            return ((GeoPoint[]) value).length != 0;
         }
         if (value instanceof List) {
             return !((List) value).isEmpty();
         }
         if (value instanceof Iterator) {
-            return ((Iterator<Number>) value).hasNext();
+            return ((Iterator<GeoPoint>) value).hasNext();
         }
         return true;
-//        throw new AggregationExecutionException("value of type [" + value.getClass().getName() + "] is not supported as long script output");
     }
 
     @Override
-    public long getValue(int docId) {
+    public GeoPoint getValue(int docId) {
         if (this.docId != docId) {
             this.docId = docId;
             script.setNextDocId(docId);
-            value = script.runAsLong();
+            value = script.run();
         }
 
         // shortcutting on single valued
         if (!isMultiValued()) {
-            return (Long) value;
+            return (GeoPoint) value;
         }
 
-        if (value instanceof long[]) {
-            return ((long[]) value)[0];
+        if (value instanceof GeoPoint[]) {
+            return ((GeoPoint[]) value)[0];
         }
         if (value instanceof List) {
-            return (Long) ((List) value).get(0);
+            return (GeoPoint) ((List) value).get(0);
         }
         if (value instanceof Iterator) {
-            return ((Iterator<Long>) value).next();
+            return ((Iterator<GeoPoint>) value).next();
         }
-        return (Long) value;
+        return (GeoPoint) value;
+    }
+
+    @Override
+    public GeoPoint getValueSafe(int docId) {
+        GeoPoint value = getValue(docId);
+        return new GeoPoint(value.lat(), value.lon());
     }
 
     @Override
@@ -112,44 +127,52 @@ public class ScriptLongValues extends LongValues implements ScriptValues {
         if (this.docId != docId) {
             this.docId = docId;
             script.setNextDocId(docId);
-            value = script.runAsLong();
+            value = script.run();
         }
 
         // shortcutting on single valued
         if (!isMultiValued()) {
-            return super.getIter(docId);
+            singleIter.reset((GeoPoint) value);
+            return singleIter;
         }
 
-        if (value instanceof long[]) {
-            iter.array = (long[]) value;
+        if (value instanceof GeoPoint[]) {
+            iter.reset((GeoPoint[]) value);
             return iter;
         }
         if (value instanceof List) {
-            iter.reset(((List<Long>) value).iterator());
+            iter.reset(((List<GeoPoint>) value).iterator());
             return iter;
         }
         if (value instanceof Iterator) {
-            iter.reset((Iterator<Long>) value);
+            iter.reset((Iterator<GeoPoint>) value);
             return iter;
         }
 
         // falling back to single value iterator
-        return super.getIter(docId);
+        singleIter.reset((GeoPoint) value);
+        return singleIter;
+    }
+
+    @Override
+    public Iter getIterSafe(int docId) {
+        safeIter.reset(getIter(docId));
+        return safeIter;
     }
 
     static class InternalIter implements Iter {
 
-        long[] array;
+        GeoPoint[] array;
         int i = 0;
 
-        Iterator<Long> iterator;
+        Iterator<GeoPoint> iterator;
 
-        void reset(long[] array) {
+        void reset(GeoPoint[] array) {
             this.array = array;
             this.iterator = null;
         }
 
-        void reset(Iterator<Long> iterator) {
+        void reset(Iterator<GeoPoint> iterator) {
             this.iterator = iterator;
             this.array = null;
         }
@@ -163,11 +186,31 @@ public class ScriptLongValues extends LongValues implements ScriptValues {
         }
 
         @Override
-        public long next() {
+        public GeoPoint next() {
             if (iterator != null) {
                 return iterator.next();
             }
             return array[++i];
+        }
+    }
+
+    static class InternalSafeIter implements Iter {
+
+        Iter iter;
+
+        void reset(Iter iter) {
+            this.iter = iter;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return iter.hasNext();
+        }
+
+        @Override
+        public GeoPoint next() {
+            GeoPoint point = iter.next();
+            return new GeoPoint(point.lat(), point.lon());
         }
     }
 }

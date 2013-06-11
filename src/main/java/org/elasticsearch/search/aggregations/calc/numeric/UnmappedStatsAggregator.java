@@ -19,13 +19,13 @@
 
 package org.elasticsearch.search.aggregations.calc.numeric;
 
+import org.elasticsearch.search.aggregations.AbstractAggregator;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.calc.CalcAggregator;
 
 /**
  *
  */
-public class UnmappedStatsAggregator<S extends Stats> extends CalcAggregator {
+public class UnmappedStatsAggregator<S extends Stats> extends AbstractAggregator {
 
     private final Stats.Factory<S> statsFactory;
 

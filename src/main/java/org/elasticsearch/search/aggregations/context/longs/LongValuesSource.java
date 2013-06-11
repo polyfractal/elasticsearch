@@ -66,15 +66,19 @@ public interface LongValuesSource extends ValuesSource {
         }
     }
 
-    public static class Script extends ValuesSource.Script<LongValues> implements LongValuesSource {
+    public static class Script extends ValuesSource.Script<ScriptLongValues> implements LongValuesSource {
 
         public Script(SearchScript script) {
             super(script);
         }
 
+        public Script(SearchScript script, boolean multiValue) {
+            super(script, multiValue);
+        }
+
         @Override
-        public LongValues createValues(SearchScript script) throws IOException {
-            return new ScriptLongValues(script);
+        public ScriptLongValues createValues(SearchScript script, boolean multiValue) throws IOException {
+            return new ScriptLongValues(script, multiValue);
         }
     }
 

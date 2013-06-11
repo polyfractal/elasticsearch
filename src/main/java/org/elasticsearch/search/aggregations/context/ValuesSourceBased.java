@@ -17,31 +17,13 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.bucket.multi.range;
-
-import org.elasticsearch.search.aggregations.Aggregation;
-import org.elasticsearch.search.aggregations.Aggregations;
+package org.elasticsearch.search.aggregations.context;
 
 /**
  *
  */
-public interface Range extends Aggregation, Iterable<Range.Bucket> {
+public interface ValuesSourceBased {
 
-    public static interface Bucket {
-
-        String getKey();
-
-        double getFrom();
-
-        double getTo();
-
-        long getDocCount();
-
-        Aggregations getAggregations();
-
-        <A extends Aggregation> A getAggregation(String name, Class<A> type);
-    }
-
-    Bucket getByKey(String key);
+    ValuesSource valuesSource();
 
 }

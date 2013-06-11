@@ -22,25 +22,27 @@ package org.elasticsearch.search.aggregations.bucket.multi.geo.distance;
 import com.google.common.collect.Lists;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
-import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.index.fielddata.GeoPointValues;
-import org.elasticsearch.index.fielddata.IndexGeoPointFieldData;
+import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.FieldDataBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.GeoPointBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
+import org.elasticsearch.search.aggregations.context.geopoints.GeoPointValuesSource;
 
 import java.io.IOException;
 import java.util.List;
 
+import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.buildAggregations;
+
 /**
  *
  */
-public class GeoDistanceAggregator extends FieldDataBucketAggregator {
+public class GeoDistanceAggregator extends GeoPointBucketAggregator {
 
     static class DistanceRange {
 
@@ -63,18 +65,15 @@ public class GeoDistanceAggregator extends FieldDataBucketAggregator {
         }
     }
 
-    private final List<BucketCollector> collectors;
+    private final BucketCollector[] collectors;
 
-
-    GeoDistanceAggregator(String name, List<DistanceRange> ranges, List<Aggregator.Factory> factories, FieldDataContext fieldDataContext, Aggregator parent) {
-        super(name, factories, fieldDataContext, parent, IndexGeoPointFieldData.class);
-        collectors = Lists.newArrayListWithCapacity(ranges.size());
+    public GeoDistanceAggregator(String name, GeoPointValuesSource valuesSource, List<Aggregator.Factory> factories,
+                                 List<DistanceRange> ranges, Aggregator parent) {
+        super(name, valuesSource, parent);
+        collectors = new BucketCollector[ranges.size()];
+        int i = 0;
         for (DistanceRange range : ranges) {
-            List<Aggregator> aggregators = Lists.newArrayListWithCapacity(factories.size());
-            for (Aggregator.Factory factory : factories) {
-                aggregators.add(factory.create(this));
-            }
-            collectors.add(new BucketCollector(range, aggregators, fieldDataContext));
+            collectors[i++] = new BucketCollector(range, name, valuesSource, BucketAggregator.createAggregators(factories, parent));
         }
     }
 
@@ -85,19 +84,26 @@ public class GeoDistanceAggregator extends FieldDataBucketAggregator {
 
     @Override
     public InternalAggregation buildAggregation() {
-        List<GeoDistance.Bucket> buckets = Lists.newArrayListWithCapacity(collectors.size());
+        List<GeoDistance.Bucket> buckets = Lists.newArrayListWithCapacity(collectors.length);
         for (BucketCollector collector : collectors) {
             buckets.add(collector.buildBucket());
         }
         return new InternalGeoDistance(name, buckets);
     }
 
-    class Collector extends Aggregator.Collector {
+    class Collector implements Aggregator.Collector {
 
         @Override
-        public void collect(int doc, AggregationContext context) throws IOException {
+        public void collect(int doc) throws IOException {
             for (BucketCollector collector : collectors) {
-                collector.collect(doc, context);
+                collector.collect(doc);
+            }
+        }
+
+        @Override
+        public void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException {
+            for (BucketCollector collector : collectors) {
+                collector.setNextReader(reader, context);
             }
         }
 
@@ -109,13 +115,6 @@ public class GeoDistanceAggregator extends FieldDataBucketAggregator {
         }
 
         @Override
-        public void setNextReader(AtomicReaderContext context) throws IOException {
-            for (BucketCollector collector : collectors) {
-                collector.setNextReader(context);
-            }
-        }
-
-        @Override
         public void postCollection() {
             for (BucketCollector collector : collectors) {
                 collector.postCollection();
@@ -123,61 +122,36 @@ public class GeoDistanceAggregator extends FieldDataBucketAggregator {
         }
     }
 
-    static class BucketCollector extends SingleBucketAggregator.BucketCollector implements AggregationContext {
+    static class BucketCollector extends GeoPointBucketAggregator.BucketCollector {
 
         private final DistanceRange range;
-        private final FieldDataContext fieldDataContext;
-        private final GeoPointValues[] values;
-
-        AggregationContext currentParentContext;
 
         long docCount;
 
-        BucketCollector(DistanceRange range, List<Aggregator> aggregators, FieldDataContext fieldDataContext) {
-            super(aggregators);
+        BucketCollector(DistanceRange range, String aggregationName, GeoPointValuesSource valuesSource, Aggregator[] aggregators) {
+            super(aggregationName, valuesSource, aggregators);
             this.range = range;
-            this.fieldDataContext = fieldDataContext;
-            values = new GeoPointValues[fieldDataContext.fieldCount()];
         }
 
         @Override
-        public void setNextReader(AtomicReaderContext context) throws IOException {
-            super.setNextReader(context);
-            fieldDataContext.loadGeoPointValues(context, values);
+        protected boolean onDoc(int doc, GeoPointValues values, AggregationContext context) throws IOException {
+            if (matches(doc, valuesSource.key(), values, context)) {
+                docCount++;
+                return true;
+            }
+            return false;
         }
 
-        @Override
-        protected AggregationContext onDoc(int doc, AggregationContext context) throws IOException {
-            this.currentParentContext = context;
-
-            if (values.length == 1) {
-                if (matches(doc, values[0], fieldDataContext.field(0), context)) {
-                    docCount++;
-                    return context;
-                }
-                return null;
-            }
-
-            for (int i = 0; i < values.length; i++) {
-                if (matches(doc, values[i], fieldDataContext.field(i), context)) {
-                    docCount++;
-                    return this;
-                }
-            }
-
-            return null;
-        }
-
-        private boolean matches(int doc, GeoPointValues values, String field, AggregationContext context) {
+        private boolean matches(int doc, String valuesSourceKey, GeoPointValues values, AggregationContext context) {
             if (!values.hasValue(doc)) {
                 return false;
             }
             if (!values.isMultiValued()) {
-                return range.matches(values.getValue(doc)) && context.accept(field, values.getValue(doc));
+                return range.matches(values.getValue(doc)) && context.accept(doc, valuesSourceKey, values.getValue(doc));
             }
             for (GeoPointValues.Iter iter = values.getIter(doc); iter.hasNext();) {
                 GeoPoint point = iter.next();
-                if (range.matches(point) && context.accept(field, point)) {
+                if (range.matches(point) && context.accept(doc, valuesSourceKey, point)) {
                     return true;
                 }
             }
@@ -185,58 +159,67 @@ public class GeoDistanceAggregator extends FieldDataBucketAggregator {
         }
 
         @Override
-        protected void postCollection(List<Aggregator> aggregators) {
+        protected void postCollection(Aggregator[] aggregators) {
         }
 
         @Override
-        public boolean accept(String field, double value) {
-            return currentParentContext.accept(field, value);
-        }
-
-        @Override
-        public boolean accept(String field, long value) {
-            return currentParentContext.accept(field, value);
-        }
-
-        @Override
-        public boolean accept(String field, BytesRef value) {
-            return currentParentContext.accept(field, value);
-        }
-
-        @Override
-        public boolean accept(String field, GeoPoint value) {
-            if (!currentParentContext.accept(field, value)) {
-                return false;
-            }
-            if (!fieldDataContext.hasField(field)) {
-                return true;
-            }
+        public boolean accept(int doc, GeoPoint value, GeoPointValues values) {
             return range.matches(value);
         }
 
         InternalGeoDistance.Bucket buildBucket() {
-            List<InternalAggregation> aggregations = Lists.newArrayListWithCapacity(aggregators.size());
-            for (Aggregator aggregator : aggregators) {
-                aggregations.add(aggregator.buildAggregation());
-            }
-            return new InternalGeoDistance.Bucket(range.key, range.unit, range.from, range.to, docCount, aggregations);
+            return new InternalGeoDistance.Bucket(range.key, range.unit, range.from, range.to, docCount, buildAggregations(aggregators));
         }
     }
 
-    public static class Factory extends SingleBucketAggregator.Factory<GeoDistanceAggregator, Factory> {
+    public static class FieldDataFactory extends GeoPointBucketAggregator.FieldDataFactory<GeoDistanceAggregator> {
 
         private final List<DistanceRange> ranges;
-        private final FieldDataContext fieldDataContext;
 
-        public Factory(String name, List<DistanceRange> ranges, FieldDataContext fieldDataContext) {
+        public FieldDataFactory(String name, FieldDataContext fieldDataContext, List<DistanceRange> ranges) {
+            super(name, fieldDataContext);
+            this.ranges = ranges;
+        }
+
+        public FieldDataFactory(String name, FieldDataContext fieldDataContext, SearchScript valueScript, List<DistanceRange> ranges) {
+            super(name, fieldDataContext, valueScript);
+            this.ranges = ranges;
+        }
+
+        @Override
+        protected GeoDistanceAggregator create(GeoPointValuesSource source, Aggregator parent) {
+            return new GeoDistanceAggregator(name, source, factories, ranges, parent);
+        }
+    }
+
+    public static class ScriptFactory extends GeoPointBucketAggregator.ScriptFactory<GeoDistanceAggregator> {
+
+        private final List<DistanceRange> ranges;
+
+        public ScriptFactory(String name, SearchScript script, List<DistanceRange> ranges) {
+            super(name, script);
+            this.ranges = ranges;
+        }
+
+        @Override
+        protected GeoDistanceAggregator create(GeoPointValuesSource source, Aggregator parent) {
+            return new GeoDistanceAggregator(name, source, factories, ranges, parent);
+        }
+    }
+
+    public static class ContextBasedFactory extends GeoPointBucketAggregator.ContextBasedFactory<GeoDistanceAggregator> {
+
+        private final List<DistanceRange> ranges;
+
+        public ContextBasedFactory(String name, List<DistanceRange> ranges) {
             super(name);
             this.ranges = ranges;
-            this.fieldDataContext = fieldDataContext;
         }
 
         @Override
         public GeoDistanceAggregator create(Aggregator parent) {
-            return new GeoDistanceAggregator(name, ranges, factories, fieldDataContext, parent);
+            return new GeoDistanceAggregator(name, null, factories, ranges, parent);
         }
     }
+
 }

@@ -63,14 +63,18 @@ public interface BytesValuesSource extends ValuesSource {
         }
     }
 
-    public class Script extends ValuesSource.Script<BytesValues> implements BytesValuesSource {
+    public class Script extends ValuesSource.Script<ScriptBytesValues> implements BytesValuesSource {
 
         public Script(SearchScript script) {
             super(script);
         }
 
+        public Script(SearchScript script, boolean multiValue) {
+            super(script, multiValue);
+        }
+
         @Override
-        public BytesValues createValues(SearchScript script) throws IOException {
+        public ScriptBytesValues createValues(SearchScript script, boolean multiValue) throws IOException {
             return new ScriptBytesValues(script);
         }
     }

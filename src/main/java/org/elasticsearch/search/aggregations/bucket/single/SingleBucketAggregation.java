@@ -40,10 +40,14 @@ public abstract class SingleBucketAggregation<B extends SingleBucketAggregation<
 
     protected SingleBucketAggregation() {} // for serialization
 
-    protected SingleBucketAggregation(String name, long docCount, List<InternalAggregation> subAggregations) {
+    protected SingleBucketAggregation(String name, long docCount, List<InternalAggregation> aggregations) {
+        this(name, docCount, new InternalAggregations(aggregations));
+    }
+
+    protected SingleBucketAggregation(String name, long docCount, InternalAggregations aggregations) {
         super(name);
         this.docCount = docCount;
-        this.aggregations = new InternalAggregations(subAggregations);
+        this.aggregations = aggregations;
     }
 
     public long getDocCount() {

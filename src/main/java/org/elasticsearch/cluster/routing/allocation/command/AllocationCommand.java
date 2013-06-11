@@ -36,7 +36,7 @@ public interface AllocationCommand {
 
     /**
      * Factory to create {@link AllocationCommand}s
-     * @param <T> Type of {@link AllocationCommand}s created by this {@link Factory}
+     * @param <T> ScriptValueType of {@link AllocationCommand}s created by this {@link Factory}
      */
     interface Factory<T extends AllocationCommand> {
 

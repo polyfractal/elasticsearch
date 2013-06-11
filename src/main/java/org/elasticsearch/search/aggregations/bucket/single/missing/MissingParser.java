@@ -29,7 +29,6 @@ import org.elasticsearch.search.aggregations.context.FieldDataContext;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -46,10 +45,6 @@ public class MissingParser implements AggregatorParser {
     public Aggregator.Factory parse(String aggregationName, XContentParser parser, SearchContext context) throws IOException {
 
         String field = null;
-        List<String> fields = null;
-
-        boolean fieldExists = false;
-        boolean mapperExists = false;
 
         XContentParser.Token token;
         String currentFieldName = null;
@@ -58,58 +53,21 @@ public class MissingParser implements AggregatorParser {
                 currentFieldName = parser.currentName();
             } else if (token == XContentParser.Token.VALUE_STRING) {
                 if ("field".equals(currentFieldName)) {
-                    fieldExists = true;
                     field = parser.text();
-                }
-            } else if (token == XContentParser.Token.START_ARRAY) {
-                if ("field".equals(currentFieldName)) {
-                    fieldExists = true;
-                    fields = new ArrayList<String>();
-                    while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
-                        fields.add(parser.text());
-                    }
                 }
             }
         }
 
-        if (!fieldExists) {
+        if (field == null) {
             // "field" doesn't exist, so we fall back to the context of the ancestors
             return new MissingAggregator.Factory(aggregationName);
         }
 
-        if (field != null) {
-            FieldMapper mapper = context.smartNameFieldMapper(field);
-            if (mapper == null) {
-                return new UnmappedMissingAggregator.Factory(aggregationName);
-            }
-            FieldDataContext fieldDataContext = new FieldDataContext(field, context.fieldData().getForField(mapper), context);
-            return new MissingAggregator.Factory(aggregationName, fieldDataContext);
-        }
-
-        // we have multiple fields
-
-        if (fields.isEmpty()) {
-            // the "field" array is empty, so we fall back to the context of the ancestors
-            return new MissingAggregator.Factory(aggregationName);
-        }
-
-        List<IndexFieldData> indexFieldDatas = Lists.newArrayListWithCapacity(4);
-        List<String> mappedFields = Lists.newArrayListWithCapacity(4);
-        FieldMapper mapper = null;
-        for (String fieldName : fields) {
-            mapper = context.smartNameFieldMapper(fieldName);
-            if (mapper != null) {
-                mappedFields.add(fieldName);
-                indexFieldDatas.add(context.fieldData().getForField(mapper));
-            }
-        }
-
-        if (mappedFields.isEmpty()) {
+        FieldMapper mapper = context.smartNameFieldMapper(field);
+        if (mapper == null) {
             return new UnmappedMissingAggregator.Factory(aggregationName);
         }
-
-        FieldDataContext fieldDataContext = new FieldDataContext(mappedFields, indexFieldDatas, context);
+        FieldDataContext fieldDataContext = new FieldDataContext(field, context.fieldData().getForField(mapper), context);
         return new MissingAggregator.Factory(aggregationName, fieldDataContext);
-
     }
 }

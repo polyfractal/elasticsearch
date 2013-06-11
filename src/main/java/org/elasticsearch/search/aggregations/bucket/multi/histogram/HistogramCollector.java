@@ -19,6 +19,7 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
+import com.google.common.collect.Lists;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
 import org.elasticsearch.common.CacheRecycler;
@@ -27,11 +28,9 @@ import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.FieldDataBucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.NumericBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.DoubleBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.multi.DoubleMultiBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.ValueTransformer;
 import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
 
 import java.io.IOException;
@@ -40,7 +39,7 @@ import java.util.List;
 /**
  * A collector that is used by the histogram aggregator which aggregates the histogram buckets
  */
-public class HistogramCollector extends Aggregator.Collector {
+public class HistogramCollector implements Aggregator.Collector {
 
     /**
      * A listener which is called when the aggregation of this collector finishes
@@ -56,7 +55,8 @@ public class HistogramCollector extends Aggregator.Collector {
 
     }
 
-    final NumericBucketAggregator aggregator;
+    final List<Aggregator.Factory> factories;
+    final DoubleMultiBucketAggregator aggregator;
     final ExtTLongObjectHashMap<BucketCollector> bucketCollectors = CacheRecycler.popLongObjectMap();
     final Rounding rounding;
     final Listener listener;
@@ -76,7 +76,8 @@ public class HistogramCollector extends Aggregator.Collector {
      * @param rounding          The rounding strategy by which the aggregation will bucket documents
      * @param listener          Will be called when aggregation finishes (see {@link Listener}).
      */
-    public HistogramCollector(NumericBucketAggregator aggregator, DoubleValuesSource valuesSource, Rounding rounding, Listener listener) {
+    public HistogramCollector(DoubleMultiBucketAggregator aggregator, List<Aggregator.Factory> factories, DoubleValuesSource valuesSource, Rounding rounding, Listener listener) {
+        this.factories = factories;
         this.aggregator = aggregator;
         this.valuesSource = valuesSource;
         this.rounding = rounding;
@@ -100,12 +101,7 @@ public class HistogramCollector extends Aggregator.Collector {
     public void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException {
         this.reader = reader;
         this.context = context;
-        if (valuesSource == null) {
-            valuesSource = context.doubleValuesSource();
-        }
-        if (valuesSource == null) {
-            throw new AggregationExecutionException("could not find numeric values in the aggregation context for aggregation [" + aggregator.name() + "]");
-        }
+        valuesSource.setNextReader(reader);
         values = valuesSource.values();
         for (Object collector : bucketCollectors.internalValues()) {
             if (collector != null) {
@@ -144,69 +140,48 @@ public class HistogramCollector extends Aggregator.Collector {
             long key = rounding.round((long) value);
             BucketCollector bucketCollector = bucketCollectors.get(key);
             if (bucketCollector == null) {
-                bucketCollector = new BucketCollector(key, rounding, aggregator, scorer, reader, fieldDataContext);
+                bucketCollector = new BucketCollector(key, rounding, valuesSource, factories, reader, scorer, context, aggregator);
                 bucketCollectors.put(key, bucketCollector);
             }
             bucketCollector.collect(doc);
             return;
 
-        } else {
-
-            // it's a multi-valued field, meaning, some values of the field may fit the bucket, while other
-            // don't. thus, we need to iterate on all values and mark the bucket that they fall in (or
-            // create new buckets if needed). Only after this "mark" phase ends, we can iterate over all the buckets
-            // and aggregate only those that are marked (and while at it, clear the mark, making it ready for
-            // the next aggregation).
-
-            markBuckets(doc, fieldDataContext.field(0), vals, context);
-
         }
 
-        for (Object collector : bucketCollectors.internalValues()) {
-            if (collector != null) {
-                if (((BucketCollector) collector).docMatched) {
-                    ((BucketCollector) collector).docMatched = false;
-                    ((BucketCollector) collector).collect(doc, context);
-                }
-            }
+        // it's a multi-valued field, meaning, some values of the field may fit the bucket, while other
+        // won't. thus, we need to iterate on all values and mark the bucket that they fall in (or
+        // create new buckets if needed). Only after this "mark" phase ends, we can iterate over all the buckets
+        // and aggregate only those that are marked (and while at it, clear the mark, making it ready for
+        // the next aggregation).
+
+        List<BucketCollector> matchedBackets = findMatchedBuckets(doc, valuesSource.key(), values, context);
+        for (BucketCollector collector : matchedBackets) {
+            collector.collect(doc);
         }
+
     }
 
-    // marking all the buckets (and creating new buckets if needed) that match the given doc
-    // based on the values of the given field. This method only *marks* the buckets, after this method
-    // is called we'll go over the buckets and only collect the marked ones. We need to do this to avoid
-    // situations where multiple values in a single field or multiple values across the aggregated fields
-    // match the bucket and then the bucket will collect the same document multiple times.
-    private void markBuckets(int doc, String field, DoubleValues values, AggregationContext context) {
-
-        if (!values.isMultiValued()) {
-            double value = valueTransformer.transform(values.getValue(doc));
-            if (!context.accept(field, value)) {
-                return;
-            }
-            long key = rounding.round((long) value);
-            BucketCollector bucket = bucketCollectors.get(key);
-            if (bucket == null) {
-                bucket = new BucketCollector(key, rounding, aggregator, scorer, reader, fieldDataContext);
-                bucketCollectors.put(key, bucket);
-            }
-            bucket.docMatched = true;
-            return;
-        }
-
+    // collecting all the buckets (and creating new buckets if needed) that match the given doc
+    // based on the values of the given field. after this method is called we'll go over the buckets and only
+    // collect the matched ones. We need to do this to avoid situations where multiple values in a single field
+    // or multiple values across the aggregated fields match the bucket and then the bucket will collect the same
+    // document multiple times.
+    private List<BucketCollector> findMatchedBuckets(int doc, String valuesSourceKey, DoubleValues values, AggregationContext context) {
+        List<BucketCollector> matchedBuckets = Lists.newArrayListWithCapacity(4);
         for (DoubleValues.Iter iter = values.getIter(doc); iter.hasNext();) {
-            double value = valueTransformer.transform(iter.next());
-            if (!context.accept(field, value)) {
+            double value = iter.next();
+            if (!context.accept(doc, valuesSourceKey, value)) {
                 continue;
             }
             long key = rounding.round((long) value);
             BucketCollector bucket = bucketCollectors.get(key);
             if (bucket == null) {
-                bucket = new BucketCollector(key, rounding, aggregator, scorer, reader, fieldDataContext);
+                bucket = new BucketCollector(key, rounding, valuesSource, factories, reader, scorer, context, aggregator);
                 bucketCollectors.put(key, bucket);
             }
-            bucket.docMatched = true;
+            matchedBuckets.add(bucket);
         }
+        return matchedBuckets;
     }
 
 
@@ -215,54 +190,33 @@ public class HistogramCollector extends Aggregator.Collector {
      * A collector for a histogram bucket. This collector counts the number of documents that fall into it,
      * but also serves as the aggregation context for all the sub aggregations it contains.
      */
-    public static class BucketCollector extends SingleBucketAggregator.BucketCollector implements AggregationContext {
+    public static class BucketCollector extends DoubleBucketAggregator.BucketCollector {
 
         public final long key;
         final Rounding rounding;
 
         public long docCount;
-        public List<Aggregator> aggregators;
 
-        public BucketCollector(String aggregatorName, SingleBucketAggregator parent, Scorer scorer, AtomicReaderContext reader,
-                               AggregationContext context, long key, Rounding rounding) {
-            super(parent, scorer, reader, context);
+        public BucketCollector(long key, Rounding rounding, DoubleValuesSource valuesSource, List<Aggregator.Factory> factories,
+                               AtomicReaderContext reader, Scorer scorer, AggregationContext context, Aggregator parent) {
+            super(parent.name(), valuesSource, factories, reader, scorer, context, parent);
             this.key = key;
             this.rounding = rounding;
         }
 
-
-
         @Override
-        public boolean accept(int doc, String valueSourceKey, double value) {
-            if (!currentParentContext.accept(field, value)) {
-                return false;
-            }
-            if (!fieldDataContext.hasField(field)) {
-                return true;
-            }
-            return this.key == rounding.round((long) value);
-        }
-
-
-
-        @Override
-        protected AggregationContext onDoc(int doc, AggregationContext context) throws IOException {
-            currentParentContext = context;
+        protected boolean onDoc(int doc, DoubleValues values, AggregationContext context) throws IOException {
             docCount++;
-            return this;
-        }
-
-        public long docCount() {
-            return docCount;
-        }
-
-        public List<Aggregator> aggregators() {
-            return aggregators;
+            return true;
         }
 
         @Override
-        protected void postCollection(List<Aggregator> aggregators) {
-            this.aggregators = aggregators;
+        protected void postCollection(Aggregator[] aggregators) {
+        }
+
+        @Override
+        public boolean accept(int doc, double value, DoubleValues values) {
+            return this.key == rounding.round((long) value);
         }
 
     }

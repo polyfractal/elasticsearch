@@ -19,7 +19,10 @@
 
 package org.elasticsearch.search.aggregations.context.geopoints;
 
+import org.elasticsearch.index.fielddata.AtomicGeoPointFieldData;
 import org.elasticsearch.index.fielddata.GeoPointValues;
+import org.elasticsearch.index.fielddata.IndexFieldData;
+import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
 
 import java.io.IOException;
@@ -39,6 +42,42 @@ public interface GeoPointValuesSource extends ValuesSource {
         @Override
         public GeoPointValues values() throws IOException {
             return null;
+        }
+    }
+
+    public static class FieldData extends ValuesSource.FieldData<GeoPointValues> implements GeoPointValuesSource {
+
+        public FieldData(String field, IndexFieldData indexFieldData) {
+            super(field, indexFieldData);
+        }
+
+        public FieldData(String field, IndexFieldData indexFieldData, SearchScript valueScript) {
+            super(field, indexFieldData, valueScript);
+        }
+
+        @Override
+        protected GeoPointValues loadValues() throws IOException {
+            GeoPointValues values = fieldData != null ? ((AtomicGeoPointFieldData) fieldData).getGeoPointValues() : null;
+            if (values == null) {
+                return null;
+            }
+            return valueScript != null ? new ValueScriptGeoPointValues(values, valueScript) : values;
+        }
+    }
+
+    public static class Script extends ValuesSource.Script<ScriptGeoPointValues> implements GeoPointValuesSource {
+
+        public Script(SearchScript script) {
+            super(script);
+        }
+
+        public Script(SearchScript script, boolean multiValue) {
+            super(script, multiValue);
+        }
+
+        @Override
+        protected ScriptGeoPointValues createValues(SearchScript script, boolean multiValue) throws IOException {
+            return new ScriptGeoPointValues(script, multiValue);
         }
     }
 }

@@ -44,7 +44,7 @@ import java.util.List;
  */
 public class StringTerms extends InternalTerms {
 
-    public static final Type TYPE = new Type("terms", "sterms");
+    public static final InternalAggregation.Type TYPE = new Type("terms", "sterms");
 
     public static AggregationStreams.Stream STREAM = new AggregationStreams.Stream<StringTerms>() {
         @Override
@@ -69,14 +69,9 @@ public class StringTerms extends InternalTerms {
             this.term = new StringText(term);
         }
 
-        public Bucket(BytesRef term, long docCount, List<InternalAggregation> aggregations) {
+        public Bucket(BytesRef term, long docCount, InternalAggregations aggregations) {
             super(docCount, aggregations);
             this.term = new BytesText(new BytesArray(term));
-        }
-
-        public Bucket(Text term, long docCount, List<InternalAggregation> aggregations) {
-            super(docCount, aggregations);
-            this.term = term;
         }
 
         public Bucket(Text term, long docCount, InternalAggregations aggregations) {

@@ -19,29 +19,29 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.range;
 
+import com.google.common.collect.Lists;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
-import org.apache.lucene.util.BytesRef;
-import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.index.fielddata.DoubleValues;
-import org.elasticsearch.index.fielddata.IndexNumericFieldData;
+import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.FieldDataBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.DoubleBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.multi.DoubleMultiBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
-import org.elasticsearch.search.aggregations.context.ValueTransformer;
-import org.elasticsearch.search.aggregations.format.ValueFormatter;
+import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
+
+import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.buildAggregations;
+import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.createAggregators;
 
 /**
  *
  */
-public class RangeAggregator extends FieldDataBucketAggregator {
+public class RangeAggregator extends DoubleMultiBucketAggregator {
 
     static class Range {
 
@@ -67,152 +67,98 @@ public class RangeAggregator extends FieldDataBucketAggregator {
 
     private final boolean keyed;
 
-    List<RangeCollector> rangeCollectors;
+    BucketCollector[] bucketCollectors;
 
-    RangeAggregator(String name, List<Aggregator.Factory> factories, FieldDataContext fieldDataContext,
-                    ValueTransformer valueTransformer, ValueFormatter valueFormatter, List<Range> ranges, boolean keyed, Aggregator parent) {
-        super(name, factories, fieldDataContext, valueTransformer, parent, IndexNumericFieldData.class);
+    public RangeAggregator(String name, List<Aggregator.Factory> factories, DoubleValuesSource valuesSource, List<Range> ranges, boolean keyed, Aggregator parent) {
+        super(name, valuesSource, parent);
         this.keyed = keyed;
-        rangeCollectors = new ArrayList<RangeCollector>(ranges.size());
+        bucketCollectors = new BucketCollector[ranges.size()];
+        int i = 0;
         for (Range range : ranges) {
-            List<Aggregator> aggregators = new ArrayList<Aggregator>(factories.size());
-            for (Aggregator.Factory factory : factories) {
-                aggregators.add(factory.create(this));
-            }
-            rangeCollectors.add(new RangeCollector(range, aggregators, valueTransformer, valueFormatter, this.fieldDataContext));
+            bucketCollectors[i++] = new BucketCollector(name, valuesSource, createAggregators(factories, this), range);
         }
     }
 
+
     @Override
     public Collector collector() {
-        return new Collector(rangeCollectors);
+        return new Collector();
     }
 
     @Override
     public InternalAggregation buildAggregation() {
-        List<InternalRange.Bucket> buckets = new ArrayList<InternalRange.Bucket>(rangeCollectors.size());
-        for (RangeCollector collector : rangeCollectors) {
-            buckets.add(collector.buildBucket());
+        List<InternalRange.Bucket> buckets = Lists.newArrayListWithCapacity(bucketCollectors.length);
+        for (int i = 0; i < bucketCollectors.length; i++) {
+            buckets.add(bucketCollectors[i].buildBucket());
         }
         return new InternalRange(name, buckets, keyed);
     }
 
-    class Collector extends Aggregator.Collector {
-
-        private final List<RangeCollector> collectors;
-
-        Collector(List<RangeCollector> collectors) {
-            this.collectors = collectors;
-        }
+    class Collector implements Aggregator.Collector {
 
         @Override
         public void setScorer(Scorer scorer) throws IOException {
-            valueTransformer.setScorer(scorer);
-            for (RangeCollector collector : collectors) {
-                collector.setScorer(scorer);
+            for (int i = 0; i < bucketCollectors.length; i++) {
+                bucketCollectors[i].setScorer(scorer);
             }
         }
 
         @Override
-        public void collect(int doc, AggregationContext context) throws IOException {
-            valueTransformer.setNextDocId(doc);
-            for (RangeCollector collector : collectors) {
-                collector.collect(doc, context);
+        public void collect(int doc) throws IOException {
+            for (int i = 0; i < bucketCollectors.length; i++) {
+                bucketCollectors[i].collect(doc);
             }
         }
 
         @Override
-        public void setNextReader(AtomicReaderContext context) throws IOException {
-            valueTransformer.setNextReader(context);
-            for (RangeCollector collector : collectors) {
-                collector.setNextReader(context);
+        public void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException {
+            for (int i = 0; i < bucketCollectors.length; i++) {
+                bucketCollectors[i].setNextReader(reader, context);
             }
         }
 
         @Override
         public void postCollection() {
-            for (RangeCollector collector : collectors) {
-                collector.postCollection();
+            for (int i = 0; i < bucketCollectors.length; i++) {
+                bucketCollectors[i].postCollection();
             }
         }
     }
 
-    static class RangeCollector extends BucketCollector implements AggregationContext {
+    static class BucketCollector extends DoubleBucketAggregator.BucketCollector {
 
         private final Range range;
-        private final FieldDataContext fieldDataContext;
-        private final DoubleValues[] values;
-        private final ValueTransformer valueTransformer;
-        private final ValueFormatter valueFormatter;
-
-        private AggregationContext currentParentContext;
 
         long docCount;
 
-        RangeCollector(Range range, List<Aggregator> aggregators, ValueTransformer valueTransformer, ValueFormatter valueFormatter, FieldDataContext fieldDataContext) {
-            super(aggregators);
+        BucketCollector(String aggregationName, DoubleValuesSource valuesSource, Aggregator[] aggregators, Range range) {
+            super(aggregationName, valuesSource, aggregators);
             this.range = range;
-            this.fieldDataContext = fieldDataContext;
-            this.valueTransformer = valueTransformer;
-            this.valueFormatter = valueFormatter;
-            this.values = new DoubleValues[fieldDataContext.fieldCount()];
         }
 
         @Override
-        public void setNextReader(AtomicReaderContext context) throws IOException {
-            fieldDataContext.loadDoubleValues(context, values);
-            super.setNextReader(context);
+        protected boolean onDoc(int doc, DoubleValues values, AggregationContext context) throws IOException {
+            if (matches(doc, values, context)) {
+                docCount++;
+                return true;
+            }
+            return false;
         }
 
-
-        @Override
-        protected AggregationContext onDoc(int doc, AggregationContext context) throws IOException {
-            this.currentParentContext = context;
-
-            // when aggregating the values of a single field
-            if (values.length == 1) {
-                String field = fieldDataContext.fields()[0];
-                if (matches(doc, field, values[0], context)) {
-                    docCount++;
-                    if (!values[0].isMultiValued()) {
-                        // when aggregating a single field, and it's a single valued field, we can just keep the
-                        // the existing aggregation context. The only time we need to change the context is when
-                        // a single document may *partially* match a range - either aggregating on a single field which
-                        // is multi valued or when aggregating on multiple fields - in either case the document might
-                        // match the range based on some values while other field values don't. In the case here we don't
-                        // have this problem because if a document matches a range it can only be based on a single value
-                        // and we only pass the document down the aggregation hierarchy if it does - thus, not running
-                        // the risk that an aggregator down the hierarchy will try to aggregate on this value.
-                        return context;
-                    }
-                    return this;
-                }
-
-                return null;
-            }
-
-            for (int i = 0; i < values.length; i++) {
-                String field = fieldDataContext.field(i);
-                if (matches(doc, field, values[i], context)) {
-                    docCount++;
-                    return this;
-                }
-            }
-
-            return null;
-        }
-
-        private boolean matches(int doc, String field, DoubleValues values, AggregationContext context) {
+        private boolean matches(int doc, DoubleValues values, AggregationContext context) {
             if (!values.hasValue(doc)) {
                 return false;
             }
+
+            String valueSourceKey = valuesSource.key();
             if (!values.isMultiValued()) {
-                double value = valueTransformer.transform(values.getValue(doc));
-                return context.accept(field, value) && range.matches(value);
+                double value = values.getValue(doc);
+                return context.accept(doc, valueSourceKey, value) && range.matches(value);
             }
+
             for (DoubleValues.Iter iter = values.getIter(doc); iter.hasNext();) {
-                double value = valueTransformer.transform(iter.next());
-                if (context.accept(field, value) && range.matches(value)) {
+                double value = iter.next();
+                if (context.accept(doc, valueSourceKey, value) && range.matches(value)) {
                     return true;
                 }
             }
@@ -220,68 +166,74 @@ public class RangeAggregator extends FieldDataBucketAggregator {
         }
 
         @Override
-        protected void postCollection(List<Aggregator> aggregators) {
-        }
-
-        InternalRange.Bucket buildBucket() {
-            return new InternalRange.Bucket(range.key, range.from, range.to, docCount, valueFormatter, buildAggregations());
+        protected void postCollection(Aggregator[] aggregators) {
         }
 
         @Override
-        public boolean accept(String field, double value) {
-            if (!currentParentContext.accept(field, value)) {
-                return false;
-            }
-            if (!fieldDataContext.hasField(field)) {
-                return true;
-            }
+        public boolean accept(int doc, double value, DoubleValues values) {
             return range.matches(value);
         }
 
-        @Override
-        public boolean accept(String field, long value) {
-            return accept(field, (double) value);
+        InternalRange.Bucket buildBucket() {
+            return new InternalRange.Bucket(range.key, range.from, range.to, docCount, buildAggregations(aggregators));
         }
 
-        @Override
-        public boolean accept(String field, BytesRef value) {
-            return currentParentContext.accept(field, value);
-        }
-
-        @Override
-        public boolean accept(String field, GeoPoint value) {
-            return currentParentContext.accept(field, value);
-        }
     }
 
-    public static class Factory extends SingleBucketAggregator.Factory<RangeAggregator, Factory> {
+    public static class FieldDataFactory extends DoubleMultiBucketAggregator.FieldDataFactory<RangeAggregator> {
 
-        private final FieldDataContext fieldDataContext;
-        private final ValueTransformer valueTransformer;
-        private final ValueFormatter valueFormatter;
         private final List<Range> ranges;
         private final boolean keyed;
 
-        public Factory(String name, FieldDataContext fieldDataContext, List<Range> ranges, boolean keyed) {
-            this(name, fieldDataContext, ValueTransformer.NONE, null, ranges, keyed);
+        public FieldDataFactory(String name, FieldDataContext fieldDataContext, List<Range> ranges, boolean keyed) {
+            super(name, fieldDataContext);
+            this.ranges = ranges;
+            this.keyed = keyed;
         }
 
-        public Factory(String name, FieldDataContext fieldDataContext, ValueFormatter valueFormatter, List<Range> ranges, boolean keyed) {
-            this(name, fieldDataContext, ValueTransformer.NONE, valueFormatter, ranges, keyed);
-        }
-
-        public Factory(String name, FieldDataContext fieldDataContext, ValueTransformer valueTransformer, ValueFormatter valueFormatter, List<Range> ranges, boolean keyed) {
-            super(name);
-            this.fieldDataContext = fieldDataContext;
-            this.valueTransformer = valueTransformer;
-            this.valueFormatter = valueFormatter;
+        public FieldDataFactory(String name, FieldDataContext fieldDataContext, SearchScript valueScript, List<Range> ranges, boolean keyed) {
+            super(name, fieldDataContext, valueScript);
             this.ranges = ranges;
             this.keyed = keyed;
         }
 
         @Override
-        public RangeAggregator create(Aggregator parent) {
-            return new RangeAggregator(name, factories, fieldDataContext, valueTransformer, valueFormatter, ranges, keyed, parent);
+        protected RangeAggregator create(DoubleValuesSource source, Aggregator parent) {
+            return new RangeAggregator(name, factories, source, ranges, keyed, parent);
+        }
+    }
+
+    public static class ScriptFactory extends DoubleMultiBucketAggregator.ScriptFactory<RangeAggregator> {
+
+        private final List<Range> ranges;
+        private final boolean keyed;
+
+        public ScriptFactory(String name, SearchScript script, List<Range> ranges, boolean keyed) {
+            super(name, script);
+            this.ranges = ranges;
+            this.keyed = keyed;
+        }
+
+        @Override
+        protected RangeAggregator create(DoubleValuesSource source, Aggregator parent) {
+            return new RangeAggregator(name, factories, source, ranges, keyed, parent);
+        }
+    }
+
+    public static class ContextBasedFactory extends DoubleMultiBucketAggregator.ContextBasedFactory<RangeAggregator> {
+
+        private final List<Range> ranges;
+        private final boolean keyed;
+
+        public ContextBasedFactory(String name, List<Range> ranges, boolean keyed) {
+            super(name);
+            this.ranges = ranges;
+            this.keyed = keyed;
+        }
+
+        @Override
+        protected RangeAggregator create(DoubleValuesSource source, Aggregator parent) {
+            return new RangeAggregator(name, factories, source, ranges, keyed, parent);
         }
     }
 

@@ -21,6 +21,7 @@ package org.elasticsearch.search.aggregations.bucket.single;
 
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
 
 import java.util.List;
@@ -36,11 +37,7 @@ public abstract class SingleBucketAggregator extends BucketAggregator {
 
     protected SingleBucketAggregator(String name, List<Aggregator.Factory> factories, Aggregator parent) {
         super(name, parent);
-        aggregators = new Aggregator[factories.size()];
-        int i = 0;
-        for (Aggregator.Factory factory : factories) {
-            aggregators[i++] = factory.create(this);
-        }
+        aggregators = createAggregators(factories, this);
     }
 
     @Override
@@ -52,9 +49,9 @@ public abstract class SingleBucketAggregator extends BucketAggregator {
 
     @Override
     public final InternalAggregation buildAggregation() {
-        return buildAggregation(aggregators);
+        return buildAggregation(buildAggregations(aggregators));
     }
 
-    protected abstract InternalAggregation buildAggregation(Aggregator[] aggregators);
+    protected abstract InternalAggregation buildAggregation(InternalAggregations aggregations);
 
 }

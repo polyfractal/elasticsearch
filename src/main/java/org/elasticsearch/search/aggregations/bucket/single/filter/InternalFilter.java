@@ -22,6 +22,7 @@ package org.elasticsearch.search.aggregations.bucket.single.filter;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.search.aggregations.AggregationStreams;
 import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregation;
 
 import java.io.IOException;
@@ -49,7 +50,7 @@ public class InternalFilter extends SingleBucketAggregation<InternalFilter> impl
 
     InternalFilter() {} // for serialization
 
-    InternalFilter(String name, long docCount, List<InternalAggregation> subAggregations) {
+    InternalFilter(String name, long docCount, InternalAggregations subAggregations) {
         super(name, docCount, subAggregations);
     }
 

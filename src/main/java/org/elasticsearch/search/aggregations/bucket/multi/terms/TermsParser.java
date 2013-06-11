@@ -19,21 +19,18 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.terms;
 
-import com.google.common.collect.Lists;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.script.SearchScript;
+import org.elasticsearch.search.SearchParseException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
-import org.elasticsearch.search.aggregations.bucket.multi.terms.script.ScriptTermsAggregator;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.string.StringTerms;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
-import org.elasticsearch.search.aggregations.context.ValueTransformer;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -50,15 +47,13 @@ public class TermsParser implements AggregatorParser {
     public Aggregator.Factory parse(String aggregationName, XContentParser parser, SearchContext context) throws IOException {
 
         String field = null;
-        List<String> fields = null;
         String script = null;
         String scriptLang = null;
         Map<String, Object> scriptParams = null;
+        Terms.ScriptValueType valueType = Terms.ScriptValueType.STRING;
         int requiredSize = 10;
-        boolean fieldDefined = false;
         String orderKey = "_count";
         boolean orderAsc = false;
-        String format = null;
 
 
         XContentParser.Token token;
@@ -68,26 +63,17 @@ public class TermsParser implements AggregatorParser {
                 currentFieldName = parser.currentName();
             } else if (token == XContentParser.Token.VALUE_STRING) {
                 if ("field".equals(currentFieldName)) {
-                    fieldDefined = true;
                     field = parser.text();
                 } else if ("script".equals(currentFieldName)) {
                     script = parser.text();
                 } else if ("script_lang".equals(currentFieldName) || "scriptLang".equals(currentFieldName)) {
                     scriptLang = parser.text();
-                } else if ("format".equals(currentFieldName)) {
-                    format = parser.text();
+                } else if ("script_value_type".equals(currentFieldName) || "scriptLang".equals(currentFieldName)) {
+                    valueType = resolveTermsType(parser.text(), context);
                 }
             } else if (token == XContentParser.Token.VALUE_NUMBER) {
                 if ("size".equals(currentFieldName)) {
                     requiredSize = parser.intValue();
-                }
-            } else if (token == XContentParser.Token.START_ARRAY) {
-                if ("field".equals(currentFieldName)) {
-                    fieldDefined = true;
-                    fields = Lists.newArrayListWithCapacity(4);
-                    while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
-                        fields.add(parser.text());
-                    }
                 }
             } else if (token == XContentParser.Token.START_OBJECT) {
                 if ("params".equals(currentFieldName)) {
@@ -107,64 +93,30 @@ public class TermsParser implements AggregatorParser {
         }
 
         Terms.Order order = resolveOrder(orderKey, orderAsc);
+        SearchScript searchScript = null;
+        if (script != null) {
+            searchScript = context.scriptService().search(context.lookup(), scriptLang, script, scriptParams);
+        }
 
-        if (!fieldDefined) {
-            if (script != null) {
-                SearchScript searchScript = context.scriptService().search(context.lookup(), scriptLang, script, scriptParams);
-                return new ScriptTermsAggregator.Factory(aggregationName, order, requiredSize, searchScript);
+        if (field == null) {
+            if (searchScript != null) {
+                return new TermsAggregatorFactory(aggregationName, searchScript, order, requiredSize, valueType);
             }
-            return new TermsAggregatorFactory(aggregationName, order, format, requiredSize);
+            return new TermsAggregatorFactory(aggregationName, order, requiredSize);
         }
 
-        // the user defined a single field
-        if (field != null) {
-            FieldMapper mapper = context.smartNameFieldMapper(field);
-            if (mapper == null) {
-                return null; //skipping aggregation on unmapped fields
-            }
+        FieldMapper mapper = context.smartNameFieldMapper(field);
+        if (mapper == null) {
+            return null; // skipping aggregation on unmapped fields
+        }
+        IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
+        FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
 
-            IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-            FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
-            if (script != null) {
-                ValueTransformer.Script valueTransformer = new ValueTransformer.Script(context, script, scriptLang, scriptParams);
-                return new TermsAggregatorFactory(aggregationName, fieldDataContext, valueTransformer, order, format, requiredSize);
-            }
-
-            return new TermsAggregatorFactory(aggregationName, fieldDataContext, order, format, requiredSize);
+        if (searchScript != null) {
+            return new TermsAggregatorFactory(aggregationName, fieldDataContext, searchScript, order, requiredSize);
         }
 
-        // the user defined multiple fields
-        if (fields.isEmpty()) {
-            // we're treating an empty array the same as we treat missing "field" configuration - falling back on the field context of ancestor (or script)
-            if (script != null) {
-                SearchScript searchScript = context.scriptService().search(context.lookup(), scriptLang, script, scriptParams);
-                return new ScriptTermsAggregator.Factory(aggregationName, order, requiredSize, searchScript);
-            }
-            return new TermsAggregatorFactory(aggregationName, order, format, requiredSize);
-        }
-
-        List<IndexFieldData> indexFieldDatas = Lists.newArrayListWithCapacity(4);
-        List<String> mappedFields = Lists.newArrayListWithCapacity(4);
-        for (String fieldName : fields) {
-            FieldMapper mapper = context.smartNameFieldMapper(fieldName);
-            if (mapper != null) {
-                mappedFields.add(fieldName);
-                indexFieldDatas.add(context.fieldData().getForField(mapper));
-            }
-        }
-
-        if (mappedFields.isEmpty()) {
-            return null; // skipping terms aggregation on unmapped fields
-        }
-
-        FieldDataContext fieldDataContext = new FieldDataContext(mappedFields, indexFieldDatas, context);
-
-        if (script == null) {
-            return new TermsAggregatorFactory(aggregationName, fieldDataContext, order, format, requiredSize);
-        }
-
-        ValueTransformer.Script valueTranformer = new ValueTransformer.Script(context, script, scriptLang, scriptParams);
-        return new TermsAggregatorFactory(aggregationName, fieldDataContext, valueTranformer, order, format, requiredSize);
+        return new TermsAggregatorFactory(aggregationName, fieldDataContext, order, requiredSize);
     }
 
     static Terms.Order resolveOrder(String key, boolean asc) {
@@ -179,6 +131,14 @@ public class TermsParser implements AggregatorParser {
             return Terms.Order.Aggregation.create(key, asc);
         }
         return Terms.Order.Aggregation.create(key.substring(0, i), key.substring(i+1), asc);
+    }
+
+    static Terms.ScriptValueType resolveTermsType(String typeAsStr, SearchContext context) {
+        Terms.ScriptValueType type = Terms.ScriptValueType.resolveType(typeAsStr);
+        if (type == null) {
+            throw new SearchParseException(context, "Unknown script value type [" + typeAsStr + "]");
+        }
+        return type;
     }
 
 }

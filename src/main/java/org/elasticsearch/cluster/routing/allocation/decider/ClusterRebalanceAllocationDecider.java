@@ -118,7 +118,7 @@ public class ClusterRebalanceAllocationDecider extends AllocationDecider {
                 }
             }
         }
-        // type == Type.ALWAYS
+        // type == ScriptValueType.ALWAYS
         return Decision.YES;
     }
 }

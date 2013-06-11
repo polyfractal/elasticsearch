@@ -24,6 +24,8 @@ import org.apache.lucene.search.Scorer;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Instantiated per named aggregation in the request (every aggregation type has a dedicated aggregator). The aggregator
@@ -84,8 +86,26 @@ public interface Aggregator<A extends InternalAggregation> {
         }
 
         public abstract A create(Aggregator parent);
+    }
+
+
+    static abstract class CompoundFactory<A extends Aggregator> extends Factory<A> {
+
+        protected List<Factory> factories = new ArrayList<Factory>();
+
+        protected CompoundFactory(String name) {
+            super(name);
+        }
+
+        @SuppressWarnings("unchecked")
+        public Factory<A> set(List<Aggregator.Factory> factories) {
+            this.factories = factories;
+            return this;
+        }
 
     }
+
+
 
 
 }

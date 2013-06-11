@@ -17,12 +17,13 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.bucket.single;
+package org.elasticsearch.search.aggregations.bucket;
 
+import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.search.Scorer;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.index.fielddata.DoubleValues;
-import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
@@ -36,26 +37,23 @@ import java.util.List;
 /**
  *
  */
-public abstract class NumericSingleBucketAggregator extends ValuesSourceSingleBucketAggregator<DoubleValuesSource> {
+public abstract class DoubleBucketAggregator extends ValuesSourceBucketAggregator<DoubleValuesSource> {
 
-    public NumericSingleBucketAggregator(String name, List<Aggregator.Factory> factories, Aggregator parent) {
-        super(name, factories, parent);
+    protected DoubleBucketAggregator(String name, DoubleValuesSource valuesSource, Aggregator parent) {
+        super(name, valuesSource, DoubleValuesSource.class, parent);
     }
 
-    public NumericSingleBucketAggregator(String name, List<Aggregator.Factory> factories, DoubleValuesSource valuesSource, Aggregator parent) {
-        super(name, factories, valuesSource, parent);
-    }
-
-    public static abstract class BucketCollector extends ValuesSourceSingleBucketAggregator.BucketCollector<DoubleValuesSource> implements AggregationContext {
-
-        private final String aggregatorName;
+    public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<DoubleValuesSource> implements AggregationContext {
 
         private DoubleValues values;
-        private AggregationContext parentContext;
 
-        public BucketCollector(String aggregatorName, Aggregator[] aggregators, DoubleValuesSource valuesSource) {
-            super(aggregators, valuesSource);
-            this.aggregatorName = aggregatorName;
+        protected BucketCollector(String aggregationName, DoubleValuesSource valuesSource, Aggregator[] aggregators) {
+            super(aggregationName, valuesSource, aggregators);
+        }
+
+        protected BucketCollector(String aggregationName, DoubleValuesSource valuesSource, List<Aggregator.Factory> factories,
+                                  AtomicReaderContext reader, Scorer scorer, AggregationContext context, Aggregator parent) {
+            super(aggregationName, valuesSource, factories, reader, scorer, context, parent);
         }
 
         @Override
@@ -64,25 +62,15 @@ public abstract class NumericSingleBucketAggregator extends ValuesSourceSingleBu
             if (!values.isMultiValued()) {
                 return context;
             }
-            parentContext = context;
             return this;
         }
 
         @Override
-        protected DoubleValuesSource extractValuesSourceFromContext(AggregationContext context) {
-            DoubleValuesSource valuesSource = context.doubleValuesSource();
-            if (valuesSource == null) {
-                throw new AggregationExecutionException("Missing numeric values in aggregation context for aggregator [" + aggregatorName + "]");
-            }
-            return valuesSource;
+        protected final boolean onDoc(int doc, AggregationContext context) throws IOException {
+            return onDoc(doc, values, context);
         }
 
-        @Override
-        protected final boolean onDoc(int doc) throws IOException {
-            return onDoc(doc, values);
-        }
-
-        protected abstract boolean onDoc(int doc, DoubleValues values) throws IOException;
+        protected abstract boolean onDoc(int doc, DoubleValues values, AggregationContext context) throws IOException;
 
         @Override
         public DoubleValuesSource doubleValuesSource() {
@@ -106,6 +94,9 @@ public abstract class NumericSingleBucketAggregator extends ValuesSourceSingleBu
 
         @Override
         public boolean accept(int doc, String valueSourceKey, double value) {
+            if (!parentContext.accept(doc, valueSourceKey, value)) {
+                return false;
+            }
             if (valuesSource.key().equals(valueSourceKey)) {
                 return accept(doc, value, values);
             }

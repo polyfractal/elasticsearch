@@ -21,23 +21,23 @@ package org.elasticsearch.search.aggregations.calc;
 
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
+import org.elasticsearch.search.aggregations.AbstractValuesSourceAggregator;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
+import org.elasticsearch.search.aggregations.context.ValuesSourceBased;
 
 import java.io.IOException;
 
 /**
  *
  */
-public abstract class ValuesSourceCalcAggregator<VS extends ValuesSource> extends CalcAggregator {
+public abstract class ValuesSourceCalcAggregator<VS extends ValuesSource> extends AbstractValuesSourceAggregator<VS> implements ValuesSourceBased {
 
-    protected final VS valuesSource;
-
-    public ValuesSourceCalcAggregator(String name, VS valuesSource, Aggregator parent) {
-        super(name, parent);
-        this.valuesSource = valuesSource;
+    public ValuesSourceCalcAggregator(String name, VS valuesSource, Class<VS> valueSourceType, Aggregator parent) {
+        super(name, valuesSource, valueSourceType, parent);
     }
+
 
     protected static abstract class Collector<VS extends ValuesSource> implements Aggregator.Collector {
 

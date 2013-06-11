@@ -21,15 +21,14 @@ package org.elasticsearch.search.aggregations.bucket.multi.histogram.date;
 
 import org.elasticsearch.common.joda.TimeZoneRounding;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
-import org.elasticsearch.index.fielddata.IndexNumericFieldData;
+import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
-import org.elasticsearch.search.aggregations.format.ValueFormatter;
-import org.elasticsearch.search.aggregations.bucket.FieldDataBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.multi.DoubleMultiBucketAggregator;
 import org.elasticsearch.search.aggregations.bucket.multi.histogram.HistogramCollector;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
-import org.elasticsearch.search.aggregations.context.ValueTransformer;
+import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
+import org.elasticsearch.search.aggregations.format.ValueFormatter;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,8 +37,9 @@ import java.util.List;
 /**
  *
  */
-public class DateHistogramAggregator extends FieldDataBucketAggregator implements HistogramCollector.Listener {
+public class DateHistogramAggregator extends DoubleMultiBucketAggregator implements HistogramCollector.Listener {
 
+    private final List<Aggregator.Factory> factories;
     private final TimeZoneRounding rounding;
     private final InternalDateOrder order;
     private final boolean keyed;
@@ -47,10 +47,11 @@ public class DateHistogramAggregator extends FieldDataBucketAggregator implement
 
     ExtTLongObjectHashMap<HistogramCollector.BucketCollector> collectors;
 
-    public DateHistogramAggregator(String name, List<Aggregator.Factory> factories, FieldDataContext fieldDataContext,
-                                   ValueTransformer valueTransformer, TimeZoneRounding rounding, InternalDateOrder order, boolean keyed,
-                                   ValueFormatter formatter, Aggregator parent) {
-        super(name, factories, fieldDataContext, valueTransformer, parent, IndexNumericFieldData.class);
+    public DateHistogramAggregator(String name, List<Aggregator.Factory> factories, DoubleValuesSource valuesSource,
+                                   TimeZoneRounding rounding, InternalDateOrder order, boolean keyed, ValueFormatter formatter,
+                                   Aggregator parent) {
+        super(name, valuesSource, parent);
+        this.factories = factories;
         this.rounding = rounding;
         this.order = order;
         this.keyed = keyed;
@@ -59,7 +60,7 @@ public class DateHistogramAggregator extends FieldDataBucketAggregator implement
 
     @Override
     public Collector collector() {
-        return new HistogramCollector(this, fieldDataContext, rounding, valueTransformer, this);
+        return new HistogramCollector(this, factories, valuesSource, rounding, this);
     }
 
     @Override
@@ -70,9 +71,9 @@ public class DateHistogramAggregator extends FieldDataBucketAggregator implement
                 continue;
             }
             HistogramCollector.BucketCollector bucketCollector = (HistogramCollector.BucketCollector) collector;
-            List<InternalAggregation> aggregations = new ArrayList<InternalAggregation>(bucketCollector.aggregators.size());
-            for (Aggregator aggregator : bucketCollector.aggregators) {
-                aggregations.add(aggregator.buildAggregation());
+            List<InternalAggregation> aggregations = new ArrayList<InternalAggregation>(bucketCollector.aggregators.length);
+            for (int i = 0; i < bucketCollector.aggregators.length; i++) {
+                aggregations.add(bucketCollector.aggregators[i].buildAggregation());
             }
             buckets.add(new InternalDateHistogram.Bucket(bucketCollector.key, formatter.format(bucketCollector.key), bucketCollector.docCount, aggregations));
         }
@@ -85,23 +86,23 @@ public class DateHistogramAggregator extends FieldDataBucketAggregator implement
         this.collectors = collectors;
     }
 
-    public static class Factory extends SingleBucketAggregator.Factory<DateHistogramAggregator, Factory> {
+    public static class FieldDataFactory extends DoubleMultiBucketAggregator.FieldDataFactory<DateHistogramAggregator> {
 
-        private final FieldDataContext fieldDataContext;
-        private final ValueTransformer valueTransformer;
         private final TimeZoneRounding rounding;
         private final InternalDateOrder order;
         private final boolean keyed;
         private final ValueFormatter formatter;
 
-        public Factory(String name, TimeZoneRounding rounding, InternalDateOrder order, boolean keyed, ValueFormatter formatter) {
-            this(name, null, ValueTransformer.NONE, rounding, order, keyed, formatter);
+        public FieldDataFactory(String name, FieldDataContext fieldDataContext, TimeZoneRounding rounding, InternalDateOrder order, boolean keyed, ValueFormatter formatter) {
+            super(name, fieldDataContext);
+            this.rounding = rounding;
+            this.order = order;
+            this.keyed = keyed;
+            this.formatter = formatter;
         }
 
-        public Factory(String name, FieldDataContext fieldDataContext, ValueTransformer valueTransformer, TimeZoneRounding rounding, InternalDateOrder order, boolean keyed, ValueFormatter formatter) {
-            super(name);
-            this.fieldDataContext = fieldDataContext;
-            this.valueTransformer = valueTransformer;
+        public FieldDataFactory(String name, FieldDataContext fieldDataContext, SearchScript valueScript, TimeZoneRounding rounding, InternalDateOrder order, boolean keyed, ValueFormatter formatter) {
+            super(name, fieldDataContext, valueScript);
             this.rounding = rounding;
             this.order = order;
             this.keyed = keyed;
@@ -109,8 +110,50 @@ public class DateHistogramAggregator extends FieldDataBucketAggregator implement
         }
 
         @Override
-        public DateHistogramAggregator create(Aggregator parent) {
-            return new DateHistogramAggregator(name, factories, fieldDataContext, valueTransformer, rounding, order, keyed, formatter, parent);
+        protected DateHistogramAggregator create(DoubleValuesSource source, Aggregator parent) {
+            return new DateHistogramAggregator(name, factories, source, rounding, order, keyed, formatter, parent);
+        }
+    }
+
+    public static class ScriptFactory extends DoubleMultiBucketAggregator.ScriptFactory<DateHistogramAggregator> {
+
+        private final TimeZoneRounding rounding;
+        private final InternalDateOrder order;
+        private final boolean keyed;
+        private final ValueFormatter formatter;
+
+        public ScriptFactory(String name, SearchScript script, TimeZoneRounding rounding, InternalDateOrder order, boolean keyed, ValueFormatter formatter) {
+            super(name, script);
+            this.rounding = rounding;
+            this.order = order;
+            this.keyed = keyed;
+            this.formatter = formatter;
+        }
+
+        @Override
+        protected DateHistogramAggregator create(DoubleValuesSource source, Aggregator parent) {
+            return new DateHistogramAggregator(name, factories, source, rounding, order, keyed, formatter, parent);
+        }
+    }
+
+    public static class ContextBasedFactory extends DoubleMultiBucketAggregator.ContextBasedFactory<DateHistogramAggregator> {
+
+        private final TimeZoneRounding rounding;
+        private final InternalDateOrder order;
+        private final boolean keyed;
+        private final ValueFormatter formatter;
+
+        public ContextBasedFactory(String name, TimeZoneRounding rounding, InternalDateOrder order, boolean keyed, ValueFormatter formatter) {
+            super(name);
+            this.rounding = rounding;
+            this.order = order;
+            this.keyed = keyed;
+            this.formatter = formatter;
+        }
+
+        @Override
+        protected DateHistogramAggregator create(DoubleValuesSource source, Aggregator parent) {
+            return new DateHistogramAggregator(name, factories, source, rounding, order, keyed, formatter, parent);
         }
     }
 }

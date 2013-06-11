@@ -65,15 +65,19 @@ public interface DoubleValuesSource extends ValuesSource {
         }
     }
 
-    public static class Script extends ValuesSource.Script<DoubleValues> implements DoubleValuesSource {
+    public static class Script extends ValuesSource.Script<ScriptDoubleValues> implements DoubleValuesSource {
 
         public Script(SearchScript script) {
             super(script);
         }
 
+        public Script(SearchScript script, boolean multiValue) {
+            super(script, multiValue);
+        }
+
         @Override
-        public DoubleValues createValues(SearchScript script) throws IOException {
-            return new ScriptDoubleValues(script);
+        public ScriptDoubleValues createValues(SearchScript script, boolean multiValue) throws IOException {
+            return new ScriptDoubleValues(script, multiValue);
         }
     }
 }

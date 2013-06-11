@@ -170,5 +170,10 @@ public class AggregationPhase implements SearchPhase {
         public boolean acceptsDocsOutOfOrder() {
             return true;
         }
+
+        @Override
+        public void postCollection() {
+            collector.postCollection();
+        }
     }
 }

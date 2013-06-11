@@ -106,13 +106,19 @@ public interface ValuesSource {
         protected abstract Values loadValues() throws IOException;
     }
 
-    public abstract static class Script<Values> implements ValuesSource {
+    public abstract static class Script<Values extends ScriptValues> implements ValuesSource {
 
         protected final SearchScript script;
+        private final boolean multiValue;
         protected Values values;
 
         public Script(SearchScript script) {
+            this(script, true);
+        }
+
+        public Script(SearchScript script, boolean multiValue) {
             this.script = script;
+            this.multiValue = multiValue;
         }
 
         @Override
@@ -128,16 +134,19 @@ public interface ValuesSource {
         @Override
         public void setNextReader(AtomicReaderContext reader) {
             script.setNextReader(reader);
+            if (values != null) {
+                values.clearCache();
+            }
         }
 
         public Values values() throws IOException {
             if (values == null) {
-                values = createValues(script);
+                values = createValues(script, multiValue);
             }
             return values;
         }
 
-        protected abstract Values createValues(SearchScript script) throws IOException;
+        protected abstract Values createValues(SearchScript script, boolean multiValue) throws IOException;
 
     }
 }

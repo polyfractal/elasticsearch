@@ -23,7 +23,12 @@ import org.elasticsearch.ElasticSearchIllegalArgumentException;
 import org.elasticsearch.common.text.Text;
 import org.elasticsearch.search.aggregations.Aggregated;
 import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregations;
+import org.elasticsearch.search.aggregations.context.ValuesSource;
+import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
+import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
+import org.elasticsearch.search.aggregations.context.longs.LongValuesSource;
 
 import java.util.Comparator;
 
@@ -31,6 +36,46 @@ import java.util.Comparator;
  *
  */
 public interface Terms extends Aggregation, Iterable<Terms.Bucket> {
+
+    static enum ScriptValueType {
+
+        STRING(BytesValuesSource.class),
+        LONG(LongValuesSource.class),
+        DOUBLE(DoubleValuesSource.class);
+
+        final Class<? extends ValuesSource> valueSourceType;
+
+        private ScriptValueType(Class<? extends ValuesSource> valueSourceType) {
+            this.valueSourceType = valueSourceType;
+        }
+
+        static ScriptValueType resolveType(String type) {
+            if ("string".equals(type)) {
+                return STRING;
+            }
+            if ("double".equals(type) || "float".equals(type)) {
+                return DOUBLE;
+            }
+            if ("long".equals(type) || "integer".equals(type) || "short".equals(type) || "byte".equals(type)) {
+                return LONG;
+            }
+            return null;
+        }
+
+        static ScriptValueType resolveType(ValuesSource valuesSource) {
+            if (STRING.valueSourceType.isInstance(valuesSource)) {
+                return STRING;
+            }
+            if (DOUBLE.valueSourceType.isInstance(valuesSource)) {
+                return DOUBLE;
+            }
+            if (LONG.valueSourceType.isInstance(valuesSource)) {
+                return LONG;
+            }
+            throw new AggregationExecutionException("Could not associated a terms type with field data value source [" + valuesSource.getClass().getName() + "]");
+        }
+
+    }
 
     static interface Bucket extends Comparable<Bucket>, Aggregated {
 

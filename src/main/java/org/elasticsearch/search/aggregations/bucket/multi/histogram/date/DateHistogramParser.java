@@ -20,7 +20,6 @@
 package org.elasticsearch.search.aggregations.bucket.multi.histogram.date;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import org.elasticsearch.common.collect.MapBuilder;
 import org.elasticsearch.common.joda.Joda;
 import org.elasticsearch.common.joda.TimeZoneRounding;
@@ -33,9 +32,8 @@ import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.SearchParseException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
-import org.elasticsearch.search.aggregations.format.ValueFormatter;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
-import org.elasticsearch.search.aggregations.context.ValueTransformer;
+import org.elasticsearch.search.aggregations.format.ValueFormatter;
 import org.elasticsearch.search.internal.SearchContext;
 import org.joda.time.Chronology;
 import org.joda.time.DateTimeField;
@@ -43,8 +41,6 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.chrono.ISOChronology;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -83,7 +79,6 @@ public class DateHistogramParser implements AggregatorParser {
     public Aggregator.Factory parse(String aggregationName, XContentParser parser, SearchContext context) throws IOException {
 
         String field = null;
-        List<String> fields = null;
         String script = null;
         String scriptLang = null;
         Map<String, Object> scriptParams = null;
@@ -98,8 +93,6 @@ public class DateHistogramParser implements AggregatorParser {
         long preOffset = 0;
         long postOffset = 0;
 
-        boolean fieldExists = false;
-
         XContentParser.Token token;
         String currentFieldName = null;
         while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
@@ -107,7 +100,6 @@ public class DateHistogramParser implements AggregatorParser {
                 currentFieldName = parser.currentName();
             } else if (token == XContentParser.Token.VALUE_STRING) {
                 if ("field".equals(currentFieldName)) {
-                    fieldExists = true;
                     field = parser.text();
                 } else if ("script".equals(currentFieldName)) {
                     script = parser.text();
@@ -133,14 +125,6 @@ public class DateHistogramParser implements AggregatorParser {
             } else if (token == XContentParser.Token.VALUE_BOOLEAN) {
                 if ("keyed".equals(currentFieldName)) {
                     keyed = parser.booleanValue();
-                }
-            } else if (token == XContentParser.Token.START_ARRAY) {
-                if ("field".equals(currentFieldName)) {
-                    fieldExists = true;
-                    fields = new ArrayList<String>();
-                    while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
-                        fields.add(parser.text());
-                    }
                 }
             } else if (token == XContentParser.Token.START_OBJECT) {
                 if ("params".equals(currentFieldName)) {
@@ -193,63 +177,32 @@ public class DateHistogramParser implements AggregatorParser {
             formatter = new ValueFormatter.DateTime(format);
         }
 
-        if (!fieldExists) {
+        if (field == null) {
 
             if (searchScript != null) {
-                return new ScriptDateHistogramAggregator.Factory(aggregationName, searchScript, rounding, order, keyed, formatter);
+                return new DateHistogramAggregator.ScriptFactory(aggregationName, searchScript, rounding, order, keyed, formatter);
             }
 
             // falling back on the aggregation field data context
-            return new DateHistogramAggregator.Factory(aggregationName, rounding, order, keyed, formatter);
+            return new DateHistogramAggregator.ContextBasedFactory(aggregationName, rounding, order, keyed, formatter);
         }
 
-        if (field != null) {
-            FieldMapper mapper = context.smartNameFieldMapper(field);
-            if (mapper == null) {
-                return new UnmappedDateHistogramAggregator.Factory(aggregationName, order, keyed);
-            }
-            if (!(mapper instanceof DateFieldMapper)) {
-                throw new SearchParseException(context, "date histogram can only be aggregated on date fields but  [" + field + "] is not a date field");
-            }
-            IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-            FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
-            if (searchScript != null) {
-                return new DateHistogramAggregator.Factory(aggregationName, fieldDataContext, new ValueTransformer.Script(searchScript), rounding, order, keyed,formatter);
-            }
-            return new DateHistogramAggregator.Factory(aggregationName, fieldDataContext, ValueTransformer.NONE, rounding, order, keyed, formatter);
-        }
-
-        // multiple fields are specified by the user
-
-        if (fields.isEmpty()) {
-            // the user specified an empty array... so we're falling back to the field context of the ancestors
-            //TODO what do we do if the script is defined and the user defined an empty array of fields?
-            return new DateHistogramAggregator.Factory(aggregationName, rounding, order, keyed,formatter);
-        }
-
-        List<String> mappedFields = Lists.newArrayListWithCapacity(4);
-        List<IndexFieldData> indexFieldDatas = Lists.newArrayListWithCapacity(4);
-        for (String fieldName : fields) {
-            FieldMapper mapper = context.smartNameFieldMapper(fieldName);
-            if (mapper != null) {
-                if (!(mapper instanceof DateFieldMapper)) {
-                    throw new SearchParseException(context, "date histogram can only be aggregated on date fields but  [" + field + "] is not a date field");
-                }
-                mappedFields.add(fieldName);
-                indexFieldDatas.add(context.fieldData().getForField(mapper));
-            }
-        }
-
-        if (mappedFields.isEmpty()) {
+        FieldMapper mapper = context.smartNameFieldMapper(field);
+        if (mapper == null) {
             return new UnmappedDateHistogramAggregator.Factory(aggregationName, order, keyed);
         }
 
-        FieldDataContext fieldDataContext = new FieldDataContext(mappedFields, indexFieldDatas, context);
-        if (searchScript != null) {
-            return new DateHistogramAggregator.Factory(aggregationName, fieldDataContext, new ValueTransformer.Script(searchScript), rounding, order, keyed, formatter);
+        if (!(mapper instanceof DateFieldMapper)) {
+            throw new SearchParseException(context, "date histogram can only be aggregated on date fields but  [" + field + "] is not a date field");
         }
 
-        return new DateHistogramAggregator.Factory(aggregationName, fieldDataContext, ValueTransformer.NONE, rounding, order, keyed, formatter);
+        IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
+        FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
+        if (searchScript != null) {
+            return new DateHistogramAggregator.FieldDataFactory(aggregationName, fieldDataContext, searchScript, rounding, order, keyed,formatter);
+        }
+
+        return new DateHistogramAggregator.FieldDataFactory(aggregationName, fieldDataContext, rounding, order, keyed, formatter);
 
     }
 

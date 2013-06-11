@@ -119,7 +119,7 @@ public class TypeLiteral<T> {
     }
 
     /**
-     * Gets underlying {@code Type} instance.
+     * Gets underlying {@code ScriptValueType} instance.
      */
     public final Type getType() {
         return type;
@@ -130,7 +130,7 @@ public class TypeLiteral<T> {
      */
     @SuppressWarnings("unchecked")
     final TypeLiteral<Provider<T>> providerType() {
-        // This cast is safe and wouldn't generate a warning if Type had a type
+        // This cast is safe and wouldn't generate a warning if ScriptValueType had a type
         // parameter.
         return (TypeLiteral<Provider<T>>) get(Types.providerOf(getType()));
     }
@@ -152,7 +152,7 @@ public class TypeLiteral<T> {
     }
 
     /**
-     * Gets type literal for the given {@code Type} instance.
+     * Gets type literal for the given {@code ScriptValueType} instance.
      */
     public static TypeLiteral<?> get(Type type) {
         return new TypeLiteral<Object>(type);

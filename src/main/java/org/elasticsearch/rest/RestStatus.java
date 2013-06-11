@@ -55,7 +55,7 @@ public enum RestStatus {
      * be referenced by the URI(s) returned in the entity of the response, with the most specific URI for the
      * resource given by a Location header field. The response SHOULD include an entity containing a list of resource
      * characteristics and location(s) from which the user or user agent can choose the one most appropriate. The
-     * entity format is specified by the media type given in the Content-Type header field. The origin server MUST
+     * entity format is specified by the media type given in the Content-ScriptValueType header field. The origin server MUST
      * create the resource before returning the 201 status code. If the action cannot be carried out immediately, the
      * server SHOULD respond with 202 (Accepted) response instead.
      * <p/>
@@ -112,7 +112,7 @@ public enum RestStatus {
      * <p>The response MUST include the following header fields:
      * <ul>
      * <li>Either a Content-Range header field (section 14.16) indicating the range included with this response,
-     * or a multipart/byteranges Content-Type including Content-Range fields for each part. If a Content-Length
+     * or a multipart/byteranges Content-ScriptValueType including Content-Range fields for each part. If a Content-Length
      * header field is present in the response, its value MUST match the actual number of OCTETs transmitted in
      * the message-body.</li>
      * <li>Date</li>
@@ -159,7 +159,7 @@ public enum RestStatus {
      * <p/>
      * <p>Unless it was a HEAD request, the response SHOULD include an entity containing a list of resource
      * characteristics and location(s) from which the user or user agent can choose the one most appropriate.
-     * The entity format is specified by the media type given in the Content-Type header field. Depending upon the
+     * The entity format is specified by the media type given in the Content-ScriptValueType header field. Depending upon the
      * format and the capabilities of the user agent, selection of the most appropriate choice MAY be performed
      * automatically. However, this specification does not define any standard for such automatic selection.
      * <p/>
@@ -302,7 +302,7 @@ public enum RestStatus {
      * <p/>
      * <p>Unless it was a HEAD request, the response SHOULD include an entity containing a list of available entity
      * characteristics and location(s) from which the user or user agent can choose the one most appropriate.
-     * The entity format is specified by the media type given in the Content-Type header field. Depending upon the
+     * The entity format is specified by the media type given in the Content-ScriptValueType header field. Depending upon the
      * format and the capabilities of the user agent, selection of the most appropriate choice MAY be performed
      * automatically. However, this specification does not define any standard for such automatic selection.
      * <p/>
@@ -338,7 +338,7 @@ public enum RestStatus {
      * used and the entity being PUT included changes to a resource which conflict with those made by an earlier
      * (third-party) request, the server might use the 409 response to indicate that it can't complete the request.
      * In this case, the response entity would likely contain a list of the differences between the two versions in
-     * a format defined by the response Content-Type.
+     * a format defined by the response Content-ScriptValueType.
      */
     CONFLICT(409),
     /**
@@ -410,7 +410,7 @@ public enum RestStatus {
     EXPECTATION_FAILED(417),
     /**
      * The 422 (Unprocessable Entity) status code means the server understands the content type of the request
-     * entity (hence a 415(Unsupported Media Type) status code is inappropriate), and the syntax of the request
+     * entity (hence a 415(Unsupported Media ScriptValueType) status code is inappropriate), and the syntax of the request
      * entity is correct (thus a 400 (Bad Request) status code is inappropriate) but was unable to process the
      * contained instructions. For example, this error condition may occur if an XML request body contains
      * well-formed (i.e., syntactically correct), but semantically erroneous, XML instructions.

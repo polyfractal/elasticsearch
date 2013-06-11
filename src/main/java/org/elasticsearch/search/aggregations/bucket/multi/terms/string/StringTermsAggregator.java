@@ -20,54 +20,53 @@
 package org.elasticsearch.search.aggregations.bucket.multi.terms.string;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.util.BytesRef;
-import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.collect.BoundedTreeSet;
 import org.elasticsearch.common.lucene.HashedBytesRef;
-import org.elasticsearch.common.text.BytesText;
-import org.elasticsearch.common.text.Text;
 import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.FieldDataBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.multi.BytesMultiBucketAggregator;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.BucketPriorityQueue;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalTerms;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
-import org.elasticsearch.search.aggregations.context.ValueTransformer;
+import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 import org.elasticsearch.search.facet.terms.support.EntryPriorityQueue;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.buildAggregations;
+
 /**
  *
  */
-public class StringTermsAggregator extends FieldDataBucketAggregator {
+public class StringTermsAggregator extends BytesMultiBucketAggregator {
 
+    private final List<Aggregator.Factory> factories;
     private final Terms.Order order;
     private final int requiredSize;
 
     ExtTHashMap<HashedBytesRef, BucketCollector> buckets;
 
-    public StringTermsAggregator(String name, List<Aggregator.Factory> factories, FieldDataContext fieldDataContext,
-                                 ValueTransformer valueTransformer, Terms.Order order, int requiredSize, Aggregator parent) {
-        super(name, factories, fieldDataContext, valueTransformer, parent, null);
+    public StringTermsAggregator(String name, List<Aggregator.Factory> factories, BytesValuesSource valuesSource,
+                                 Terms.Order order, int requiredSize, Aggregator parent) {
+        super(name, valuesSource, parent);
+        this.factories = factories;
         this.order = order;
         this.requiredSize = requiredSize;
     }
 
     @Override
     public Collector collector() {
-        return new Collector(fieldDataContext);
+        return new Collector();
     }
 
     @Override
@@ -96,118 +95,137 @@ public class StringTermsAggregator extends FieldDataBucketAggregator {
         }
     }
 
-    class Collector extends Aggregator.Collector {
+    class Collector implements Aggregator.Collector {
 
         final ExtTHashMap<HashedBytesRef, BucketCollector> buckets = new ExtTHashMap<HashedBytesRef, BucketCollector>();
-        final FieldDataContext fieldDataContext;
-        final BytesValues[] values;
-        Scorer scorer;
-        AtomicReaderContext readerContext;
 
-        Collector(FieldDataContext fieldDataContext) {
-            this.fieldDataContext = fieldDataContext;
-            this.values = new BytesValues[fieldDataContext.indexFieldDatas().length];
-        }
+        BytesValues values;
+        Scorer scorer;
+        AtomicReaderContext reader;
+        AggregationContext context;
 
         @Override
         public void setScorer(Scorer scorer) throws IOException {
             this.scorer = scorer;
-            valueTransformer.setScorer(scorer);
+            if (valuesSource != null) {
+                valuesSource.setNextScorer(scorer);
+            }
             for (Map.Entry<HashedBytesRef, BucketCollector> entry : buckets.entrySet()) {
                 entry.getValue().setScorer(scorer);
             }
         }
 
         @Override
-        public void collect(int doc, AggregationContext context) throws IOException {
-            valueTransformer.setNextDocId(doc);
-            if (values.length == 1) {
-                onDoc(doc, fieldDataContext.fields()[0], values[0], context);
-            } else {
-                for (int i = 0; i < values.length; i++) {
-                    onDoc(doc, fieldDataContext.fields()[i], values[i], context);
-                }
+        public void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException {
+            this.reader = reader;
+            this.context = context;
+            valuesSource.setNextReader(reader);
+            values = valuesSource.values();
+            for (Map.Entry<HashedBytesRef, BucketCollector> entry : buckets.entrySet()) {
+                entry.getValue().setNextReader(reader, context);
             }
         }
 
-        private void onDoc(int doc, String field, BytesValues values, AggregationContext context) throws IOException {
+        @Override
+        public void collect(int doc) throws IOException {
+
             if (!values.hasValue(doc)) {
                 return;
             }
 
+            String valuesSourceKey = valuesSource.key();
+            BytesRef scratch = new BytesRef();
             if (!values.isMultiValued()) {
-                BytesRef value = values.getValue(doc);
-                if (!context.accept(field, value)) {
+                int hash = values.getValueHashed(doc, scratch);
+                if (!context.accept(doc, valuesSourceKey, scratch)) {
                     return;
                 }
-                onValue(doc, values, valueTransformer.transform(value), context);
+                HashedBytesRef term = new HashedBytesRef(scratch, hash);
+                BucketCollector bucket = buckets.get(term);
+                if (bucket == null) {
+                    term.bytes = values.makeSafe(scratch);
+                    bucket = new BucketCollector(term.bytes, name, factories, reader, scorer, context, StringTermsAggregator.this);
+                    buckets.put(term, bucket);
+                }
+                bucket.collect(doc);
                 return;
             }
 
+            // we'll first find all the buckets that match the values, and then propagate the document through them
+            // we need to do that to avoid counting the same document more than once.
+            List<BucketCollector> matchedBuckets = findMatchedBuckets(doc, valuesSourceKey, values, context);
+            if (matchedBuckets != null) {
+                for (int i = 0; i < matchedBuckets.size(); i++) {
+                    matchedBuckets.get(i).collect(doc);
+                }
+            }
+
+        }
+
+        private List<BucketCollector> findMatchedBuckets(int doc, String valuesSourceKey, BytesValues values, AggregationContext context) throws IOException {
+            List<BucketCollector> matchedBuckets = null;
             for (BytesValues.Iter iter = values.getIter(doc); iter.hasNext();) {
                 BytesRef value = iter.next();
-                if (!context.accept(field, value)) {
+                int hash = iter.hash();
+                if (!context.accept(doc, valuesSourceKey, value)) {
                     continue;
                 }
-                onValue(doc, values, valueTransformer.transform(value), context);
+                HashedBytesRef term = new HashedBytesRef(value, hash);
+                BucketCollector bucket = buckets.get(term);
+                if (bucket == null) {
+                    term.bytes = values.makeSafe(value);
+                    bucket = new BucketCollector(term.bytes, name, factories, reader, scorer, context, StringTermsAggregator.this);
+                    buckets.put(term, bucket);
+                }
+                if (matchedBuckets == null) {
+                    matchedBuckets = Lists.newArrayListWithCapacity(4);
+                }
+                matchedBuckets.add(bucket);
             }
+            return matchedBuckets;
         }
 
-        private void onValue(int doc, BytesValues values, BytesRef value, AggregationContext context) throws IOException {
-            // TODO this is really not good for performance... making a deep copy of the value to work with the hashmap (use hashed aggregator instead or just reuse hash)
-            HashedBytesRef term = new HashedBytesRef(values.makeSafe(value));
-            BucketCollector bucket = buckets.get(term);
-            if (bucket == null) {
-                bucket = new BucketCollector(term, StringTermsAggregator.this, scorer, readerContext);
-                buckets.put(term, bucket);
-            }
-            bucket.collect(doc, context);
-        }
-
-        @Override
-        public void setNextReader(AtomicReaderContext context) throws IOException {
-            this.readerContext = context;
-            valueTransformer.setNextReader(context);
-            fieldDataContext.loadBytesValues(context, values);
-            for (Map.Entry<HashedBytesRef, BucketCollector> entry : buckets.entrySet()) {
-                entry.getValue().setNextReader(context);
-            }
-        }
 
         @Override
         public void postCollection() {
-            for (Map.Entry<HashedBytesRef, BucketCollector> entry : buckets.entrySet()) {
-                entry.getValue().postCollection();
+            for (Object collector : buckets.internalValues()) {
+                if (collector != null) {
+                    ((BucketCollector) collector).postCollection();
+                }
             }
             StringTermsAggregator.this.buckets = buckets;
         }
     }
 
-    static class BucketCollector extends SingleBucketAggregator.BucketCollector {
+    static class BucketCollector extends BucketAggregator.BucketCollector {
 
-        Text term;
+        final BytesRef term;
+
         long docCount;
 
-        BucketCollector(HashedBytesRef term, StringTermsAggregator parent, Scorer scorer, AtomicReaderContext context) {
-            super(parent, scorer, context);
-            this.term = new BytesText(new BytesArray(term.bytes));
+        BucketCollector(BytesRef term, String aggregationName, List<Aggregator.Factory> factories, AtomicReaderContext reader,
+                        Scorer scorer, AggregationContext context, Aggregator parent) {
+            super(aggregationName, factories, reader, scorer, context, parent);
+            this.term = term;
         }
 
         @Override
-        protected void postCollection(List<Aggregator> aggregators) {
+        protected boolean onDoc(int doc) throws IOException {
+            docCount++;
+            return true;
         }
 
-        protected AggregationContext onDoc(int docId, AggregationContext context) throws IOException {
-            docCount++;
+        @Override
+        protected AggregationContext setReaderAngGetContext(AtomicReaderContext reader, AggregationContext context) throws IOException {
             return context;
         }
 
+        @Override
+        protected void postCollection(Aggregator[] aggregators) {
+        }
+
         StringTerms.Bucket buildBucket() {
-            List<InternalAggregation> aggregations = new ArrayList<InternalAggregation>(aggregators.size());
-            for (Aggregator aggregator : aggregators) {
-                aggregations.add(aggregator.buildAggregation());
-            }
-            return new StringTerms.Bucket(term, docCount, aggregations);
+            return new StringTerms.Bucket(term, docCount, buildAggregations(aggregators));
         }
     }
 

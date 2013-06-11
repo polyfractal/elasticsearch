@@ -17,18 +17,13 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.calc;
-
-import org.elasticsearch.search.aggregations.AbstractAggregator;
-import org.elasticsearch.search.aggregations.Aggregator;
+package org.elasticsearch.search.aggregations.context;
 
 /**
  *
  */
-public abstract class CalcAggregator extends AbstractAggregator {
+public interface ScriptValues {
 
-    protected CalcAggregator(String name, Aggregator parent) {
-        super(name, parent);
-    }
+    void clearCache();
 
 }

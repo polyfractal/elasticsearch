@@ -19,11 +19,10 @@
 
 package org.elasticsearch.search.aggregations.bucket.single.global;
 
-import com.google.common.collect.Lists;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 
@@ -47,11 +46,7 @@ public class GlobalAggregator extends SingleBucketAggregator {
     }
 
     @Override
-    public InternalGlobal buildAggregation(Aggregator[] aggregators) {
-        List<InternalAggregation> aggregations = Lists.newArrayListWithCapacity(aggregators.length);
-        for (Aggregator aggregator : aggregators) {
-            aggregations.add(aggregator.buildAggregation());
-        }
+    public InternalGlobal buildAggregation(InternalAggregations aggregations) {
         return new InternalGlobal(name, docCount, aggregations);
     }
 
@@ -60,7 +55,7 @@ public class GlobalAggregator extends SingleBucketAggregator {
         long docCount;
 
         Collector(Aggregator[] aggregators) {
-            super(aggregators);
+            super(name, aggregators);
         }
 
         @Override
@@ -80,7 +75,7 @@ public class GlobalAggregator extends SingleBucketAggregator {
         }
     }
 
-    public static class Factory extends SingleBucketAggregator.Factory<GlobalAggregator, Factory> {
+    public static class Factory extends Aggregator.CompoundFactory<GlobalAggregator> {
 
         public Factory(String name) {
             super(name);

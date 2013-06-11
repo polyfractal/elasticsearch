@@ -19,30 +19,42 @@
 
 package org.elasticsearch.search.aggregations.bucket.single;
 
-import org.apache.lucene.index.AtomicReaderContext;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.context.AggregationContext;
+import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.InternalAggregations;
+import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.ValuesSourceBucketAggregator;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
 
-import java.io.IOException;
 import java.util.List;
 
 /**
  *
  */
-public abstract class ValuesSourceSingleBucketAggregator<VS extends ValuesSource> extends SingleBucketAggregator {
+public abstract class ValuesSourceSingleBucketAggregator<VS extends ValuesSource> extends ValuesSourceBucketAggregator<VS> {
 
-    protected VS valuesSource;
+    // since we only have one bucket we can eagerly initialize the sub aggregators
 
-    public ValuesSourceSingleBucketAggregator(String name, List<Aggregator.Factory> factories, Aggregator parent) {
-        this(name, factories, null, parent);
+    private final Aggregator[] aggregators;
+
+    public ValuesSourceSingleBucketAggregator(String name, List<Aggregator.Factory> factories, VS valuesSource, Class<VS> valuesSourceType, Aggregator parent) {
+        super(name, valuesSource, valuesSourceType, parent);
+        aggregators = BucketAggregator.createAggregators(factories, parent);
     }
 
-    public ValuesSourceSingleBucketAggregator(String name, List<Aggregator.Factory> factories, VS valuesSource, Aggregator parent) {
-        super(name, factories, parent);
+    @Override
+    public final Collector collector() {
+        return collector(aggregators);
     }
 
+    protected abstract Collector collector(Aggregator[] aggregators);
 
+    @Override
+    public final InternalAggregation buildAggregation() {
+        return buildAggregation(BucketAggregator.buildAggregations(aggregators));
+    }
+
+    protected abstract InternalAggregation buildAggregation(InternalAggregations aggregations);
 
 
 }

@@ -21,13 +21,12 @@ package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
 import org.elasticsearch.common.Rounding;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
-import org.elasticsearch.index.fielddata.IndexNumericFieldData;
+import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.FieldDataBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.multi.DoubleMultiBucketAggregator;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
-import org.elasticsearch.search.aggregations.context.ValueTransformer;
+import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,25 +35,27 @@ import java.util.List;
 /**
  *
  */
-public class HistogramAggregator extends FieldDataBucketAggregator implements HistogramCollector.Listener {
+public class HistogramAggregator extends DoubleMultiBucketAggregator implements HistogramCollector.Listener {
 
+    private final List<Aggregator.Factory> factories;
     private final Rounding rounding;
     private final InternalOrder order;
     private final boolean keyed;
 
     ExtTLongObjectHashMap<HistogramCollector.BucketCollector> collectors;
 
-    public HistogramAggregator(String name, List<Aggregator.Factory> factories, FieldDataContext fieldDataContext,
-                               ValueTransformer valueTransformer, long interval, InternalOrder order, boolean keyed, Aggregator parent) {
-        super(name, factories, fieldDataContext, valueTransformer, parent, IndexNumericFieldData.class);
-        this.rounding = new Rounding.Interval(interval);
+    public HistogramAggregator(String name, List<Aggregator.Factory> factories, DoubleValuesSource valuesSource,
+                               Rounding rounding, InternalOrder order, boolean keyed, Aggregator parent) {
+        super(name, valuesSource, parent);
+        this.factories = factories;
+        this.rounding = rounding;
         this.order = order;
         this.keyed = keyed;
     }
 
     @Override
     public Collector collector() {
-        return new HistogramCollector(this, fieldDataContext, rounding, valueTransformer, this);
+        return new HistogramCollector(this, factories, valuesSource, rounding, this);
     }
 
     @Override
@@ -65,9 +66,9 @@ public class HistogramAggregator extends FieldDataBucketAggregator implements Hi
                 continue;
             }
             HistogramCollector.BucketCollector bucketCollector = (HistogramCollector.BucketCollector) collector;
-            List<InternalAggregation> aggregations = new ArrayList<InternalAggregation>(bucketCollector.aggregators.size());
-            for (Aggregator aggregator : bucketCollector.aggregators) {
-                aggregations.add(aggregator.buildAggregation());
+            List<InternalAggregation> aggregations = new ArrayList<InternalAggregation>(bucketCollector.aggregators.length);
+            for (int i = 0; i < bucketCollector.aggregators.length; i++) {
+                aggregations.add(bucketCollector.aggregators[i].buildAggregation());
             }
             buckets.add(new InternalHistogram.Bucket(bucketCollector.key, bucketCollector.docCount, aggregations));
         }
@@ -80,30 +81,67 @@ public class HistogramAggregator extends FieldDataBucketAggregator implements Hi
         this.collectors = collectors;
     }
 
-    public static class Factory extends SingleBucketAggregator.Factory<HistogramAggregator, Factory> {
+    public static class FieldDataFactory extends DoubleMultiBucketAggregator.FieldDataFactory<HistogramAggregator> {
 
-        private final FieldDataContext fieldDataContext;
-        private final ValueTransformer valueTransformer;
         private final long interval;
         private final InternalOrder order;
         private final boolean keyed;
 
-        public Factory(String name, long interval, InternalOrder order, boolean keyed) {
-            this(name, null, ValueTransformer.NONE, interval, order, keyed);
+        public FieldDataFactory(String name, FieldDataContext fieldDataContext, long interval, InternalOrder order, boolean keyed) {
+            super(name, fieldDataContext);
+            this.interval = interval;
+            this.order = order;
+            this.keyed = keyed;
         }
 
-        public Factory(String name, FieldDataContext fieldDataContext, ValueTransformer valueTransformer, long interval, InternalOrder order, boolean keyed) {
-            super(name);
-            this.fieldDataContext = fieldDataContext;
-            this.valueTransformer = valueTransformer;
+        public FieldDataFactory(String name, FieldDataContext fieldDataContext, SearchScript valueScript, long interval, InternalOrder order, boolean keyed) {
+            super(name, fieldDataContext, valueScript);
             this.interval = interval;
             this.order = order;
             this.keyed = keyed;
         }
 
         @Override
-        public HistogramAggregator create(Aggregator parent) {
-            return new HistogramAggregator(name, factories, fieldDataContext, valueTransformer, interval, order, keyed, parent);
+        protected HistogramAggregator create(DoubleValuesSource source, Aggregator parent) {
+            return new HistogramAggregator(name, factories, source, new Rounding.Interval(interval), order, keyed, parent);
+        }
+    }
+
+    public static class ScriptFactory extends DoubleMultiBucketAggregator.ScriptFactory<HistogramAggregator> {
+
+        private final long interval;
+        private final InternalOrder order;
+        private final boolean keyed;
+
+        public ScriptFactory(String name, SearchScript script, long interval, InternalOrder order, boolean keyed) {
+            super(name, script);
+            this.interval = interval;
+            this.order = order;
+            this.keyed = keyed;
+        }
+
+        @Override
+        protected HistogramAggregator create(DoubleValuesSource source, Aggregator parent) {
+            return new HistogramAggregator(name, factories, source, new Rounding.Interval(interval), order, keyed, parent);
+        }
+    }
+
+    public static class ContextBasedFactory extends DoubleMultiBucketAggregator.ContextBasedFactory<HistogramAggregator> {
+
+        private final long interval;
+        private final InternalOrder order;
+        private final boolean keyed;
+
+        public ContextBasedFactory(String name, long interval, InternalOrder order, boolean keyed) {
+            super(name);
+            this.interval = interval;
+            this.order = order;
+            this.keyed = keyed;
+        }
+
+        @Override
+        protected HistogramAggregator create(DoubleValuesSource source, Aggregator parent) {
+            return new HistogramAggregator(name, factories, source, new Rounding.Interval(interval), order, keyed, parent);
         }
     }
 }

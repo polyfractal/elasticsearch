@@ -24,7 +24,7 @@ import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.bucket.multi.DoubleMultiBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.DoubleBucketAggregator;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
 import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
 
@@ -35,7 +35,7 @@ import java.util.List;
 /**
  *
  */
-public class HistogramAggregator extends DoubleMultiBucketAggregator implements HistogramCollector.Listener {
+public class HistogramAggregator extends DoubleBucketAggregator implements HistogramCollector.Listener {
 
     private final List<Aggregator.Factory> factories;
     private final Rounding rounding;
@@ -81,7 +81,7 @@ public class HistogramAggregator extends DoubleMultiBucketAggregator implements 
         this.collectors = collectors;
     }
 
-    public static class FieldDataFactory extends DoubleMultiBucketAggregator.FieldDataFactory<HistogramAggregator> {
+    public static class FieldDataFactory extends DoubleBucketAggregator.FieldDataFactory<HistogramAggregator> {
 
         private final long interval;
         private final InternalOrder order;
@@ -107,7 +107,7 @@ public class HistogramAggregator extends DoubleMultiBucketAggregator implements 
         }
     }
 
-    public static class ScriptFactory extends DoubleMultiBucketAggregator.ScriptFactory<HistogramAggregator> {
+    public static class ScriptFactory extends DoubleBucketAggregator.ScriptFactory<HistogramAggregator> {
 
         private final long interval;
         private final InternalOrder order;
@@ -126,7 +126,7 @@ public class HistogramAggregator extends DoubleMultiBucketAggregator implements 
         }
     }
 
-    public static class ContextBasedFactory extends DoubleMultiBucketAggregator.ContextBasedFactory<HistogramAggregator> {
+    public static class ContextBasedFactory extends DoubleBucketAggregator.ContextBasedFactory<HistogramAggregator> {
 
         private final long interval;
         private final InternalOrder order;
@@ -140,8 +140,8 @@ public class HistogramAggregator extends DoubleMultiBucketAggregator implements 
         }
 
         @Override
-        protected HistogramAggregator create(DoubleValuesSource source, Aggregator parent) {
-            return new HistogramAggregator(name, factories, source, new Rounding.Interval(interval), order, keyed, parent);
+        public HistogramAggregator create(Aggregator parent) {
+            return new HistogramAggregator(name, factories, null, new Rounding.Interval(interval), order, keyed, parent);
         }
     }
 }

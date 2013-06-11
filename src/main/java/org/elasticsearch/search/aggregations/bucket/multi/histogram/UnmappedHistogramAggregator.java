@@ -20,7 +20,6 @@
 package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
 import com.google.common.collect.Lists;
-import org.elasticsearch.search.aggregations.AbstractAggregator;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 
@@ -29,7 +28,7 @@ import java.util.List;
 /**
  * A histogram aggregator knows how to "aggregate" unmapped fields
  */
-public class UnmappedHistogramAggregator extends AbstractAggregator {
+public class UnmappedHistogramAggregator extends Aggregator {
 
     private final InternalOrder order;
     private final boolean keyed;

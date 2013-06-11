@@ -19,14 +19,13 @@
 
 package org.elasticsearch.search.aggregations.calc.count;
 
-import org.elasticsearch.search.aggregations.AbstractAggregator;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 
 /**
  * A count aggregator for unmapped fields (basically, will always return a zero count).
  */
-public class UnmappedCountAggregator extends AbstractAggregator {
+public class UnmappedCountAggregator extends Aggregator {
 
     public UnmappedCountAggregator(String name, Aggregator parent) {
         super(name, parent);

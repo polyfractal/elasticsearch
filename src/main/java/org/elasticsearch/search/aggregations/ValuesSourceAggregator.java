@@ -23,15 +23,19 @@ import org.elasticsearch.search.aggregations.context.ValuesSource;
 import org.elasticsearch.search.aggregations.context.ValuesSourceBased;
 
 /**
- *
+ * An aggregator that aggregates based on values that are provided by a {@link ValuesSource}.
  */
-public abstract class AbstractValuesSourceAggregator<VS extends ValuesSource> extends AbstractAggregator implements ValuesSourceBased {
+public abstract class ValuesSourceAggregator<VS extends ValuesSource> extends Aggregator implements ValuesSourceBased {
 
     protected final VS valuesSource;
 
-    public AbstractValuesSourceAggregator(String name, VS valuesSource, Class<VS> requiredValuesSourceType, Aggregator parent) {
+    public ValuesSourceAggregator(String name, VS valuesSource, Class<VS> requiredValuesSourceType, Aggregator parent) {
         super(name, parent);
-        this.valuesSource = resolveValuesSource(name, valuesSource, parent, requiredValuesSourceType);
+        if (valuesSource != null) {
+            this.valuesSource = valuesSource;
+        } else {
+            this.valuesSource = resolveValuesSource(name, parent, requiredValuesSourceType);
+        }
     }
 
     @Override
@@ -39,10 +43,7 @@ public abstract class AbstractValuesSourceAggregator<VS extends ValuesSource> ex
         return valuesSource;
     }
 
-    public static <VS extends ValuesSource> VS resolveValuesSource(String aggName, VS valuesSource, Aggregator parent, Class<VS> requiredValuesSourceType) {
-        if (valuesSource != null) {
-            return valuesSource;
-        }
+    public static <VS extends ValuesSource> VS resolveValuesSource(String aggName, Aggregator parent, Class<VS> requiredValuesSourceType) {
         ValuesSource vs;
         while (parent != null) {
             if (parent instanceof ValuesSourceBased) {

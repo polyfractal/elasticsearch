@@ -24,8 +24,10 @@ import org.apache.lucene.search.Scorer;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.index.fielddata.BytesValues;
+import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
+import org.elasticsearch.search.aggregations.context.FieldDataContext;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
 import org.elasticsearch.search.aggregations.context.geopoints.GeoPointValuesSource;
@@ -116,5 +118,56 @@ public abstract class BytesBucketAggregator extends ValuesSourceBucketAggregator
         }
 
         public abstract boolean accept(int doc, BytesRef value, BytesValues values);
+    }
+
+    protected abstract static class FieldDataFactory<A extends BytesBucketAggregator> extends CompoundFactory<A> {
+
+        private final FieldDataContext fieldDataContext;
+        private final SearchScript valueScript;
+
+        public FieldDataFactory(String name, FieldDataContext fieldDataContext) {
+            this(name, fieldDataContext, null);
+        }
+
+        public FieldDataFactory(String name, FieldDataContext fieldDataContext, SearchScript valueScript) {
+            super(name);
+            this.fieldDataContext = fieldDataContext;
+            this.valueScript = valueScript;
+        }
+
+        @Override
+        public final A create(Aggregator parent) {
+            if (valueScript != null) {
+                return create(new BytesValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData(), valueScript), parent);
+            }
+            return create(new BytesValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData()), parent);
+        }
+
+        protected abstract A create(BytesValuesSource source, Aggregator parent);
+    }
+
+    protected abstract static class ScriptFactory<A extends BytesBucketAggregator> extends CompoundFactory<A> {
+
+        private final SearchScript script;
+
+        protected ScriptFactory(String name, SearchScript script) {
+            super(name);
+            this.script = script;
+        }
+
+        @Override
+        public final A create(Aggregator parent) {
+            return create(new BytesValuesSource.Script(script), parent);
+        }
+
+        protected abstract A create(BytesValuesSource source, Aggregator parent);
+    }
+
+    protected abstract static class ContextBasedFactory<A extends BytesBucketAggregator> extends CompoundFactory<A> {
+
+        protected ContextBasedFactory(String name) {
+            super(name);
+        }
+
     }
 }

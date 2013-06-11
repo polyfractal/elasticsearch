@@ -21,7 +21,7 @@ package org.elasticsearch.search.aggregations.bucket.multi.terms;
 
 import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.script.SearchScript;
-import org.elasticsearch.search.aggregations.AbstractValuesSourceAggregator;
+import org.elasticsearch.search.aggregations.ValuesSourceAggregator;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.doubles.DoubleTermsAggregator;
@@ -97,7 +97,7 @@ public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregato
 
             if (script == null) {
                 // the user didn't specify a field or a script, so we need to fall back on a value source from the ancestors
-                return AbstractValuesSourceAggregator.resolveValuesSource(name, null, parent, null);
+                return ValuesSourceAggregator.resolveValuesSource(name, parent, null);
             }
 
             // we have a script, so it's a script value source

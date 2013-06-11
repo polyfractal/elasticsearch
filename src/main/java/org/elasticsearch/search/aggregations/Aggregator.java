@@ -32,22 +32,22 @@ import java.util.List;
  * handles the aggregation by providing the appropriate collector (see {@link #collector()}), and when the aggregation finishes, it is also used
  * for generating the result aggregation (see {@link #buildAggregation()}).
  */
-public interface Aggregator<A extends InternalAggregation> {
+public abstract class Aggregator<A extends InternalAggregation> {
+
+    protected final String name;
+    protected final Aggregator parent;
+
+    protected Aggregator(String name, Aggregator parent) {
+        this.name = name;
+        this.parent = parent;
+    }
 
     /**
      * @return  The name of the aggregation.
      */
-    String name();
-
-    /**
-     * @return  The collector what is responsible for the aggregation.
-     */
-    Collector collector();
-
-    /**
-     * @return  The aggregated & built aggregation.
-     */
-    A buildAggregation();
+    public String name() {
+        return name;
+    }
 
     /**
      * @return  The parent aggregator of this aggregator. The aggregations are hierarchical in the sense that some can
@@ -55,12 +55,25 @@ public interface Aggregator<A extends InternalAggregation> {
      *          be aggregated per bucket). This method returns the direct parent aggregator that contains this aggregator, or
      *          {@code null} if there is none (meaning, this aggregator is a top level one)
      */
-    Aggregator parent();
+    public Aggregator parent() {
+        return parent;
+    }
+
+    /**
+     * @return  The collector what is responsible for the aggregation.
+     */
+    public abstract Collector collector();
+
+    /**
+     * @return  The aggregated & built aggregation.
+     */
+    public abstract A buildAggregation();
+
 
     /**
      * The lucene collector that will be responsible for the aggregation
      */
-    static interface Collector {
+    public static interface Collector {
 
         void setScorer(Scorer scorer) throws IOException;
 
@@ -77,7 +90,7 @@ public interface Aggregator<A extends InternalAggregation> {
      *
      * @param <A> The type of the aggregator.
      */
-    static abstract class Factory<A extends Aggregator> {
+    public static abstract class Factory<A extends Aggregator> {
 
         protected String name;
 
@@ -88,8 +101,13 @@ public interface Aggregator<A extends InternalAggregation> {
         public abstract A create(Aggregator parent);
     }
 
-
-    static abstract class CompoundFactory<A extends Aggregator> extends Factory<A> {
+    /**
+     * An aggregator factory that can hold sub-factories (factories for all the sub-aggregators of the aggregator
+     * this factory creates)
+     *
+     * @param <A> The type of the aggregator.
+     */
+    public static abstract class CompoundFactory<A extends Aggregator> extends Factory<A> {
 
         protected List<Factory> factories = new ArrayList<Factory>();
 

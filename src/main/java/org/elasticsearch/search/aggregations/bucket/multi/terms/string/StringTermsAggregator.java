@@ -30,7 +30,7 @@ import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.multi.BytesMultiBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.BytesBucketAggregator;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.BucketPriorityQueue;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalTerms;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
@@ -48,7 +48,7 @@ import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.buil
 /**
  *
  */
-public class StringTermsAggregator extends BytesMultiBucketAggregator {
+public class StringTermsAggregator extends BytesBucketAggregator {
 
     private final List<Aggregator.Factory> factories;
     private final Terms.Order order;

@@ -28,7 +28,7 @@ import org.elasticsearch.common.trove.ExtTDoubleObjectHashMap;
 import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.multi.DoubleMultiBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.DoubleBucketAggregator;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.BucketPriorityQueue;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalTerms;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
@@ -45,7 +45,7 @@ import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.buil
 /**
  *
  */
-public class DoubleTermsAggregator extends DoubleMultiBucketAggregator {
+public class DoubleTermsAggregator extends DoubleBucketAggregator {
 
     private final List<Aggregator.Factory> factories;
     private final Terms.Order order;

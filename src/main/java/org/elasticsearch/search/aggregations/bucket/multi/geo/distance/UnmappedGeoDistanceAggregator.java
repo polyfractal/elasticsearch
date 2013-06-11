@@ -20,7 +20,6 @@
 package org.elasticsearch.search.aggregations.bucket.multi.geo.distance;
 
 import com.google.common.collect.Lists;
-import org.elasticsearch.search.aggregations.AbstractAggregator;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
@@ -30,7 +29,7 @@ import java.util.List;
 /**
  *
  */
-public class UnmappedGeoDistanceAggregator extends AbstractAggregator {
+public class UnmappedGeoDistanceAggregator extends Aggregator {
 
     private final List<GeoDistanceAggregator.DistanceRange> ranges;
 

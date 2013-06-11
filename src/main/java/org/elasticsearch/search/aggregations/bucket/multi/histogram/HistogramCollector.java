@@ -26,10 +26,8 @@ import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.Rounding;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.index.fielddata.DoubleValues;
-import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.bucket.DoubleBucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.multi.DoubleMultiBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
 
@@ -56,7 +54,7 @@ public class HistogramCollector implements Aggregator.Collector {
     }
 
     final List<Aggregator.Factory> factories;
-    final DoubleMultiBucketAggregator aggregator;
+    final DoubleBucketAggregator aggregator;
     final ExtTLongObjectHashMap<BucketCollector> bucketCollectors = CacheRecycler.popLongObjectMap();
     final Rounding rounding;
     final Listener listener;
@@ -76,7 +74,7 @@ public class HistogramCollector implements Aggregator.Collector {
      * @param rounding          The rounding strategy by which the aggregation will bucket documents
      * @param listener          Will be called when aggregation finishes (see {@link Listener}).
      */
-    public HistogramCollector(DoubleMultiBucketAggregator aggregator, List<Aggregator.Factory> factories, DoubleValuesSource valuesSource, Rounding rounding, Listener listener) {
+    public HistogramCollector(DoubleBucketAggregator aggregator, List<Aggregator.Factory> factories, DoubleValuesSource valuesSource, Rounding rounding, Listener listener) {
         this.factories = factories;
         this.aggregator = aggregator;
         this.valuesSource = valuesSource;

@@ -22,7 +22,10 @@ package org.elasticsearch.search.aggregations.bucket;
 import com.google.common.collect.Lists;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
-import org.elasticsearch.search.aggregations.*;
+import org.elasticsearch.search.aggregations.AggregationExecutionException;
+import org.elasticsearch.search.aggregations.Aggregator;
+import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 
 import java.io.IOException;
@@ -31,7 +34,7 @@ import java.util.List;
 /**
  *
  */
-public abstract class BucketAggregator extends AbstractAggregator {
+public abstract class BucketAggregator extends Aggregator {
 
     protected BucketAggregator(String name, Aggregator parent) {
         super(name, parent);

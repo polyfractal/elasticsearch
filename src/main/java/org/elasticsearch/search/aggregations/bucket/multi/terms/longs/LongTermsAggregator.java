@@ -28,7 +28,7 @@ import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.multi.LongMultiBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.LongBucketAggregator;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.BucketPriorityQueue;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalTerms;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
@@ -45,7 +45,7 @@ import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.buil
 /**
  *
  */
-public class LongTermsAggregator extends LongMultiBucketAggregator {
+public class LongTermsAggregator extends LongBucketAggregator {
 
     private final List<Aggregator.Factory> factories;
     private final Terms.Order order;

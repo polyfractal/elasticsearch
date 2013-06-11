@@ -24,7 +24,7 @@ import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.BytesBucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.single.BytesSingleBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.single.SingleBytesBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
@@ -35,7 +35,7 @@ import java.util.List;
 /**
  *
  */
-public class MissingAggregator extends BytesSingleBucketAggregator {
+public class MissingAggregator extends SingleBytesBucketAggregator {
 
     long docCount;
 

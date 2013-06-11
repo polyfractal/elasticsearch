@@ -27,7 +27,6 @@ import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.bucket.DoubleBucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.multi.DoubleMultiBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
 import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
@@ -41,7 +40,7 @@ import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.crea
 /**
  *
  */
-public class RangeAggregator extends DoubleMultiBucketAggregator {
+public class RangeAggregator extends DoubleBucketAggregator {
 
     static class Range {
 
@@ -180,7 +179,7 @@ public class RangeAggregator extends DoubleMultiBucketAggregator {
 
     }
 
-    public static class FieldDataFactory extends DoubleMultiBucketAggregator.FieldDataFactory<RangeAggregator> {
+    public static class FieldDataFactory extends DoubleBucketAggregator.FieldDataFactory<RangeAggregator> {
 
         private final List<Range> ranges;
         private final boolean keyed;
@@ -203,7 +202,7 @@ public class RangeAggregator extends DoubleMultiBucketAggregator {
         }
     }
 
-    public static class ScriptFactory extends DoubleMultiBucketAggregator.ScriptFactory<RangeAggregator> {
+    public static class ScriptFactory extends DoubleBucketAggregator.ScriptFactory<RangeAggregator> {
 
         private final List<Range> ranges;
         private final boolean keyed;
@@ -220,7 +219,7 @@ public class RangeAggregator extends DoubleMultiBucketAggregator {
         }
     }
 
-    public static class ContextBasedFactory extends DoubleMultiBucketAggregator.ContextBasedFactory<RangeAggregator> {
+    public static class ContextBasedFactory extends DoubleBucketAggregator.ContextBasedFactory<RangeAggregator> {
 
         private final List<Range> ranges;
         private final boolean keyed;
@@ -232,8 +231,8 @@ public class RangeAggregator extends DoubleMultiBucketAggregator {
         }
 
         @Override
-        protected RangeAggregator create(DoubleValuesSource source, Aggregator parent) {
-            return new RangeAggregator(name, factories, source, ranges, keyed, parent);
+        public RangeAggregator create(Aggregator parent) {
+            return new RangeAggregator(name, factories, null, ranges, keyed, parent);
         }
     }
 

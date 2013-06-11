@@ -24,7 +24,7 @@ import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.bucket.multi.DoubleMultiBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.DoubleBucketAggregator;
 import org.elasticsearch.search.aggregations.bucket.multi.histogram.HistogramCollector;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
 import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
@@ -37,7 +37,7 @@ import java.util.List;
 /**
  *
  */
-public class DateHistogramAggregator extends DoubleMultiBucketAggregator implements HistogramCollector.Listener {
+public class DateHistogramAggregator extends DoubleBucketAggregator implements HistogramCollector.Listener {
 
     private final List<Aggregator.Factory> factories;
     private final TimeZoneRounding rounding;
@@ -86,7 +86,7 @@ public class DateHistogramAggregator extends DoubleMultiBucketAggregator impleme
         this.collectors = collectors;
     }
 
-    public static class FieldDataFactory extends DoubleMultiBucketAggregator.FieldDataFactory<DateHistogramAggregator> {
+    public static class FieldDataFactory extends DoubleBucketAggregator.FieldDataFactory<DateHistogramAggregator> {
 
         private final TimeZoneRounding rounding;
         private final InternalDateOrder order;
@@ -115,7 +115,7 @@ public class DateHistogramAggregator extends DoubleMultiBucketAggregator impleme
         }
     }
 
-    public static class ScriptFactory extends DoubleMultiBucketAggregator.ScriptFactory<DateHistogramAggregator> {
+    public static class ScriptFactory extends DoubleBucketAggregator.ScriptFactory<DateHistogramAggregator> {
 
         private final TimeZoneRounding rounding;
         private final InternalDateOrder order;
@@ -136,7 +136,7 @@ public class DateHistogramAggregator extends DoubleMultiBucketAggregator impleme
         }
     }
 
-    public static class ContextBasedFactory extends DoubleMultiBucketAggregator.ContextBasedFactory<DateHistogramAggregator> {
+    public static class ContextBasedFactory extends DoubleBucketAggregator.ContextBasedFactory<DateHistogramAggregator> {
 
         private final TimeZoneRounding rounding;
         private final InternalDateOrder order;
@@ -152,8 +152,8 @@ public class DateHistogramAggregator extends DoubleMultiBucketAggregator impleme
         }
 
         @Override
-        protected DateHistogramAggregator create(DoubleValuesSource source, Aggregator parent) {
-            return new DateHistogramAggregator(name, factories, source, rounding, order, keyed, formatter, parent);
+        public DateHistogramAggregator create(Aggregator parent) {
+            return new DateHistogramAggregator(name, factories, null, rounding, order, keyed, formatter, parent);
         }
     }
 }

@@ -19,7 +19,6 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.range;
 
-import org.elasticsearch.search.aggregations.AbstractAggregator;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 
@@ -29,7 +28,7 @@ import java.util.List;
 /**
  *
  */
-public class UnmappedRangeAggregator extends AbstractAggregator {
+public class UnmappedRangeAggregator extends Aggregator {
 
     private final List<RangeAggregator.Range> ranges;
     private final boolean keyed;

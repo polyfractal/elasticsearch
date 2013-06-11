@@ -23,22 +23,20 @@ import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.ValuesSourceBucketAggregator;
-import org.elasticsearch.search.aggregations.context.ValuesSource;
+import org.elasticsearch.search.aggregations.bucket.BytesBucketAggregator;
+import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 
 import java.util.List;
 
 /**
  *
  */
-public abstract class ValuesSourceSingleBucketAggregator<VS extends ValuesSource> extends ValuesSourceBucketAggregator<VS> {
-
-    // since we only have one bucket we can eagerly initialize the sub aggregators
+public abstract class SingleBytesBucketAggregator extends BytesBucketAggregator {
 
     private final Aggregator[] aggregators;
 
-    public ValuesSourceSingleBucketAggregator(String name, List<Aggregator.Factory> factories, VS valuesSource, Class<VS> valuesSourceType, Aggregator parent) {
-        super(name, valuesSource, valuesSourceType, parent);
+    public SingleBytesBucketAggregator(String name, List<Aggregator.Factory> factories, BytesValuesSource valuesSource, Aggregator parent) {
+        super(name, valuesSource, parent);
         aggregators = BucketAggregator.createAggregators(factories, parent);
     }
 
@@ -55,6 +53,5 @@ public abstract class ValuesSourceSingleBucketAggregator<VS extends ValuesSource
     }
 
     protected abstract InternalAggregation buildAggregation(InternalAggregations aggregations);
-
 
 }

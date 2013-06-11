@@ -20,7 +20,6 @@
 package org.elasticsearch.search.aggregations.bucket.multi.histogram.date;
 
 import com.google.common.collect.Lists;
-import org.elasticsearch.search.aggregations.AbstractAggregator;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
@@ -30,7 +29,7 @@ import java.util.List;
 /**
  *
  */
-public class UnmappedDateHistogramAggregator extends AbstractAggregator {
+public class UnmappedDateHistogramAggregator extends Aggregator {
 
     private final InternalDateOrder order;
     private final boolean keyed;

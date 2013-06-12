@@ -32,6 +32,10 @@ import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.SearchParseException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
+import org.elasticsearch.search.aggregations.bucket.multi.histogram.Histogram;
+import org.elasticsearch.search.aggregations.bucket.multi.histogram.HistogramAggregator;
+import org.elasticsearch.search.aggregations.bucket.multi.histogram.InternalOrder;
+import org.elasticsearch.search.aggregations.bucket.multi.histogram.UnmappedHistogramAggregator;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
 import org.elasticsearch.search.aggregations.format.ValueFormatter;
 import org.elasticsearch.search.internal.SearchContext;
@@ -83,7 +87,7 @@ public class DateHistogramParser implements AggregatorParser {
         String scriptLang = null;
         Map<String, Object> scriptParams = null;
         boolean keyed = false;
-        InternalDateOrder order = DateHistogram.Order.Standard.TIME_ASC;
+        InternalOrder order = InternalOrder.Standard.KEY_ASC;
         String interval = null;
         Chronology chronology = ISOChronology.getInstanceUTC();
         boolean preZoneAdjustLargeInterval = false;
@@ -148,6 +152,8 @@ public class DateHistogramParser implements AggregatorParser {
             }
         }
 
+        InternalDateHistogram.Factory histoFactory = new InternalDateHistogram.Factory();
+
         if (interval == null) {
             throw new SearchParseException(context, "Missing required field [interval] for histogram aggregation [" + aggregationName + "]");
         }
@@ -180,16 +186,16 @@ public class DateHistogramParser implements AggregatorParser {
         if (field == null) {
 
             if (searchScript != null) {
-                return new DateHistogramAggregator.ScriptFactory(aggregationName, searchScript, rounding, order, keyed, formatter);
+                return new HistogramAggregator.ScriptFactory(aggregationName, searchScript, rounding, order, keyed, formatter, histoFactory);
             }
 
             // falling back on the aggregation field data context
-            return new DateHistogramAggregator.ContextBasedFactory(aggregationName, rounding, order, keyed, formatter);
+            return new HistogramAggregator.ContextBasedFactory(aggregationName, rounding, order, keyed, formatter, histoFactory);
         }
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
         if (mapper == null) {
-            return new UnmappedDateHistogramAggregator.Factory(aggregationName, order, keyed);
+            return new UnmappedHistogramAggregator.Factory(aggregationName, order, keyed);
         }
 
         if (!(mapper instanceof DateFieldMapper)) {
@@ -199,25 +205,25 @@ public class DateHistogramParser implements AggregatorParser {
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
         FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
         if (searchScript != null) {
-            return new DateHistogramAggregator.FieldDataFactory(aggregationName, fieldDataContext, searchScript, rounding, order, keyed,formatter);
+            return new HistogramAggregator.FieldDataFactory(aggregationName, fieldDataContext, searchScript, rounding, order, keyed,formatter, histoFactory);
         }
 
-        return new DateHistogramAggregator.FieldDataFactory(aggregationName, fieldDataContext, rounding, order, keyed, formatter);
+        return new HistogramAggregator.FieldDataFactory(aggregationName, fieldDataContext, rounding, order, keyed, formatter, histoFactory);
 
     }
 
-    private static InternalDateOrder resolveOrder(String key, boolean asc) {
-        if ("_time".equals(key)) {
-            return asc ? DateHistogram.Order.Standard.TIME_ASC : DateHistogram.Order.Standard.TIME_DESC;
+    private static InternalOrder resolveOrder(String key, boolean asc) {
+        if ("_key".equals(key) || "_time".equals(key)) {
+            return asc ? Histogram.Order.Standard.KEY_ASC : Histogram.Order.Standard.KEY_DESC;
         }
         if ("_count".equals(key)) {
-            return asc ? DateHistogram.Order.Standard.COUNT_ASC : DateHistogram.Order.Standard.COUNT_DESC;
+            return asc ? Histogram.Order.Standard.COUNT_ASC : Histogram.Order.Standard.COUNT_DESC;
         }
         int i = key.indexOf('.');
         if (i < 0) {
-            return DateHistogram.Order.Aggregation.create(key, asc);
+            return Histogram.Order.Aggregation.create(key, asc);
         }
-        return DateHistogram.Order.Aggregation.create(key.substring(0, i), key.substring(i+1), asc);
+        return Histogram.Order.Aggregation.create(key.substring(0, i), key.substring(i+1), asc);
     }
 
     private long parseOffset(String offset) throws IOException {

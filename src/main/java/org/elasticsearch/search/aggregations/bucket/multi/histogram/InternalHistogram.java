@@ -23,6 +23,8 @@ import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Streamable;
+import org.elasticsearch.common.text.StringText;
+import org.elasticsearch.common.text.Text;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -59,15 +61,21 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
     public static class Bucket implements Histogram.Bucket {
 
         private long key;
+        private Text keyAsString;
         private long docCount;
         private InternalAggregations aggregations;
 
-        public Bucket(long key, long docCount, List<InternalAggregation> aggregations) {
-            this(key, docCount, new InternalAggregations(aggregations));
+        public Bucket(long key, String keyAsString, long docCount, List<InternalAggregation> aggregations) {
+            this(key, (keyAsString == null ? null : new StringText(keyAsString)), docCount, new InternalAggregations(aggregations));
         }
 
-        public Bucket(long key, long docCount, InternalAggregations aggregations) {
+        public Bucket(long key, Text keyAsString, long docCount, List<InternalAggregation> aggregations) {
+            this(key, keyAsString, docCount, new InternalAggregations(aggregations));
+        }
+
+        public Bucket(long key, Text keyAsString, long docCount, InternalAggregations aggregations) {
             this.key = key;
+            this.keyAsString = keyAsString;
             this.docCount = docCount;
             this.aggregations = aggregations;
         }
@@ -75,6 +83,11 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
         @Override
         public long getKey() {
             return key;
+        }
+
+        @Override
+        public String getKeyAsString() {
+            return keyAsString != null ? keyAsString.string() : String.valueOf(key);
         }
 
         @Override
@@ -106,14 +119,22 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
         }
     }
 
+    public static class Factory {
+
+        public InternalHistogram create(String name, List<Histogram.Bucket> buckets, InternalOrder order, boolean keyed) {
+            return new InternalHistogram(name, buckets, order, keyed);
+        }
+
+    }
+
     private List<Histogram.Bucket> buckets;
     private ExtTLongObjectHashMap<Histogram.Bucket> bucketsMap;
     private InternalOrder order;
     private boolean keyed;
 
-    public InternalHistogram() {} // for serialization
+    protected InternalHistogram() {} // for serialization
 
-    public InternalHistogram(String name, List<Histogram.Bucket> buckets, InternalOrder order, boolean keyed) {
+    protected InternalHistogram(String name, List<Histogram.Bucket> buckets, InternalOrder order, boolean keyed) {
         super(name);
         this.buckets = buckets;
         this.order = order;
@@ -178,7 +199,7 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
         int size = in.readVInt();
         List<Histogram.Bucket> buckets = new ArrayList<Histogram.Bucket>(size);
         for (int i = 0; i < size; i++) {
-            buckets.add(new Bucket(in.readVLong(), in.readVLong(), InternalAggregations.readAggregations(in)));
+            buckets.add(new Bucket(in.readVLong(), in.readOptionalText(), in.readVLong(), InternalAggregations.readAggregations(in)));
         }
         this.buckets = buckets;
         this.bucketsMap = null;
@@ -192,6 +213,7 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
         out.writeVInt(buckets.size());
         for (Histogram.Bucket bucket : buckets) {
             out.writeVLong(((Bucket) bucket).key);
+            out.writeOptionalText(((Bucket) bucket).keyAsString);
             out.writeVLong(((Bucket) bucket).docCount);
             ((Bucket) bucket).aggregations.writeTo(out);
         }
@@ -207,11 +229,14 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
 
         for (Histogram.Bucket bucket : buckets) {
             if (keyed) {
-                builder.startObject(String.valueOf(((Bucket) bucket).key));
+                builder.startObject(bucket.getKeyAsString());
             } else {
                 builder.startObject();
             }
             builder.field(CommonFields.KEY, ((Bucket) bucket).key);
+            if (((Bucket) bucket).keyAsString != null) {
+                builder.field(CommonFields.KEY_AS_STRING, ((Bucket) bucket).keyAsString);
+            }
             builder.field(CommonFields.DOC_COUNT, ((Bucket) bucket).docCount);
             ((Bucket) bucket).aggregations.toXContentInternal(builder, params);
             builder.endObject();

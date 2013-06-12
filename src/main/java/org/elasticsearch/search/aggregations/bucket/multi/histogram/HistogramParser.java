@@ -19,6 +19,7 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
+import org.elasticsearch.common.Rounding;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
@@ -27,6 +28,7 @@ import org.elasticsearch.search.SearchParseException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
 import org.elasticsearch.search.aggregations.context.FieldDataContext;
+import org.elasticsearch.search.aggregations.format.ValueFormatter;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -92,9 +94,12 @@ public class HistogramParser implements AggregatorParser {
             }
         }
 
+        InternalHistogram.Factory histogramFactory = new InternalHistogram.Factory();
+
         if (interval < 0) {
             throw new SearchParseException(context, "Missing required field [interval] for histogram aggregation [" + aggregationName + "]");
         }
+        Rounding rounding = new Rounding.Interval(interval);
 
         SearchScript searchScript = null;
         if (script != null) {
@@ -104,11 +109,11 @@ public class HistogramParser implements AggregatorParser {
         if (field == null) {
 
             if (searchScript != null) {
-                return new HistogramAggregator.ScriptFactory(aggregationName, searchScript, interval, order, keyed);
+                return new HistogramAggregator.ScriptFactory(aggregationName, searchScript, rounding, order, keyed, ValueFormatter.NULL, histogramFactory);
             }
 
             // falling back on the aggregation field data context
-            return new HistogramAggregator.ContextBasedFactory(aggregationName, interval, order, keyed);
+            return new HistogramAggregator.ContextBasedFactory(aggregationName, rounding, order, keyed, ValueFormatter.NULL, histogramFactory);
         }
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
@@ -119,10 +124,10 @@ public class HistogramParser implements AggregatorParser {
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
         FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
         if (searchScript != null) {
-            return new HistogramAggregator.FieldDataFactory(aggregationName, fieldDataContext, searchScript, interval, order, keyed);
+            return new HistogramAggregator.FieldDataFactory(aggregationName, fieldDataContext, searchScript, rounding, order, keyed, ValueFormatter.NULL, histogramFactory);
         }
 
-        return new HistogramAggregator.FieldDataFactory(aggregationName, fieldDataContext, interval, order, keyed);
+        return new HistogramAggregator.FieldDataFactory(aggregationName, fieldDataContext, rounding, order, keyed, ValueFormatter.NULL, histogramFactory);
 
     }
 

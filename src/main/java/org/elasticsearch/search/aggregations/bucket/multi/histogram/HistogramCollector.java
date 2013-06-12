@@ -37,12 +37,12 @@ import java.util.List;
 /**
  * A collector that is used by the histogram aggregator which aggregates the histogram buckets
  */
-public class HistogramCollector implements Aggregator.Collector {
+class HistogramCollector implements Aggregator.Collector {
 
     /**
      * A listener which is called when the aggregation of this collector finishes
      */
-    public static interface Listener {
+    static interface Listener {
 
         /**
          * Called when aggregation is finished.
@@ -74,7 +74,7 @@ public class HistogramCollector implements Aggregator.Collector {
      * @param rounding          The rounding strategy by which the aggregation will bucket documents
      * @param listener          Will be called when aggregation finishes (see {@link Listener}).
      */
-    public HistogramCollector(DoubleBucketAggregator aggregator, List<Aggregator.Factory> factories, DoubleValuesSource valuesSource, Rounding rounding, Listener listener) {
+    HistogramCollector(DoubleBucketAggregator aggregator, List<Aggregator.Factory> factories, DoubleValuesSource valuesSource, Rounding rounding, Listener listener) {
         this.factories = factories;
         this.aggregator = aggregator;
         this.valuesSource = valuesSource;
@@ -188,14 +188,14 @@ public class HistogramCollector implements Aggregator.Collector {
      * A collector for a histogram bucket. This collector counts the number of documents that fall into it,
      * but also serves as the aggregation context for all the sub aggregations it contains.
      */
-    public static class BucketCollector extends DoubleBucketAggregator.BucketCollector {
+    static class BucketCollector extends DoubleBucketAggregator.BucketCollector {
 
-        public final long key;
+        final long key;
         final Rounding rounding;
 
-        public long docCount;
+        long docCount;
 
-        public BucketCollector(long key, Rounding rounding, DoubleValuesSource valuesSource, List<Aggregator.Factory> factories,
+        BucketCollector(long key, Rounding rounding, DoubleValuesSource valuesSource, List<Aggregator.Factory> factories,
                                AtomicReaderContext reader, Scorer scorer, AggregationContext context, Aggregator parent) {
             super(parent.name(), valuesSource, factories, reader, scorer, context, parent);
             this.key = key;

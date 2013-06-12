@@ -118,10 +118,9 @@ public abstract class InternalAggregation implements Aggregation, ToXContent, St
         public static final XContentBuilderString VALUE_AS_STRING = new XContentBuilderString("value_as_string");
         public static final XContentBuilderString DOC_COUNT = new XContentBuilderString("doc_count");
         public static final XContentBuilderString KEY = new XContentBuilderString("key");
+        public static final XContentBuilderString KEY_AS_STRING = new XContentBuilderString("key_as_string");
         public static final XContentBuilderString FROM = new XContentBuilderString("from");
-        public static final XContentBuilderString FROM_AS_STRING = new XContentBuilderString("from_as_string");
         public static final XContentBuilderString TO = new XContentBuilderString("to");
-        public static final XContentBuilderString TO_AS_STRING = new XContentBuilderString("to_as_string");
     }
 
 }

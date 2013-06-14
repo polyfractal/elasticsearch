@@ -21,6 +21,7 @@ package org.elasticsearch.search.aggregations;
 
 import org.elasticsearch.search.aggregations.context.ValuesSource;
 import org.elasticsearch.search.aggregations.context.ValuesSourceBased;
+import org.elasticsearch.search.internal.SearchContext;
 
 /**
  * An aggregator that aggregates based on values that are provided by a {@link ValuesSource}.
@@ -29,8 +30,8 @@ public abstract class ValuesSourceAggregator<VS extends ValuesSource> extends Ag
 
     protected final VS valuesSource;
 
-    public ValuesSourceAggregator(String name, VS valuesSource, Class<VS> requiredValuesSourceType, Aggregator parent) {
-        super(name, parent);
+    public ValuesSourceAggregator(String name, VS valuesSource, Class<VS> requiredValuesSourceType, SearchContext searchContext, Aggregator parent) {
+        super(name, searchContext, parent);
         if (valuesSource != null) {
             this.valuesSource = valuesSource;
         } else {

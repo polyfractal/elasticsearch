@@ -22,13 +22,15 @@ package org.elasticsearch.search.aggregations.bucket;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.index.fielddata.GeoPointValues;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
+import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.geopoints.GeoPointValuesSource;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -38,21 +40,21 @@ import java.util.List;
  */
 public abstract class GeoPointBucketAggregator extends ValuesSourceBucketAggregator<GeoPointValuesSource> {
 
-    protected GeoPointBucketAggregator(String name, GeoPointValuesSource valuesSource, Aggregator parent) {
-        super(name, valuesSource, GeoPointValuesSource.class, parent);
+    protected GeoPointBucketAggregator(String name, GeoPointValuesSource valuesSource, SearchContext searchContext, Aggregator parent) {
+        super(name, valuesSource, GeoPointValuesSource.class, searchContext, parent);
     }
 
     public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<GeoPointValuesSource> implements AggregationContext {
 
         private GeoPointValues values;
 
-        protected BucketCollector(String aggregationName, GeoPointValuesSource valuesSource, Aggregator[] aggregators) {
-            super(aggregationName, valuesSource, aggregators);
+        protected BucketCollector(GeoPointValuesSource valuesSource, Aggregator[] subAggregators, Aggregator aggregator) {
+            super(valuesSource, subAggregators, aggregator);
         }
 
-        protected BucketCollector(String aggregationName, GeoPointValuesSource valuesSource, List<Aggregator.Factory> factories,
+        protected BucketCollector(GeoPointValuesSource valuesSource, List<Aggregator.Factory> factories,
                                   AtomicReaderContext reader, Scorer scorer, AggregationContext context, Aggregator parent) {
-            super(aggregationName, valuesSource, factories, reader, scorer, context, parent);
+            super(valuesSource, factories, reader, scorer, context, parent);
         }
 
         @Override
@@ -102,45 +104,41 @@ public abstract class GeoPointBucketAggregator extends ValuesSourceBucketAggrega
 
     protected abstract static class FieldDataFactory<A extends GeoPointBucketAggregator> extends CompoundFactory<A> {
 
-        private final FieldDataContext fieldDataContext;
+        private final FieldContext fieldContext;
         private final SearchScript valueScript;
 
-        public FieldDataFactory(String name, FieldDataContext fieldDataContext) {
-            this(name, fieldDataContext, null);
-        }
-
-        public FieldDataFactory(String name, FieldDataContext fieldDataContext, SearchScript valueScript) {
+        public FieldDataFactory(String name, FieldContext fieldContext, @Nullable SearchScript valueScript) {
             super(name);
-            this.fieldDataContext = fieldDataContext;
+            this.fieldContext = fieldContext;
             this.valueScript = valueScript;
         }
 
         @Override
-        public final A create(Aggregator parent) {
-            if (valueScript != null) {
-                return create(new GeoPointValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData(), valueScript), parent);
-            }
-            return create(new GeoPointValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData()), parent);
+        public final A create(SearchContext searchContext, Aggregator parent) {
+            GeoPointValuesSource source = new GeoPointValuesSource.FieldData(fieldContext.field(), fieldContext.indexFieldData(), valueScript);
+            return create(source, searchContext, parent);
         }
 
-        protected abstract A create(GeoPointValuesSource source, Aggregator parent);
+        protected abstract A create(GeoPointValuesSource source, SearchContext searchContext, Aggregator parent);
     }
 
     protected abstract static class ScriptFactory<A extends GeoPointBucketAggregator> extends CompoundFactory<A> {
 
         private final SearchScript script;
+        private final boolean multiValued;
 
-        protected ScriptFactory(String name, SearchScript script) {
+        protected ScriptFactory(String name, SearchScript script, boolean multiVAlued) {
             super(name);
             this.script = script;
+            this.multiValued = multiVAlued;
         }
 
         @Override
-        public final A create(Aggregator parent) {
-            return create(new GeoPointValuesSource.Script(script), parent);
+        public final A create(SearchContext searchContext, Aggregator parent) {
+            return create(new GeoPointValuesSource.Script(script, multiValued), searchContext, parent);
         }
 
-        protected abstract A create(GeoPointValuesSource source, Aggregator parent);
+        protected abstract A create(GeoPointValuesSource source, SearchContext searchContext, Aggregator parent);
     }
 
     protected abstract static class ContextBasedFactory<A extends GeoPointBucketAggregator> extends CompoundFactory<A> {

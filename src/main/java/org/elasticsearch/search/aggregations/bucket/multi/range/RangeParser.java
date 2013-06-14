@@ -26,7 +26,7 @@ import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.SearchParseException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
+import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -53,6 +53,7 @@ public class RangeParser implements AggregatorParser {
         String scriptLang = null;
         Map<String, Object> scriptParams = null;
         boolean keyed = false;
+        boolean multiValued = true;
 
         XContentParser.Token token;
         String currentFieldName = null;
@@ -72,7 +73,9 @@ public class RangeParser implements AggregatorParser {
                     ranges = new ArrayList<RangeAggregator.Range>();
                     while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
                         double from = Double.NEGATIVE_INFINITY;
+                        String fromAsStr = null;
                         double to = Double.POSITIVE_INFINITY;
+                        String toAsStr = null;
                         String key = null;
                         String toOrFromOrKey = null;
                         while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
@@ -85,12 +88,16 @@ public class RangeParser implements AggregatorParser {
                                     to = parser.doubleValue();
                                 }
                             } else if (token == XContentParser.Token.VALUE_STRING) {
-                                if ("key".equals(toOrFromOrKey)) {
+                                if ("from".equals(toOrFromOrKey)) {
+                                    fromAsStr = parser.text();
+                                } else if ("to".equals(toOrFromOrKey)) {
+                                    toAsStr = parser.text();
+                                } else if ("key".equals(toOrFromOrKey)) {
                                     key = parser.text();
                                 }
                             }
                         }
-                        ranges.add(new RangeAggregator.Range(key, from, to));
+                        ranges.add(new RangeAggregator.Range(key, from, fromAsStr, to, toAsStr));
                     }
                 }
             } else if (token == XContentParser.Token.START_OBJECT) {
@@ -100,6 +107,8 @@ public class RangeParser implements AggregatorParser {
             } else if (token == XContentParser.Token.VALUE_BOOLEAN) {
                 if ("keyed".equals(currentFieldName)) {
                     keyed = parser.booleanValue();
+                } else if ("multi_valued".equals(currentFieldName) || "multiValued".equals(currentFieldName)) {
+                    multiValued = parser.booleanValue();
                 }
             }
         }
@@ -116,11 +125,11 @@ public class RangeParser implements AggregatorParser {
         if (field == null) {
 
             if (searchScript != null) {
-                return new RangeAggregator.ScriptFactory(aggregationName, searchScript, ranges, keyed);
+                return new RangeAggregator.ScriptFactory(aggregationName, searchScript, multiValued, null, InternalRange.FACTORY, ranges, keyed);
             }
 
             // "field" doesn't exist, so we fall back to the context of the ancestors
-            return new RangeAggregator.ContextBasedFactory(aggregationName, ranges, keyed);
+            return new RangeAggregator.ContextBasedFactory(aggregationName, InternalRange.FACTORY, ranges, keyed);
         }
 
 
@@ -130,12 +139,7 @@ public class RangeParser implements AggregatorParser {
         }
 
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
-        if (searchScript != null) {
-            return new RangeAggregator.FieldDataFactory(aggregationName, fieldDataContext, searchScript, ranges, keyed);
-        }
-
-        return new RangeAggregator.FieldDataFactory(aggregationName, fieldDataContext, ranges, keyed);
-
+        FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
+        return new RangeAggregator.FieldDataFactory(aggregationName, fieldContext, searchScript, null, null, InternalRange.FACTORY, ranges, keyed);
     }
 }

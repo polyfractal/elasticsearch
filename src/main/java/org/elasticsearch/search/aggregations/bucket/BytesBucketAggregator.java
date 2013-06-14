@@ -27,8 +27,9 @@ import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
+import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -38,21 +39,21 @@ import java.util.List;
  */
 public abstract class BytesBucketAggregator extends ValuesSourceBucketAggregator<BytesValuesSource> {
 
-    protected BytesBucketAggregator(String name, BytesValuesSource valuesSource, Aggregator parent) {
-        super(name, valuesSource, BytesValuesSource.class, parent);
+    protected BytesBucketAggregator(String name, BytesValuesSource valuesSource, SearchContext searchContext, Aggregator parent) {
+        super(name, valuesSource, BytesValuesSource.class, searchContext, parent);
     }
 
     public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<BytesValuesSource> implements AggregationContext {
 
         private BytesValues values;
 
-        protected BucketCollector(String aggregationName, BytesValuesSource valuesSource, Aggregator[] aggregators) {
-            super(aggregationName, valuesSource, aggregators);
+        protected BucketCollector(BytesValuesSource valuesSource, Aggregator[] subAggregators, Aggregator aggregator) {
+            super(valuesSource, subAggregators, aggregator);
         }
 
-        protected BucketCollector(String aggregationName, BytesValuesSource valuesSource, List<Aggregator.Factory> factories,
-                                  AtomicReaderContext reader, Scorer scorer, AggregationContext context, Aggregator parent) {
-            super(aggregationName, valuesSource, factories, reader, scorer, context, parent);
+        protected BucketCollector(BytesValuesSource valuesSource, List<Aggregator.Factory> factories,
+                                  AtomicReaderContext reader, Scorer scorer, AggregationContext context, Aggregator aggregator) {
+            super(valuesSource, factories, reader, scorer, context, aggregator);
         }
 
         @Override
@@ -99,45 +100,41 @@ public abstract class BytesBucketAggregator extends ValuesSourceBucketAggregator
 
     protected abstract static class FieldDataFactory<A extends BytesBucketAggregator> extends CompoundFactory<A> {
 
-        private final FieldDataContext fieldDataContext;
+        private final FieldContext fieldContext;
         private final SearchScript valueScript;
 
-        public FieldDataFactory(String name, FieldDataContext fieldDataContext) {
-            this(name, fieldDataContext, null);
-        }
-
-        public FieldDataFactory(String name, FieldDataContext fieldDataContext, SearchScript valueScript) {
+        public FieldDataFactory(String name, FieldContext fieldContext, SearchScript valueScript) {
             super(name);
-            this.fieldDataContext = fieldDataContext;
+            this.fieldContext = fieldContext;
             this.valueScript = valueScript;
         }
 
         @Override
-        public final A create(Aggregator parent) {
-            if (valueScript != null) {
-                return create(new BytesValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData(), valueScript), parent);
-            }
-            return create(new BytesValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData()), parent);
+        public final A create(SearchContext searchContext, Aggregator parent) {
+            BytesValuesSource source = new BytesValuesSource.FieldData(fieldContext.field(), fieldContext.indexFieldData(), valueScript);
+            return create(source, searchContext, parent);
         }
 
-        protected abstract A create(BytesValuesSource source, Aggregator parent);
+        protected abstract A create(BytesValuesSource source, SearchContext searchContext, Aggregator parent);
     }
 
     protected abstract static class ScriptFactory<A extends BytesBucketAggregator> extends CompoundFactory<A> {
 
         private final SearchScript script;
+        private final boolean multiValued;
 
-        protected ScriptFactory(String name, SearchScript script) {
+        protected ScriptFactory(String name, SearchScript script, boolean multiValued) {
             super(name);
             this.script = script;
+            this.multiValued = multiValued;
         }
 
         @Override
-        public final A create(Aggregator parent) {
-            return create(new BytesValuesSource.Script(script), parent);
+        public final A create(SearchContext searchContext, Aggregator parent) {
+            return create(new BytesValuesSource.Script(script, multiValued), searchContext, parent);
         }
 
-        protected abstract A create(BytesValuesSource source, Aggregator parent);
+        protected abstract A create(BytesValuesSource source, SearchContext searchContext, Aggregator parent);
     }
 
     protected abstract static class ContextBasedFactory<A extends BytesBucketAggregator> extends CompoundFactory<A> {

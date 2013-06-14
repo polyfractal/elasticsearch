@@ -37,6 +37,7 @@ import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 import org.elasticsearch.search.facet.terms.support.EntryPriorityQueue;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -57,8 +58,8 @@ public class StringTermsAggregator extends BytesBucketAggregator {
     ExtTHashMap<HashedBytesRef, BucketCollector> buckets;
 
     public StringTermsAggregator(String name, List<Aggregator.Factory> factories, BytesValuesSource valuesSource,
-                                 Terms.Order order, int requiredSize, Aggregator parent) {
-        super(name, valuesSource, parent);
+                                 Terms.Order order, int requiredSize, SearchContext searchContext, Aggregator parent) {
+        super(name, valuesSource, searchContext, parent);
         this.factories = factories;
         this.order = order;
         this.requiredSize = requiredSize;
@@ -144,7 +145,7 @@ public class StringTermsAggregator extends BytesBucketAggregator {
                 BucketCollector bucket = buckets.get(term);
                 if (bucket == null) {
                     term.bytes = values.makeSafe(scratch);
-                    bucket = new BucketCollector(term.bytes, name, factories, reader, scorer, context, StringTermsAggregator.this);
+                    bucket = new BucketCollector(term.bytes, factories, reader, scorer, context, StringTermsAggregator.this);
                     buckets.put(term, bucket);
                 }
                 bucket.collect(doc);
@@ -174,7 +175,7 @@ public class StringTermsAggregator extends BytesBucketAggregator {
                 BucketCollector bucket = buckets.get(term);
                 if (bucket == null) {
                     term.bytes = values.makeSafe(value);
-                    bucket = new BucketCollector(term.bytes, name, factories, reader, scorer, context, StringTermsAggregator.this);
+                    bucket = new BucketCollector(term.bytes, factories, reader, scorer, context, StringTermsAggregator.this);
                     buckets.put(term, bucket);
                 }
                 if (matchedBuckets == null) {
@@ -203,9 +204,9 @@ public class StringTermsAggregator extends BytesBucketAggregator {
 
         long docCount;
 
-        BucketCollector(BytesRef term, String aggregationName, List<Aggregator.Factory> factories, AtomicReaderContext reader,
-                        Scorer scorer, AggregationContext context, Aggregator parent) {
-            super(aggregationName, factories, reader, scorer, context, parent);
+        BucketCollector(BytesRef term, List<Aggregator.Factory> factories, AtomicReaderContext reader,
+                        Scorer scorer, AggregationContext context, Aggregator aggregator) {
+            super(factories, reader, scorer, context, aggregator);
             this.term = term;
         }
 
@@ -225,7 +226,7 @@ public class StringTermsAggregator extends BytesBucketAggregator {
         }
 
         StringTerms.Bucket buildBucket() {
-            return new StringTerms.Bucket(term, docCount, buildAggregations(aggregators));
+            return new StringTerms.Bucket(term, docCount, buildAggregations(subAggregators));
         }
     }
 

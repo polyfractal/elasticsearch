@@ -26,6 +26,7 @@ import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
 import org.elasticsearch.search.aggregations.context.ValuesSourceBased;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 
@@ -34,17 +35,19 @@ import java.io.IOException;
  */
 public abstract class ValuesSourceCalcAggregator<VS extends ValuesSource> extends ValuesSourceAggregator<VS> implements ValuesSourceBased {
 
-    public ValuesSourceCalcAggregator(String name, VS valuesSource, Class<VS> valueSourceType, Aggregator parent) {
-        super(name, valuesSource, valueSourceType, parent);
+    public ValuesSourceCalcAggregator(String name, VS valuesSource, Class<VS> valueSourceType, SearchContext searchContext, Aggregator parent) {
+        super(name, valuesSource, valueSourceType, searchContext, parent);
     }
 
 
     protected static abstract class Collector<VS extends ValuesSource> implements Aggregator.Collector {
 
+        protected Aggregator aggregator;
         protected VS valuesSource;
 
-        protected Collector(VS valuesSource) {
+        protected Collector(VS valuesSource, Aggregator aggregator) {
             this.valuesSource = valuesSource;
+            this.aggregator = aggregator;
         }
 
         @Override

@@ -21,11 +21,11 @@ package org.elasticsearch.search.aggregations.calc;
 
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.script.SearchScript;
-import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
+import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 
@@ -34,19 +34,17 @@ import java.io.IOException;
  */
 public abstract class BytesCalcAggregator extends ValuesSourceCalcAggregator<BytesValuesSource>  {
 
-    public BytesCalcAggregator(String name, BytesValuesSource valuesSource, Aggregator parent) {
-        super(name, valuesSource, BytesValuesSource.class, parent);
+    public BytesCalcAggregator(String name, BytesValuesSource valuesSource, SearchContext searchContext, Aggregator parent) {
+        super(name, valuesSource, BytesValuesSource.class, searchContext, parent);
     }
 
     protected static abstract class Collector extends ValuesSourceCalcAggregator.Collector<BytesValuesSource> {
 
-        private final String aggregatorName;
         private BytesValues values;
         private AggregationContext context;
 
-        protected Collector(String aggregatorName, BytesValuesSource valuesSource) {
-            super(valuesSource);
-            this.aggregatorName = aggregatorName;
+        protected Collector(BytesValuesSource valuesSource, Aggregator aggregator) {
+            super(valuesSource, aggregator);
         }
 
         @Override
@@ -66,45 +64,44 @@ public abstract class BytesCalcAggregator extends ValuesSourceCalcAggregator<Byt
 
     protected abstract static class FieldDataFactory<A extends BytesCalcAggregator> extends Factory<A> {
 
-        private final FieldDataContext fieldDataContext;
+        private final FieldContext fieldContext;
         private final SearchScript valueScript;
 
-        public FieldDataFactory(String name, FieldDataContext fieldDataContext) {
-            this(name, fieldDataContext, null);
+        public FieldDataFactory(String name, FieldContext fieldContext) {
+            this(name, fieldContext, null);
         }
 
-        public FieldDataFactory(String name, FieldDataContext fieldDataContext, SearchScript valueScript) {
+        public FieldDataFactory(String name, FieldContext fieldContext, SearchScript valueScript) {
             super(name);
-            this.fieldDataContext = fieldDataContext;
+            this.fieldContext = fieldContext;
             this.valueScript = valueScript;
         }
 
         @Override
-        public final A create(Aggregator parent) {
-            if (valueScript != null) {
-                return create(new BytesValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData(), valueScript), parent);
-            }
-            return create(new BytesValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData()), parent);
+        public A create(SearchContext context, Aggregator parent) {
+            return create(new BytesValuesSource.FieldData(fieldContext.field(), fieldContext.indexFieldData(), valueScript), context, parent);
         }
 
-        protected abstract A create(BytesValuesSource source, Aggregator parent);
+        protected abstract A create(BytesValuesSource source, SearchContext searchContext, Aggregator parent);
     }
 
     protected abstract static class ScriptFactory<A extends BytesCalcAggregator> extends Factory<A> {
 
         private final SearchScript script;
+        private final boolean multiValued;
 
-        protected ScriptFactory(String name, SearchScript script) {
+        protected ScriptFactory(String name, SearchScript script, boolean multiValued) {
             super(name);
             this.script = script;
+            this.multiValued = multiValued;
         }
 
         @Override
-        public final A create(Aggregator parent) {
-            return create(new BytesValuesSource.Script(script), parent);
+        public A create(SearchContext context, Aggregator parent) {
+            return create(new BytesValuesSource.Script(script, multiValued), context, parent);
         }
 
-        protected abstract A create(BytesValuesSource source, Aggregator parent);
+        protected abstract A create(BytesValuesSource source, SearchContext searchContext, Aggregator parent);
     }
 
     protected abstract static class ContextBasedFactory<A extends ValuesSourceCalcAggregator> extends Factory<A> {
@@ -113,11 +110,5 @@ public abstract class BytesCalcAggregator extends ValuesSourceCalcAggregator<Byt
             super(name);
         }
 
-        @Override
-        public A create(Aggregator parent) {
-            return create(null, parent);
-        }
-
-        protected abstract A create(BytesValuesSource source, Aggregator parent);
     }
 }

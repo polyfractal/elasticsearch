@@ -28,7 +28,7 @@ import org.elasticsearch.index.fielddata.ordinals.Ordinals.Docs;
 public abstract class DoubleValues {
 
     public static final DoubleValues EMPTY = new Empty();
-    private final boolean multiValued;
+    protected boolean multiValued;
     protected final Iter.Single iter = new Iter.Single();
 
 

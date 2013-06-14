@@ -27,6 +27,7 @@ import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
 import org.elasticsearch.search.aggregations.context.ValuesSourceBased;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -36,44 +37,62 @@ import java.util.List;
  */
 public abstract class ValuesSourceBucketAggregator<VS extends ValuesSource> extends ValuesSourceAggregator<VS> implements ValuesSourceBased {
 
-    public ValuesSourceBucketAggregator(String name, VS valuesSource, Class<VS> valuesSourceType, Aggregator parent) {
-        super(name, valuesSource, valuesSourceType, parent);
-    }
-
-    @Override
-    public ValuesSource valuesSource() {
-        return valuesSource;
+    public ValuesSourceBucketAggregator(String name, VS valuesSource, Class<VS> valuesSourceType, SearchContext searchContext, Aggregator parent) {
+        super(name, valuesSource, valuesSourceType, searchContext, parent);
     }
 
     protected static abstract class BucketCollector<VS extends ValuesSource> implements Collector {
 
+        protected final Aggregator aggregator;
         protected final VS valuesSource;
-        protected final String aggregationName;
-        public final Aggregator[] aggregators;
+        public final Aggregator[] subAggregators;
         public final Collector[] collectors;
 
         protected AggregationContext parentContext;
 
-        public BucketCollector(String aggregatorName, VS valuesSource, Aggregator[] aggregators) {
+        /**
+         * Creates a new bucket level collector with already initialized sub-aggregators. This ctor will normally be used
+         * in those bucket aggregators that have pre-defined & fixed number of buckets (e.g. range and geo_distance).
+         *
+         * @param valuesSource      The values source this collector works with
+         * @param subAggregators    The sub-aggregators (aggregator per bucket) of the "owning" bucket aggregator
+         * @param aggregator        The bucket aggregator "owning" this collector
+         */
+        public BucketCollector(VS valuesSource, Aggregator[] subAggregators, Aggregator aggregator) {
+            this.aggregator = aggregator;
             this.valuesSource = valuesSource;
-            this.aggregationName = aggregatorName;
-            this.aggregators = aggregators;
-            this.collectors = new Collector[aggregators.length];
-            for (int i = 0; i < aggregators.length; i++) {
-                collectors[i] = aggregators[i].collector();
+            this.subAggregators = subAggregators;
+            this.collectors = new Collector[subAggregators.length];
+            for (int i = 0; i < subAggregators.length; i++) {
+                collectors[i] = subAggregators[i].collector();
             }
         }
 
-        public BucketCollector(String aggregationName, VS valuesSource, List<Aggregator.Factory> factories, AtomicReaderContext reader,
-                               Scorer scorer, AggregationContext context, Aggregator parent) {
+        /**
+         * Creates a new bucket level collector that works on the given values source and has the given aggregator factories. This ctor
+         * will be used in bucket aggregators that are more dynamic in nature, that is, where the buckets are created dynamically during
+         * the aggregation process (e.g. histogram). The reason for having this ctor is that when a bucket is created during the aggregation
+         * process, there's already a context that the collectors of the aggregators need to be initialize in (ie. reader, scorer & aggregation
+         * context) - this ctor takes care of this initialization.
+         *
+         * @param valuesSource  The value source this collector works with
+         * @param factories     The factories for all the sub-aggregators of the bucket
+         * @param reader        The current reader context
+         * @param scorer        The current scorer
+         * @param context       The current aggregation context
+         * @param aggregator    The "owning" aggregator (the aggregator this collector belongs to)
+         */
+        public BucketCollector(VS valuesSource, List<Aggregator.Factory> factories, AtomicReaderContext reader,
+                               Scorer scorer, AggregationContext context, Aggregator aggregator) {
+
+            this.aggregator = aggregator;
             this.valuesSource = valuesSource;
-            this.aggregationName = aggregationName;
-            this.aggregators = new Aggregator[factories.size()];
-            this.collectors = new Collector[aggregators.length];
+            this.subAggregators = new Aggregator[factories.size()];
+            this.collectors = new Collector[subAggregators.length];
             int i = 0;
             for (Aggregator.Factory factory : factories) {
-                aggregators[i] = factory.create(parent);
-                collectors[i] = aggregators[i].collector();
+                subAggregators[i] = factory.create(aggregator.searchContext(), aggregator);
+                collectors[i] = subAggregators[i].collector();
                 try {
                     if (reader != null) {
                         collectors[i].setNextReader(reader, context);
@@ -82,7 +101,7 @@ public abstract class ValuesSourceBucketAggregator<VS extends ValuesSource> exte
                         collectors[i].setScorer(scorer);
                     }
                 } catch (IOException ioe) {
-                    throw new AggregationExecutionException("Failed to aggregate [" + aggregationName + "]", ioe);
+                    throw new AggregationExecutionException("Failed to aggregate [" + aggregator.name() + "]", ioe);
                 }
                 i++;
             }
@@ -95,7 +114,7 @@ public abstract class ValuesSourceBucketAggregator<VS extends ValuesSource> exte
                     collectors[i].postCollection();
                 }
             }
-            postCollection(aggregators);
+            postCollection(subAggregators);
         }
 
         @Override

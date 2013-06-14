@@ -19,6 +19,7 @@
 
 package org.elasticsearch.search.aggregations.context.geopoints;
 
+import org.elasticsearch.common.Nullable;
 import org.elasticsearch.index.fielddata.AtomicGeoPointFieldData;
 import org.elasticsearch.index.fielddata.GeoPointValues;
 import org.elasticsearch.index.fielddata.IndexFieldData;
@@ -32,26 +33,12 @@ import java.io.IOException;
  */
 public interface GeoPointValuesSource extends ValuesSource {
 
-    public static final GeoPointValuesSource EMPTY = new Empty();
-
     GeoPointValues values() throws IOException;
 
 
-    public static class Empty extends ValuesSource.Empty implements GeoPointValuesSource {
-
-        @Override
-        public GeoPointValues values() throws IOException {
-            return null;
-        }
-    }
-
     public static class FieldData extends ValuesSource.FieldData<GeoPointValues> implements GeoPointValuesSource {
 
-        public FieldData(String field, IndexFieldData indexFieldData) {
-            super(field, indexFieldData);
-        }
-
-        public FieldData(String field, IndexFieldData indexFieldData, SearchScript valueScript) {
+        public FieldData(String field, IndexFieldData indexFieldData, @Nullable SearchScript valueScript) {
             super(field, indexFieldData, valueScript);
         }
 
@@ -66,10 +53,6 @@ public interface GeoPointValuesSource extends ValuesSource {
     }
 
     public static class Script extends ValuesSource.Script<ScriptGeoPointValues> implements GeoPointValuesSource {
-
-        public Script(SearchScript script) {
-            super(script);
-        }
 
         public Script(SearchScript script, boolean multiValue) {
             super(script, multiValue);

@@ -25,11 +25,11 @@ import org.apache.lucene.search.Scorer;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.Rounding;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
-import org.elasticsearch.index.fielddata.DoubleValues;
+import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.bucket.DoubleBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.LongBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
+import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 
 import java.io.IOException;
 import java.util.List;
@@ -54,7 +54,7 @@ class HistogramCollector implements Aggregator.Collector {
     }
 
     final List<Aggregator.Factory> factories;
-    final DoubleBucketAggregator aggregator;
+    final LongBucketAggregator aggregator;
     final ExtTLongObjectHashMap<BucketCollector> bucketCollectors = CacheRecycler.popLongObjectMap();
     final Rounding rounding;
     final Listener listener;
@@ -62,8 +62,8 @@ class HistogramCollector implements Aggregator.Collector {
     Scorer scorer;
     AtomicReaderContext reader;
     AggregationContext context;
-    DoubleValuesSource valuesSource;
-    DoubleValues values;
+    NumericValuesSource valuesSource;
+    LongValues values;
 
     /**
      * Constructs a new histogram collector.
@@ -74,7 +74,12 @@ class HistogramCollector implements Aggregator.Collector {
      * @param rounding          The rounding strategy by which the aggregation will bucket documents
      * @param listener          Will be called when aggregation finishes (see {@link Listener}).
      */
-    HistogramCollector(DoubleBucketAggregator aggregator, List<Aggregator.Factory> factories, DoubleValuesSource valuesSource, Rounding rounding, Listener listener) {
+    HistogramCollector(LongBucketAggregator aggregator,
+                       List<Aggregator.Factory> factories,
+                       NumericValuesSource valuesSource,
+                       Rounding rounding,
+                       Listener listener) {
+
         this.factories = factories;
         this.aggregator = aggregator;
         this.valuesSource = valuesSource;
@@ -100,7 +105,7 @@ class HistogramCollector implements Aggregator.Collector {
         this.reader = reader;
         this.context = context;
         valuesSource.setNextReader(reader);
-        values = valuesSource.values();
+        values = valuesSource.longValues();
         for (Object collector : bucketCollectors.internalValues()) {
             if (collector != null) {
                 ((BucketCollector) collector).setNextReader(reader, context);
@@ -164,14 +169,14 @@ class HistogramCollector implements Aggregator.Collector {
     // collect the matched ones. We need to do this to avoid situations where multiple values in a single field
     // or multiple values across the aggregated fields match the bucket and then the bucket will collect the same
     // document multiple times.
-    private List<BucketCollector> findMatchedBuckets(int doc, String valuesSourceKey, DoubleValues values, AggregationContext context) {
+    private List<BucketCollector> findMatchedBuckets(int doc, String valuesSourceKey, LongValues values, AggregationContext context) {
         List<BucketCollector> matchedBuckets = Lists.newArrayListWithCapacity(4);
-        for (DoubleValues.Iter iter = values.getIter(doc); iter.hasNext();) {
-            double value = iter.next();
+        for (LongValues.Iter iter = values.getIter(doc); iter.hasNext();) {
+            long value = iter.next();
             if (!context.accept(valuesSourceKey, value)) {
                 continue;
             }
-            long key = rounding.round((long) value);
+            long key = rounding.round(value);
             BucketCollector bucket = bucketCollectors.get(key);
             if (bucket == null) {
                 bucket = new BucketCollector(key, rounding, valuesSource, factories, reader, scorer, context, aggregator);
@@ -188,22 +193,29 @@ class HistogramCollector implements Aggregator.Collector {
      * A collector for a histogram bucket. This collector counts the number of documents that fall into it,
      * but also serves as the aggregation context for all the sub aggregations it contains.
      */
-    static class BucketCollector extends DoubleBucketAggregator.BucketCollector {
+    static class BucketCollector extends LongBucketAggregator.BucketCollector {
 
         final long key;
         final Rounding rounding;
 
         long docCount;
 
-        BucketCollector(long key, Rounding rounding, DoubleValuesSource valuesSource, List<Aggregator.Factory> factories,
-                               AtomicReaderContext reader, Scorer scorer, AggregationContext context, Aggregator parent) {
-            super(parent.name(), valuesSource, factories, reader, scorer, context, parent);
+        BucketCollector(long key,
+                        Rounding rounding,
+                        NumericValuesSource valuesSource,
+                        List<Aggregator.Factory> factories,
+                        AtomicReaderContext reader,
+                        Scorer scorer,
+                        AggregationContext context,
+                        Aggregator parent) {
+
+            super(valuesSource, factories, reader, scorer, context, parent);
             this.key = key;
             this.rounding = rounding;
         }
 
         @Override
-        protected boolean onDoc(int doc, DoubleValues values, AggregationContext context) throws IOException {
+        protected boolean onDoc(int doc, LongValues values, AggregationContext context) throws IOException {
             docCount++;
             return true;
         }

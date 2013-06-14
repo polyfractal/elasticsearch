@@ -20,9 +20,16 @@
 package org.elasticsearch.search.aggregations.bucket.multi.histogram.date;
 
 import org.elasticsearch.search.aggregations.bucket.multi.histogram.Histogram;
+import org.joda.time.DateTime;
 
 /**
  *
  */
 public interface DateHistogram extends Histogram {
+
+    static interface Bucket extends Histogram.Bucket {
+
+        DateTime getKeyAsDate();
+
+    }
 }

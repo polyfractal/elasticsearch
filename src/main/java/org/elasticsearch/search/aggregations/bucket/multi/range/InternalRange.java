@@ -24,6 +24,8 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.aggregations.*;
+import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
+import org.elasticsearch.search.aggregations.context.numeric.ValueFormatterStreams;
 
 import java.io.IOException;
 import java.util.*;
@@ -32,6 +34,8 @@ import java.util.*;
  *
  */
 public class InternalRange extends InternalAggregation implements Range {
+
+    static final Factory FACTORY = new Factory();
 
     public final static Type TYPE = new Type("range");
 
@@ -88,12 +92,6 @@ public class InternalRange extends InternalAggregation implements Range {
             return aggregations;
         }
 
-        @Override
-        @SuppressWarnings("unchecked")
-        public <A extends Aggregation> A getAggregation(String name, Class<A> type) {
-            return (A) aggregations.getAsMap().get(name);
-        }
-
         Bucket reduce(List<Bucket> ranges) {
             if (ranges.size() == 1) {
                 return ranges.get(0);
@@ -112,9 +110,9 @@ public class InternalRange extends InternalAggregation implements Range {
             return reduced;
         }
 
-        void toXContent(XContentBuilder builder, Params params, boolean keyed) throws IOException {
+        void toXContent(XContentBuilder builder, Params params, ValueFormatter formatter, boolean keyed) throws IOException {
             if (keyed) {
-                builder.startObject(key(this));
+                builder.startObject(key(this, formatter));
             } else {
                 builder.startObject();
                 if (key != null) {
@@ -123,9 +121,15 @@ public class InternalRange extends InternalAggregation implements Range {
             }
             if (!Double.isInfinite(from)) {
                 builder.field(CommonFields.FROM, from);
+                if (formatter != null) {
+                    builder.field(CommonFields.FROM_AS_STRING, formatter.format(from));
+                }
             }
             if (!Double.isInfinite(to)) {
                 builder.field(CommonFields.TO, to);
+                if (formatter != null) {
+                    builder.field(CommonFields.TO_AS_STRING, formatter.format(to));
+                }
             }
             builder.field(CommonFields.DOC_COUNT, docCount);
             aggregations.toXContentInternal(builder, params);
@@ -134,16 +138,29 @@ public class InternalRange extends InternalAggregation implements Range {
 
     }
 
+    public static class Factory {
+
+        public InternalRange create(String name, List<Bucket> buckets, ValueFormatter formatter, boolean keyed) {
+            return new InternalRange(name, buckets, formatter, keyed);
+        }
+
+        public Bucket createBucket(String key, double from, double to, long docCount, InternalAggregations aggregations) {
+            return new Bucket(key, from, to, docCount, aggregations);
+        }
+
+    }
+
     private List<Bucket> ranges;
     private Map<String, Bucket> rangeMap;
-
+    private ValueFormatter formatter;
     private boolean keyed;
 
     public InternalRange() {} // for serialization
 
-    public InternalRange(String name, List<Bucket> ranges, boolean keyed) {
+    public InternalRange(String name, List<Bucket> ranges, ValueFormatter formatter, boolean keyed) {
         super(name);
         this.ranges = ranges;
+        this.formatter = formatter;
         this.keyed = keyed;
     }
 
@@ -159,7 +176,7 @@ public class InternalRange extends InternalAggregation implements Range {
         if (rangeMap == null) {
             rangeMap = new HashMap<String, Bucket>();
             for (Range.Bucket bucket : ranges) {
-                rangeMap.put(key(bucket), (InternalRange.Bucket) bucket);
+                rangeMap.put(key(bucket, formatter), (InternalRange.Bucket) bucket);
             }
         }
         return rangeMap.get(key);
@@ -204,6 +221,7 @@ public class InternalRange extends InternalAggregation implements Range {
     @Override
     public void readFrom(StreamInput in) throws IOException {
         name = in.readString();
+        formatter = ValueFormatterStreams.readOptional(in);
         keyed = in.readBoolean();
         int size = in.readVInt();
         List<Bucket> ranges = Lists.newArrayListWithCapacity(size);
@@ -218,6 +236,7 @@ public class InternalRange extends InternalAggregation implements Range {
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeString(name);
+        ValueFormatterStreams.writeOptional(formatter, out);
         out.writeBoolean(keyed);
         out.writeVInt(ranges.size());
         for (Bucket range : ranges) {
@@ -237,7 +256,7 @@ public class InternalRange extends InternalAggregation implements Range {
             builder.startArray(name);
         }
         for (Bucket range : ranges) {
-            range.toXContent(builder, params, keyed);
+            range.toXContent(builder, params, formatter, keyed);
         }
         if (keyed) {
             builder.endObject();
@@ -247,15 +266,15 @@ public class InternalRange extends InternalAggregation implements Range {
         return builder;
     }
 
-    private static String key(Range.Bucket bucket) {
+    private static String key(Range.Bucket bucket, ValueFormatter formatter) {
         String key = bucket.getKey();
         if (key != null) {
             return key;
         }
         StringBuilder sb = new StringBuilder();
-        sb.append(Double.isInfinite(bucket.getFrom()) ? "*" : bucket.getFrom());
+        sb.append(Double.isInfinite(bucket.getFrom()) ? "*" : formatter != null ? formatter.format(bucket.getFrom()) : bucket.getFrom());
         sb.append("-");
-        sb.append(Double.isInfinite(bucket.getTo()) ? "*" : bucket.getTo());
+        sb.append(Double.isInfinite(bucket.getTo()) ? "*" : formatter != null ? formatter.format(bucket.getTo()) : bucket.getTo());
         return sb.toString();
     }
 }

@@ -19,9 +19,11 @@
 
 package org.elasticsearch.search.aggregations.context.bytes;
 
+import org.elasticsearch.common.Nullable;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.script.SearchScript;
+import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
 
 import java.io.IOException;
@@ -31,25 +33,15 @@ import java.io.IOException;
  */
 public interface BytesValuesSource extends ValuesSource {
 
-    static final BytesValuesSource EMPTY = new Empty();
-
     BytesValues values() throws IOException;
-
-    public static class Empty extends ValuesSource.Empty implements BytesValuesSource {
-
-        @Override
-        public BytesValues values() throws IOException {
-            return null;
-        }
-    }
 
     public static class FieldData extends ValuesSource.FieldData<BytesValues> implements BytesValuesSource {
 
-        public FieldData(String field, IndexFieldData indexFieldData) {
-            super(field, indexFieldData);
+        public FieldData(FieldContext fieldContext, @Nullable SearchScript valueScript) {
+            this(fieldContext.field(), fieldContext.indexFieldData(), valueScript);
         }
 
-        public FieldData(String field, IndexFieldData indexFieldData, SearchScript valueScript) {
+        public FieldData(String field, IndexFieldData indexFieldData, @Nullable SearchScript valueScript) {
             super(field, indexFieldData, valueScript);
         }
 
@@ -64,10 +56,6 @@ public interface BytesValuesSource extends ValuesSource {
     }
 
     public class Script extends ValuesSource.Script<ScriptBytesValues> implements BytesValuesSource {
-
-        public Script(SearchScript script) {
-            super(script);
-        }
 
         public Script(SearchScript script, boolean multiValue) {
             super(script, multiValue);

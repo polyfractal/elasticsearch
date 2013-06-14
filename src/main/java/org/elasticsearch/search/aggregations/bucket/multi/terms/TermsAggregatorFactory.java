@@ -20,116 +20,127 @@
 package org.elasticsearch.search.aggregations.bucket.multi.terms;
 
 import org.elasticsearch.index.fielddata.IndexNumericFieldData;
+import org.elasticsearch.index.mapper.core.DateFieldMapper;
+import org.elasticsearch.index.mapper.ip.IpFieldMapper;
 import org.elasticsearch.script.SearchScript;
-import org.elasticsearch.search.aggregations.ValuesSourceAggregator;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
+import org.elasticsearch.search.aggregations.ValuesSourceAggregator;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.doubles.DoubleTermsAggregator;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.longs.LongTermsAggregator;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.string.StringTermsAggregator;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
+import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
-import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
-import org.elasticsearch.search.aggregations.context.longs.LongValuesSource;
+import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
+import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
+import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
+import org.elasticsearch.search.aggregations.context.numeric.doubles.DoubleValuesSource;
+import org.elasticsearch.search.aggregations.context.numeric.longs.LongValuesSource;
+import org.elasticsearch.search.internal.SearchContext;
 
 /**
  *
  */
 public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregator> {
 
-    private final FieldDataContext fieldDataContext;
+    private final FieldContext fieldContext;
     private final SearchScript script;
     private final Terms.Order order;
     private final int requiredSize;
-    private final Terms.ScriptValueType valueType;
+    private final Terms.ValueType valueType;
+    private final boolean multiValued;
+    private final String format;
 
-    /** Used for terms facet that depend on the field context of one of the ancestors in the aggregation hierarchy */
-    public TermsAggregatorFactory(String name, Terms.Order order, int requiredSize) {
-        this(name, null, order, requiredSize);
-    }
-
-    public TermsAggregatorFactory(String name, FieldDataContext fieldDataContext, Terms.Order order, int requiredSize) {
-        this(name, fieldDataContext, null, order, requiredSize);
-
-    }
-
-    public TermsAggregatorFactory(String name, FieldDataContext fieldDataContext, SearchScript valueScript, Terms.Order order, int requiredSize) {
+    public TermsAggregatorFactory(String name,
+                                  FieldContext fieldContext,
+                                  SearchScript script,
+                                  boolean multiValued,
+                                  Terms.Order order,
+                                  int requiredSize,
+                                  Terms.ValueType valueType,
+                                  String format) {
         super(name);
-        this.fieldDataContext = fieldDataContext;
-        this.script = valueScript;
-        this.order = order;
-        this.requiredSize = requiredSize;
-        this.valueType = Terms.ScriptValueType.STRING;
-    }
-
-    public TermsAggregatorFactory(String name, SearchScript script, Terms.Order order, int requiredSize, Terms.ScriptValueType valueType) {
-        super(name);
-        this.fieldDataContext = null;
+        this.fieldContext = fieldContext;
         this.script = script;
+        this.multiValued = multiValued;
         this.order = order;
         this.requiredSize = requiredSize;
         this.valueType = valueType;
+        this.format = format;
     }
 
     @Override
-    public Aggregator create(Aggregator parent) {
+    public Aggregator create(SearchContext searchContext, Aggregator parent) {
 
         ValuesSource valuesSource = resolveValueSource(parent);
-        Terms.ScriptValueType type = Terms.ScriptValueType.resolveType(valuesSource);
 
-        switch (type) {
-            case STRING:
-                return new StringTermsAggregator(name, factories, (BytesValuesSource) valuesSource, order, requiredSize, parent);
-            case DOUBLE:
-                return new DoubleTermsAggregator(name, factories, (DoubleValuesSource) valuesSource, order, requiredSize, parent);
-            case LONG:
-                return new LongTermsAggregator(name, factories, (LongValuesSource) valuesSource, order, requiredSize, parent);
-            default:
-                throw new AggregationExecutionException("Unknown terms type [" + valueType.name() + "]");
+        if (valuesSource instanceof BytesValuesSource) {
+            return new StringTermsAggregator(name, factories, (BytesValuesSource) valuesSource, order, requiredSize, searchContext, parent);
         }
+
+        if (valuesSource instanceof NumericValuesSource) {
+            if (((NumericValuesSource) valuesSource).isFloatingPoint()) {
+                return new DoubleTermsAggregator(name, factories, (NumericValuesSource) valuesSource, order, requiredSize, searchContext, parent);
+            }
+            return new LongTermsAggregator(name, factories, (NumericValuesSource) valuesSource, order, requiredSize, searchContext, parent);
+        }
+
+        throw new AggregationExecutionException("terms aggregation cannot be applied to field [" + fieldContext.field() +
+                "]. It can only be applied to numeric or string fields.");
 
     }
 
     private ValuesSource resolveValueSource(Aggregator parent) {
 
-        if (fieldDataContext == null) {
+        if (fieldContext == null) {
 
             if (script == null) {
                 // the user didn't specify a field or a script, so we need to fall back on a value source from the ancestors
-                return ValuesSourceAggregator.resolveValuesSource(name, parent, null);
+                ValuesSource valuesSource = ValuesSourceAggregator.resolveValuesSource(name, parent, null);
+                if (valuesSource instanceof NumericValuesSource) {
+                    if (format != null) {
+                        // the user defined a format that should be used with the inherited value source... so we wrap it with the new format
+                        // but right now we only support configurable date formats
+                        ValueFormatter formatter = new ValueFormatter.DateTime(format);
+                        return new NumericValuesSource.Delegate((NumericValuesSource) valuesSource, formatter);
+                    }
+                    return valuesSource;
+                }
             }
 
             // we have a script, so it's a script value source
             switch (valueType) {
-                case STRING:    return new BytesValuesSource.Script(script);
-                case LONG:      return new LongValuesSource.Script(script);
-                case DOUBLE:    return new DoubleValuesSource.Script(script);
+                case STRING:    return new BytesValuesSource.Script(script, multiValued);
+                case LONG:      return new LongValuesSource.Script(script, multiValued, null);
+                case DOUBLE:    return new DoubleValuesSource.Script(script, multiValued, null);
                 default:        throw new AggregationExecutionException("unknown field type [" + valueType.name() + "]");
             }
         }
 
-        if (script != null) {
-
-            // we have both a field and a script, so the script is a value script
-            if (fieldDataContext.indexFieldData() instanceof IndexNumericFieldData) {
-                if (((IndexNumericFieldData) fieldDataContext.indexFieldData()).getNumericType().isFloatingPoint()) {
-                    return new DoubleValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData(), script);
-                }
-                return new LongValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData(), script);
-            }
-            return new BytesValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData(), script);
+        // date field
+        if (fieldContext.mapper() instanceof DateFieldMapper) {
+            DateFieldMapper mapper = (DateFieldMapper) fieldContext.mapper();
+            ValueFormatter formatter = format == null ?
+                    new ValueFormatter.DateTime(mapper.dateTimeFormatter()) :
+                    new ValueFormatter.DateTime(format);
+            ValueParser parser = new ValueParser.DateMath(mapper.dateMathParser());
+            return new LongValuesSource.FieldData(fieldContext, script, formatter, parser);
         }
 
-        // we only have a field (no script)
-        if (fieldDataContext.indexFieldData() instanceof IndexNumericFieldData) {
-            if (((IndexNumericFieldData) fieldDataContext.indexFieldData()).getNumericType().isFloatingPoint()) {
-                return new DoubleValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData());
-            }
-            return new LongValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData());
+        // ip field
+        if (fieldContext.mapper() instanceof IpFieldMapper) {
+            return new LongValuesSource.FieldData(fieldContext, script, ValueFormatter.IPv4, ValueParser.IPv4);
         }
 
-        return new BytesValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData());
+        if (fieldContext.indexFieldData() instanceof IndexNumericFieldData) {
+            if (((IndexNumericFieldData) fieldContext.indexFieldData()).getNumericType().isFloatingPoint()) {
+                return new DoubleValuesSource.FieldData(fieldContext.field(), fieldContext.indexFieldData(), script, null, null);
+            }
+            return new LongValuesSource.FieldData(fieldContext.field(), fieldContext.indexFieldData(), script, null, null);
+        }
+
+        return new BytesValuesSource.FieldData(fieldContext.field(), fieldContext.indexFieldData(), script);
     }
 
 }

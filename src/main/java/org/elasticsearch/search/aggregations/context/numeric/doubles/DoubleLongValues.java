@@ -17,25 +17,28 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.context.longs;
+package org.elasticsearch.search.aggregations.context.numeric.doubles;
 
+import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.index.fielddata.LongValues;
-import org.elasticsearch.script.SearchScript;
 
 /**
  *
  */
-public class ValueScriptLongValues extends LongValues {
+public class DoubleLongValues extends LongValues {
 
-    private final LongValues values;
-    private final SearchScript script;
-    private final InternalIter iter;
+    private final LongIter scratchIter = new LongIter();
 
-    public ValueScriptLongValues(LongValues values, SearchScript script) {
+    private DoubleValues values;
+
+    DoubleLongValues(DoubleValues values) {
         super(values.isMultiValued());
         this.values = values;
-        this.script = script;
-        this.iter = new InternalIter(script);
+    }
+
+    void reset(DoubleValues values) {
+        this.values = values;
+        this.multiValued = values.isMultiValued();
     }
 
     @Override
@@ -45,24 +48,18 @@ public class ValueScriptLongValues extends LongValues {
 
     @Override
     public long getValue(int docId) {
-        script.setNextVar("_value", values.getValue(docId));
-        return script.runAsLong();
+        return (long) values.getValue(docId);
     }
 
     @Override
     public Iter getIter(int docId) {
-        this.iter.iter = values.getIter(docId);
-        return this.iter;
+        scratchIter.iter = values.getIter(docId);
+        return scratchIter;
     }
 
-    static class InternalIter implements Iter {
+    private static class LongIter implements Iter {
 
-        private final SearchScript script;
-        private Iter iter;
-
-        InternalIter(SearchScript script) {
-            this.script = script;
-        }
+        private DoubleValues.Iter iter;
 
         @Override
         public boolean hasNext() {
@@ -71,8 +68,7 @@ public class ValueScriptLongValues extends LongValues {
 
         @Override
         public long next() {
-            script.setNextVar("_value", iter.next());
-            return script.runAsLong();
+            return (long) iter.next();
         }
     }
 }

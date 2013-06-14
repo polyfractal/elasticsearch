@@ -25,6 +25,7 @@ import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -36,8 +37,8 @@ public class GlobalAggregator extends SingleBucketAggregator {
 
     long docCount;
 
-    public GlobalAggregator(String name, List<Aggregator.Factory> factories) {
-        super(name, factories, null);
+    public GlobalAggregator(String name, List<Aggregator.Factory> factories, SearchContext searchContext) {
+        super(name, factories, searchContext, null);
     }
 
     @Override
@@ -54,8 +55,8 @@ public class GlobalAggregator extends SingleBucketAggregator {
 
         long docCount;
 
-        Collector(Aggregator[] aggregators) {
-            super(name, aggregators);
+        Collector(Aggregator[] subAggregators) {
+            super(subAggregators, GlobalAggregator.this);
         }
 
         @Override
@@ -82,12 +83,13 @@ public class GlobalAggregator extends SingleBucketAggregator {
         }
 
         @Override
-        public GlobalAggregator create(Aggregator parent) {
+        public GlobalAggregator create(SearchContext searchContext, Aggregator parent) {
             if (parent != null) {
                 throw new AggregationExecutionException("Aggregation [" + parent.name() + "] cannot have a global " +
                         "sub-aggregation [" + name + "].Global aggregations can only be defined as top level aggregations");
             }
-            return new GlobalAggregator(name, factories);
+            return new GlobalAggregator(name, factories, searchContext);
         }
+
     }
 }

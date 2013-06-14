@@ -21,10 +21,6 @@ package org.elasticsearch.search.aggregations.context;
 
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.geo.GeoPoint;
-import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
-import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
-import org.elasticsearch.search.aggregations.context.geopoints.GeoPointValuesSource;
-import org.elasticsearch.search.aggregations.context.longs.LongValuesSource;
 
 /**
  * The aggregation context is passed down the collector hierarchy during the aggregation process. The context may

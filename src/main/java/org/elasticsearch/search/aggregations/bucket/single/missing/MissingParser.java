@@ -19,17 +19,14 @@
 
 package org.elasticsearch.search.aggregations.bucket.single.missing;
 
-import com.google.common.collect.Lists;
 import org.elasticsearch.common.xcontent.XContentParser;
-import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
+import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  *
@@ -60,14 +57,14 @@ public class MissingParser implements AggregatorParser {
 
         if (field == null) {
             // "field" doesn't exist, so we fall back to the context of the ancestors
-            return new MissingAggregator.Factory(aggregationName);
+            return new MissingAggregator.Factory(aggregationName, null);
         }
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
         if (mapper == null) {
             return new UnmappedMissingAggregator.Factory(aggregationName);
         }
-        FieldDataContext fieldDataContext = new FieldDataContext(field, context.fieldData().getForField(mapper), context);
-        return new MissingAggregator.Factory(aggregationName, fieldDataContext);
+        FieldContext fieldContext = new FieldContext(field, context.fieldData().getForField(mapper), mapper);
+        return new MissingAggregator.Factory(aggregationName, fieldContext);
     }
 }

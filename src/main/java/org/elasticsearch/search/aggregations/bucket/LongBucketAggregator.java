@@ -23,10 +23,17 @@ import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.geo.GeoPoint;
+import org.elasticsearch.common.inject.internal.Nullable;
 import org.elasticsearch.index.fielddata.LongValues;
+import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.longs.LongValuesSource;
+import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
+import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
+import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
+import org.elasticsearch.search.aggregations.context.numeric.longs.LongValuesSource;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -34,28 +41,28 @@ import java.util.List;
 /**
  *
  */
-public abstract class LongBucketAggregator extends ValuesSourceBucketAggregator<LongValuesSource> {
+public abstract class LongBucketAggregator extends ValuesSourceBucketAggregator<NumericValuesSource> {
 
-    public LongBucketAggregator(String name, LongValuesSource valuesSource, Aggregator parent) {
-        super(name, valuesSource, LongValuesSource.class, parent);
+    public LongBucketAggregator(String name, NumericValuesSource valuesSource, SearchContext searchContext, Aggregator parent) {
+        super(name, valuesSource, NumericValuesSource.class, searchContext, parent);
     }
 
-    public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<LongValuesSource> implements AggregationContext {
+    public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<NumericValuesSource> implements AggregationContext {
 
         private LongValues values;
 
-        protected BucketCollector(String aggregationName, LongValuesSource valuesSource, Aggregator[] aggregators) {
-            super(aggregationName, valuesSource, aggregators);
+        protected BucketCollector(NumericValuesSource valuesSource, Aggregator[] subAggregators, Aggregator aggregator) {
+            super(valuesSource, subAggregators, aggregator);
         }
 
-        protected BucketCollector(String aggregationName, LongValuesSource valuesSource, List<Factory> factories,
-                                  AtomicReaderContext reader, Scorer scorer, AggregationContext context, Aggregator parent) {
-            super(aggregationName, valuesSource, factories, reader, scorer, context, parent);
+        protected BucketCollector(NumericValuesSource valuesSource, List<Factory> factories, AtomicReaderContext reader,
+                                  Scorer scorer, AggregationContext context, Aggregator parent) {
+            super(valuesSource, factories, reader, scorer, context, parent);
         }
 
         @Override
-        protected AggregationContext setNextValues(LongValuesSource valuesSource, AggregationContext context) throws IOException {
-            values = valuesSource.values();
+        protected AggregationContext setNextValues(NumericValuesSource valuesSource, AggregationContext context) throws IOException {
+            values = valuesSource.longValues();
             if (!values.isMultiValued()) {
                 return context;
             }
@@ -96,5 +103,62 @@ public abstract class LongBucketAggregator extends ValuesSourceBucketAggregator<
         }
 
         public abstract boolean accept(double value);
+    }
+
+    protected abstract static class FieldDataFactory<A extends LongBucketAggregator> extends CompoundFactory<A> {
+
+        private final FieldContext fieldContext;
+        private final SearchScript valueScript;
+        private final ValueFormatter formatter;
+        private final ValueParser parser;
+
+        public FieldDataFactory(String name,
+                                FieldContext fieldContext,
+                                @Nullable SearchScript valueScript,
+                                @Nullable ValueFormatter formatter,
+                                @Nullable ValueParser parser) {
+            super(name);
+            this.fieldContext = fieldContext;
+            this.valueScript = valueScript;
+            this.formatter = formatter;
+            this.parser = parser;
+        }
+
+        @Override
+        public final A create(SearchContext searchContext, Aggregator parent) {
+            NumericValuesSource source = new LongValuesSource.FieldData(fieldContext, valueScript, formatter, parser);
+            return create(source, searchContext, parent);
+        }
+
+        protected abstract A create(NumericValuesSource source, SearchContext searchContext, Aggregator parent);
+    }
+
+    protected abstract static class ScriptFactory<A extends LongBucketAggregator> extends CompoundFactory<A> {
+
+        private final SearchScript script;
+        private final boolean multiValued;
+        private final ValueFormatter formatter;
+
+        protected ScriptFactory(String name, SearchScript script, boolean multiValued, @Nullable ValueFormatter formatter) {
+            super(name);
+            this.script = script;
+            this.multiValued = multiValued;
+            this.formatter = formatter;
+        }
+
+        @Override
+        public final A create(SearchContext searchContext, Aggregator parent) {
+            return create(new LongValuesSource.Script(script, multiValued, formatter), searchContext, parent);
+        }
+
+        protected abstract A create(LongValuesSource source, SearchContext searchContext, Aggregator parent);
+    }
+
+    protected abstract static class ContextBasedFactory<A extends LongBucketAggregator> extends CompoundFactory<A> {
+
+        protected ContextBasedFactory(String name) {
+            super(name);
+        }
+
     }
 }

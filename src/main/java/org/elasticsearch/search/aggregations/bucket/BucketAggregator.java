@@ -27,6 +27,7 @@ import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -36,15 +37,15 @@ import java.util.List;
  */
 public abstract class BucketAggregator extends Aggregator {
 
-    protected BucketAggregator(String name, Aggregator parent) {
-        super(name, parent);
+    protected BucketAggregator(String name, SearchContext searchContext, Aggregator parent) {
+        super(name, searchContext, parent);
     }
 
-    public static Aggregator[] createAggregators(List<Aggregator.Factory> factories, Aggregator parent) {
+    public static Aggregator[] createAggregators(List<Aggregator.Factory> factories, Aggregator aggregator) {
         int i = 0;
         Aggregator[] aggregators = new Aggregator[factories.size()];
         for (Aggregator.Factory factory : factories) {
-            aggregators[i++] = factory.create(parent);
+            aggregators[i++] = factory.create(aggregator.searchContext(), aggregator);
         }
         return aggregators;
     }
@@ -59,27 +60,29 @@ public abstract class BucketAggregator extends Aggregator {
 
     public abstract static class BucketCollector implements Collector {
 
-        protected final String aggregationName;
-        public final Aggregator[] aggregators;
+        protected final Aggregator aggregator;
+        public final Aggregator[] subAggregators;
         public final Collector[] collectors;
 
-        public BucketCollector(String aggregatorName, Aggregator[] aggregators) {
-            this.aggregationName = aggregatorName;
-            this.aggregators = aggregators;
-            this.collectors = new Collector[aggregators.length];
-            for (int i = 0; i < aggregators.length; i++) {
-                collectors[i] = aggregators[i].collector();
+        public BucketCollector(Aggregator[] subAggregators, Aggregator aggregator) {
+            this.aggregator = aggregator;
+            this.subAggregators = subAggregators;
+            this.collectors = new Collector[subAggregators.length];
+            for (int i = 0; i < subAggregators.length; i++) {
+                collectors[i] = subAggregators[i].collector();
             }
         }
 
-        public BucketCollector(String aggregationName, List<Aggregator.Factory> factories, AtomicReaderContext reader, Scorer scorer, AggregationContext context, Aggregator parent) {
-            this.aggregationName = aggregationName;
-            this.aggregators = new Aggregator[factories.size()];
-            this.collectors = new Collector[aggregators.length];
+        public BucketCollector(List<Aggregator.Factory> factories, AtomicReaderContext reader, Scorer scorer,
+                               AggregationContext context, Aggregator aggregator) {
+
+            this.aggregator = aggregator;
+            this.subAggregators = new Aggregator[factories.size()];
+            this.collectors = new Collector[subAggregators.length];
             int i = 0;
             for (Aggregator.Factory factory : factories) {
-                aggregators[i] = factory.create(parent);
-                collectors[i] = aggregators[i].collector();
+                subAggregators[i] = factory.create(aggregator.searchContext(), aggregator);
+                collectors[i] = subAggregators[i].collector();
                 try {
                     if (reader != null) {
                         collectors[i].setNextReader(reader, context);
@@ -88,7 +91,7 @@ public abstract class BucketAggregator extends Aggregator {
                         collectors[i].setScorer(scorer);
                     }
                 } catch (IOException ioe) {
-                    throw new AggregationExecutionException("Failed to aggregate [" + aggregationName + "]", ioe);
+                    throw new AggregationExecutionException("Failed to aggregate [" + aggregator.name() + "]", ioe);
                 }
                 i++;
             }
@@ -101,7 +104,7 @@ public abstract class BucketAggregator extends Aggregator {
                     collectors[i].postCollection();
                 }
             }
-            postCollection(aggregators);
+            postCollection(subAggregators);
         }
 
         @Override

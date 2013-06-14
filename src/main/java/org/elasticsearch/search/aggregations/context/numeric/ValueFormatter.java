@@ -17,14 +17,14 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.format;
+package org.elasticsearch.search.aggregations.context.numeric;
 
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Streamable;
+import org.elasticsearch.common.joda.FormatDateTimeFormatter;
+import org.elasticsearch.common.joda.Joda;
 import org.elasticsearch.index.mapper.ip.IpFieldMapper;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
@@ -124,23 +124,25 @@ public interface ValueFormatter extends Streamable {
 
         static final byte ID = 2;
 
-        String pattern;
-        DateTimeFormatter formatter;
+        FormatDateTimeFormatter formatter;
 
         DateTime() {} // for serialization
 
-        public DateTime(String pattern) {
-            this.pattern = pattern;
-            this.formatter = DateTimeFormat.forPattern(pattern);
+        public DateTime(String format) {
+            this.formatter = Joda.forPattern(format);
+        }
+
+        public DateTime(FormatDateTimeFormatter formatter) {
+            this.formatter = formatter;
         }
 
         @Override
         public String format(long time) {
-            return formatter.print(time);
+            return formatter.printer().print(time);
         }
         
         public String format(double value) {
-            return String.valueOf(value); // should never be called
+            return format((long) value);
         }
 
         @Override
@@ -150,13 +152,12 @@ public interface ValueFormatter extends Streamable {
 
         @Override
         public void readFrom(StreamInput in) throws IOException {
-            pattern = in.readString();
-            formatter = DateTimeFormat.forPattern(pattern);
+            formatter = Joda.forPattern(in.readString());
         }
 
         @Override
         public void writeTo(StreamOutput out) throws IOException {
-            out.writeString(pattern);
+            out.writeString(formatter.format());
         }
     }
 

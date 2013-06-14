@@ -25,7 +25,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.aggregations.AggregationStreams;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.calc.numeric.NumericAggregation;
-import org.elasticsearch.search.aggregations.format.ValueFormatterStreams;
+import org.elasticsearch.search.aggregations.context.numeric.ValueFormatterStreams;
 
 import java.io.IOException;
 import java.util.List;

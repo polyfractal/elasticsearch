@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.context.longs;
+package org.elasticsearch.search.aggregations.context.numeric.longs;
 
 import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.script.SearchScript;
@@ -92,7 +92,7 @@ public class ScriptLongValues extends LongValues implements ScriptValues {
 
         // shortcutting on single valued
         if (!isMultiValued()) {
-            return (Long) value;
+            return ((Number) value).longValue();
         }
 
         if (value.getClass().isArray()) {
@@ -104,7 +104,7 @@ public class ScriptLongValues extends LongValues implements ScriptValues {
         if (value instanceof Iterator) {
             return ((Iterator<Number>) value).next().longValue();
         }
-        return (Long) value;
+        return ((Number) value).longValue();
     }
 
     @Override

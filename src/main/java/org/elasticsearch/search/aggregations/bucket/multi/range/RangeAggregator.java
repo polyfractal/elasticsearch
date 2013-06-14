@@ -28,8 +28,12 @@ import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.bucket.DoubleBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
-import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
+import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
+import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
+import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
+import org.elasticsearch.search.aggregations.context.numeric.doubles.DoubleValuesSource;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -45,13 +49,17 @@ public class RangeAggregator extends DoubleBucketAggregator {
     static class Range {
 
         final String key;
-        final double from;
-        final double to;
+        double from;
+        String fromAsStr;
+        double to;
+        String toAsStr;
 
-        Range(String key, double from, double to) {
+        Range(String key, double from, String fromAsStr, double to, String toAsStr) {
             this.key = key;
             this.from = from;
+            this.fromAsStr = fromAsStr;
             this.to = to;
+            this.toAsStr = toAsStr;
         }
 
         boolean matches(double value) {
@@ -62,22 +70,40 @@ public class RangeAggregator extends DoubleBucketAggregator {
         public String toString() {
             return "(" + from + " to " + to + "]";
         }
-    }
 
-    private final boolean keyed;
-
-    BucketCollector[] bucketCollectors;
-
-    public RangeAggregator(String name, List<Aggregator.Factory> factories, DoubleValuesSource valuesSource, List<Range> ranges, boolean keyed, Aggregator parent) {
-        super(name, valuesSource, parent);
-        this.keyed = keyed;
-        bucketCollectors = new BucketCollector[ranges.size()];
-        int i = 0;
-        for (Range range : ranges) {
-            bucketCollectors[i++] = new BucketCollector(name, valuesSource, createAggregators(factories, this), range);
+        void process(ValueParser parser, SearchContext searchContext) {
+            if (fromAsStr != null) {
+                from = parser != null ? parser.parseDouble(fromAsStr, searchContext) : Double.valueOf(fromAsStr);
+            }
+            if (toAsStr != null) {
+                to = parser != null ? parser.parseDouble(toAsStr, searchContext) : Double.valueOf(toAsStr);
+            }
         }
     }
 
+    private final boolean keyed;
+    private final InternalRange.Factory rangeFactory;
+    BucketCollector[] bucketCollectors;
+
+    public RangeAggregator(String name,
+                           List<Aggregator.Factory> factories,
+                           NumericValuesSource valuesSource,
+                           InternalRange.Factory rangeFactory,
+                           List<Range> ranges,
+                           boolean keyed,
+                           SearchContext searchContext,
+                           Aggregator parent) {
+
+        super(name, valuesSource, searchContext, parent);
+        this.keyed = keyed;
+        this.rangeFactory = rangeFactory;
+        bucketCollectors = new BucketCollector[ranges.size()];
+        int i = 0;
+        for (Range range : ranges) {
+            range.process(valuesSource.parser(), searchContext);
+            bucketCollectors[i++] = new BucketCollector(range, valuesSource, createAggregators(factories, this), this);
+        }
+    }
 
     @Override
     public Collector collector() {
@@ -88,9 +114,9 @@ public class RangeAggregator extends DoubleBucketAggregator {
     public InternalAggregation buildAggregation() {
         List<InternalRange.Bucket> buckets = Lists.newArrayListWithCapacity(bucketCollectors.length);
         for (int i = 0; i < bucketCollectors.length; i++) {
-            buckets.add(bucketCollectors[i].buildBucket());
+            buckets.add(bucketCollectors[i].buildBucket(rangeFactory));
         }
-        return new InternalRange(name, buckets, keyed);
+        return rangeFactory.create(name, buckets, valuesSource.formatter(), keyed);
     }
 
     class Collector implements Aggregator.Collector {
@@ -130,8 +156,8 @@ public class RangeAggregator extends DoubleBucketAggregator {
 
         long docCount;
 
-        BucketCollector(String aggregationName, DoubleValuesSource valuesSource, Aggregator[] aggregators, Range range) {
-            super(aggregationName, valuesSource, aggregators);
+        BucketCollector(Range range, NumericValuesSource valuesSource, Aggregator[] aggregators, Aggregator aggregator) {
+            super(valuesSource, aggregators, aggregator);
             this.range = range;
         }
 
@@ -173,66 +199,81 @@ public class RangeAggregator extends DoubleBucketAggregator {
             return range.matches(value);
         }
 
-        InternalRange.Bucket buildBucket() {
-            return new InternalRange.Bucket(range.key, range.from, range.to, docCount, buildAggregations(aggregators));
+        InternalRange.Bucket buildBucket(InternalRange.Factory factory) {
+            return factory.createBucket(range.key, range.from, range.to, docCount, buildAggregations(subAggregators));
         }
 
     }
 
     public static class FieldDataFactory extends DoubleBucketAggregator.FieldDataFactory<RangeAggregator> {
 
+        private final InternalRange.Factory rangeFactory;
         private final List<Range> ranges;
         private final boolean keyed;
 
-        public FieldDataFactory(String name, FieldDataContext fieldDataContext, List<Range> ranges, boolean keyed) {
-            super(name, fieldDataContext);
-            this.ranges = ranges;
-            this.keyed = keyed;
-        }
+        public FieldDataFactory(String name,
+                                FieldContext fieldContext,
+                                SearchScript valueScript,
+                                ValueFormatter formatter,
+                                ValueParser parser,
+                                InternalRange.Factory rangeFactory,
+                                List<Range> ranges,
+                                boolean keyed) {
 
-        public FieldDataFactory(String name, FieldDataContext fieldDataContext, SearchScript valueScript, List<Range> ranges, boolean keyed) {
-            super(name, fieldDataContext, valueScript);
+            super(name, fieldContext, valueScript, formatter, parser);
+            this.rangeFactory = rangeFactory;
             this.ranges = ranges;
             this.keyed = keyed;
         }
 
         @Override
-        protected RangeAggregator create(DoubleValuesSource source, Aggregator parent) {
-            return new RangeAggregator(name, factories, source, ranges, keyed, parent);
+        protected RangeAggregator create(NumericValuesSource source, SearchContext searchContext, Aggregator parent) {
+            return new RangeAggregator(name, factories, source, rangeFactory, ranges, keyed, searchContext, parent);
         }
     }
 
     public static class ScriptFactory extends DoubleBucketAggregator.ScriptFactory<RangeAggregator> {
 
+        private final InternalRange.Factory rangeFactory;
         private final List<Range> ranges;
         private final boolean keyed;
 
-        public ScriptFactory(String name, SearchScript script, List<Range> ranges, boolean keyed) {
-            super(name, script);
+        public ScriptFactory(String name,
+                             SearchScript script,
+                             boolean multiValued,
+                             ValueFormatter formatter,
+                             InternalRange.Factory rangeFactory,
+                             List<Range> ranges,
+                             boolean keyed) {
+
+            super(name, script, multiValued, formatter);
+            this.rangeFactory = rangeFactory;
             this.ranges = ranges;
             this.keyed = keyed;
         }
 
         @Override
-        protected RangeAggregator create(DoubleValuesSource source, Aggregator parent) {
-            return new RangeAggregator(name, factories, source, ranges, keyed, parent);
+        protected RangeAggregator create(DoubleValuesSource source, SearchContext searchContext, Aggregator parent) {
+            return new RangeAggregator(name, factories, source, rangeFactory, ranges, keyed, searchContext, parent);
         }
     }
 
     public static class ContextBasedFactory extends DoubleBucketAggregator.ContextBasedFactory<RangeAggregator> {
 
+        private final InternalRange.Factory rangeFactory;
         private final List<Range> ranges;
         private final boolean keyed;
 
-        public ContextBasedFactory(String name, List<Range> ranges, boolean keyed) {
+        public ContextBasedFactory(String name, InternalRange.Factory rangeFactory, List<Range> ranges, boolean keyed) {
             super(name);
+            this.rangeFactory = rangeFactory;
             this.ranges = ranges;
             this.keyed = keyed;
         }
 
         @Override
-        public RangeAggregator create(Aggregator parent) {
-            return new RangeAggregator(name, factories, null, ranges, keyed, parent);
+        public RangeAggregator create(SearchContext searchContext, Aggregator parent) {
+            return new RangeAggregator(name, factories, null, rangeFactory, ranges, keyed, searchContext, parent);
         }
     }
 

@@ -21,6 +21,7 @@ package org.elasticsearch.search.aggregations.bucket.multi.range;
 
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregations;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,8 +34,8 @@ public class UnmappedRangeAggregator extends Aggregator {
     private final List<RangeAggregator.Range> ranges;
     private final boolean keyed;
 
-    public UnmappedRangeAggregator(String name, List<RangeAggregator.Range> ranges, boolean keyed, Aggregator parent) {
-        super(name, parent);
+    public UnmappedRangeAggregator(String name, List<RangeAggregator.Range> ranges, boolean keyed, SearchContext searchContext, Aggregator parent) {
+        super(name, searchContext, parent);
         this.ranges = ranges;
         this.keyed = keyed;
     }
@@ -50,7 +51,7 @@ public class UnmappedRangeAggregator extends Aggregator {
         for (RangeAggregator.Range range : ranges) {
             buckets.add(new InternalRange.Bucket(range.key, range.from, range.to, 0, InternalAggregations.EMPTY));
         }
-        return new InternalRange(name, buckets, keyed);
+        return new InternalRange(name, buckets, null, keyed);
     }
 
     public static class Factory extends Aggregator.CompoundFactory<UnmappedRangeAggregator> {
@@ -65,8 +66,8 @@ public class UnmappedRangeAggregator extends Aggregator {
         }
 
         @Override
-        public UnmappedRangeAggregator create(Aggregator parent) {
-            return new UnmappedRangeAggregator(name, ranges, keyed, parent);
+        public UnmappedRangeAggregator create(SearchContext searchContext, Aggregator parent) {
+            return new UnmappedRangeAggregator(name, ranges, keyed, searchContext, parent);
         }
     }
 

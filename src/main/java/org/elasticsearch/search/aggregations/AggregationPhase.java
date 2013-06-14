@@ -70,7 +70,7 @@ public class AggregationPhase implements SearchPhase {
         if (context.aggregations() != null) {
             List<Aggregator> aggregators = new ArrayList<Aggregator>(context.aggregations().factories().size());
             for (Aggregator.Factory factory : context.aggregations().factories()) {
-                Aggregator aggregator = factory.create(null);
+                Aggregator aggregator = factory.create(context, null);
                 aggregators.add(aggregator);
                 if (!(aggregator instanceof GlobalAggregator)) {
                     Aggregator.Collector collector = aggregator.collector();

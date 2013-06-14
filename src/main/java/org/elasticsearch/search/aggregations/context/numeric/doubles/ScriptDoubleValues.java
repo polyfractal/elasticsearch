@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.context.doubles;
+package org.elasticsearch.search.aggregations.context.numeric.doubles;
 
 import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.script.SearchScript;
@@ -93,7 +93,7 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
 
         // shortcutting on single valued
         if (!isMultiValued()) {
-            return (Double) value;
+            return ((Number) value).doubleValue();
         }
 
         if (value.getClass().isArray()) {
@@ -105,7 +105,7 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
         if (value instanceof Iterator) {
             return ((Iterator<Number>) value).next().doubleValue();
         }
-        return (Double) value;
+        return ((Number) value).doubleValue();
     }
 
     @Override

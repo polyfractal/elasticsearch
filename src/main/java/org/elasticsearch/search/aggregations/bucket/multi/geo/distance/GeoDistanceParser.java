@@ -28,7 +28,7 @@ import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.search.SearchParseException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
+import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -156,8 +156,8 @@ public class GeoDistanceParser implements AggregatorParser {
             return new UnmappedGeoDistanceAggregator.Factory(aggregationName, ranges);
         }
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
+        FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
 
-        return new GeoDistanceAggregator.FieldDataFactory(aggregationName, fieldDataContext, ranges);
+        return new GeoDistanceAggregator.FieldDataFactory(aggregationName, fieldContext, ranges);
     }
 }

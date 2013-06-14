@@ -21,6 +21,7 @@ package org.elasticsearch.search.aggregations.context;
 
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
+import org.elasticsearch.common.Nullable;
 import org.elasticsearch.index.fielddata.AtomicFieldData;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.script.SearchScript;
@@ -38,21 +39,6 @@ public interface ValuesSource {
 
     void setNextReader(AtomicReaderContext reader);
 
-    public abstract static class Empty implements ValuesSource {
-        @Override
-        public String key() {
-            return null;
-        }
-
-        @Override
-        public void setNextScorer(Scorer scorer) {
-        }
-
-        @Override
-        public void setNextReader(AtomicReaderContext reader) {
-        }
-    }
-
     public abstract static class FieldData<Values> implements ValuesSource {
 
         protected final String field;
@@ -63,11 +49,7 @@ public interface ValuesSource {
         protected Values values;
         protected boolean loaded;
 
-        public FieldData(String field, IndexFieldData indexFieldData) {
-            this(field, indexFieldData, null);
-        }
-
-        public FieldData(String field, IndexFieldData indexFieldData, SearchScript valueScript) {
+        public FieldData(String field, IndexFieldData indexFieldData, @Nullable SearchScript valueScript) {
             this.field = field;
             this.indexFieldData = indexFieldData;
             this.valueScript = valueScript;
@@ -111,10 +93,6 @@ public interface ValuesSource {
         protected final SearchScript script;
         private final boolean multiValue;
         protected Values values;
-
-        public Script(SearchScript script) {
-            this(script, true);
-        }
 
         public Script(SearchScript script, boolean multiValue) {
             this.script = script;

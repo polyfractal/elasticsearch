@@ -25,7 +25,7 @@ import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
+import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -37,11 +37,11 @@ import java.util.Map;
 public class NumericAggregatorParser<S extends NumericAggregation> implements AggregatorParser {
 
     private final String type;
-    private final NumericAggregation.Factory<S> statsFactory;
+    private final NumericAggregation.Factory<S> aggregationFactory;
 
-    public NumericAggregatorParser(String type, NumericAggregation.Factory<S> statsFactory) {
+    public NumericAggregatorParser(String type, NumericAggregation.Factory<S> aggregationFactory) {
         this.type = type;
-        this.statsFactory = statsFactory;
+        this.aggregationFactory = aggregationFactory;
     }
 
     @Override
@@ -56,6 +56,7 @@ public class NumericAggregatorParser<S extends NumericAggregation> implements Ag
         String script = null;
         String scriptLang = null;
         Map<String, Object> scriptParams = null;
+        boolean multiValued = true;
 
         XContentParser.Token token;
         String currentFieldName = null;
@@ -69,6 +70,10 @@ public class NumericAggregatorParser<S extends NumericAggregation> implements Ag
                     script = parser.text();
                 } else if ("script_lang".equals(currentFieldName) || "scriptLang".equals(currentFieldName)) {
                     scriptLang = parser.text();
+                }
+            } else if (token == XContentParser.Token.VALUE_BOOLEAN) {
+                if ("multi_valued".equals(currentFieldName) || "multiValued".equals(currentFieldName)) {
+                    multiValued = parser.booleanValue();
                 }
             } else if (token == XContentParser.Token.START_OBJECT) {
                 if ("params".equals(currentFieldName)) {
@@ -84,23 +89,19 @@ public class NumericAggregatorParser<S extends NumericAggregation> implements Ag
 
         if (field == null) {
             if (searchScript != null) {
-                return new NumericAggregator.ScriptFactory<S>(aggregationName, searchScript, statsFactory);
+                return new NumericAggregator.ScriptFactory<S>(aggregationName, searchScript, multiValued, aggregationFactory);
             }
             // both "field" and "script" don't exist, so we fall back to the field context of the ancestors
-            return new NumericAggregator.ContextBasedFactory<S>(aggregationName, statsFactory);
+            return new NumericAggregator.ContextBasedFactory<S>(aggregationName, aggregationFactory);
         }
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
-        if (mapper != null) {
-            IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-            FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
-            if (searchScript == null) {
-                return new NumericAggregator.FieldDataFactory<S>(aggregationName, statsFactory, fieldDataContext);
-            } else {
-                return new NumericAggregator.FieldDataFactory<S>(aggregationName, statsFactory, fieldDataContext, searchScript);
-            }
+        if (mapper == null) {
+            return new UnmappedNumericAggregator.Factory<S>(aggregationName, aggregationFactory);
         }
 
-        return new UnmappedNumericAggregator.Factory<S>(aggregationName, statsFactory);
+        IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
+        FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
+        return new NumericAggregator.FieldDataFactory<S>(aggregationName, fieldContext, searchScript, aggregationFactory);
     }
 }

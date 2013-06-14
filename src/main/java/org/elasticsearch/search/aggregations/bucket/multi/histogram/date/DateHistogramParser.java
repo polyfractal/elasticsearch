@@ -36,8 +36,8 @@ import org.elasticsearch.search.aggregations.bucket.multi.histogram.Histogram;
 import org.elasticsearch.search.aggregations.bucket.multi.histogram.HistogramAggregator;
 import org.elasticsearch.search.aggregations.bucket.multi.histogram.InternalOrder;
 import org.elasticsearch.search.aggregations.bucket.multi.histogram.UnmappedHistogramAggregator;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
-import org.elasticsearch.search.aggregations.format.ValueFormatter;
+import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.elasticsearch.search.internal.SearchContext;
 import org.joda.time.Chronology;
 import org.joda.time.DateTimeField;
@@ -86,6 +86,7 @@ public class DateHistogramParser implements AggregatorParser {
         String script = null;
         String scriptLang = null;
         Map<String, Object> scriptParams = null;
+        boolean multiValued = true;
         boolean keyed = false;
         InternalOrder order = InternalOrder.Standard.KEY_ASC;
         String interval = null;
@@ -129,6 +130,8 @@ public class DateHistogramParser implements AggregatorParser {
             } else if (token == XContentParser.Token.VALUE_BOOLEAN) {
                 if ("keyed".equals(currentFieldName)) {
                     keyed = parser.booleanValue();
+                } else if ("multi_valued".equals(currentFieldName) || "multiValued".equals(currentFieldName)) {
+                    multiValued = parser.booleanValue();
                 }
             } else if (token == XContentParser.Token.START_OBJECT) {
                 if ("params".equals(currentFieldName)) {
@@ -144,10 +147,6 @@ public class DateHistogramParser implements AggregatorParser {
                             //TODO should we throw an error if the value is not "asc" or "desc"???
                         }
                     }
-                }
-            } else if (token == XContentParser.Token.VALUE_BOOLEAN) {
-                if ("keyed".equals(currentFieldName)) {
-                    keyed = parser.booleanValue();
                 }
             }
         }
@@ -178,7 +177,7 @@ public class DateHistogramParser implements AggregatorParser {
                 .preOffset(preOffset).postOffset(postOffset)
                 .build();
 
-        ValueFormatter formatter = ValueFormatter.NULL;
+        ValueFormatter formatter = null;
         if (format != null) {
             formatter = new ValueFormatter.DateTime(format);
         }
@@ -186,11 +185,11 @@ public class DateHistogramParser implements AggregatorParser {
         if (field == null) {
 
             if (searchScript != null) {
-                return new HistogramAggregator.ScriptFactory(aggregationName, searchScript, rounding, order, keyed, formatter, histoFactory);
+                return new HistogramAggregator.ScriptFactory(aggregationName, searchScript, multiValued, rounding, order, keyed, formatter, histoFactory);
             }
 
             // falling back on the aggregation field data context
-            return new HistogramAggregator.ContextBasedFactory(aggregationName, rounding, order, keyed, formatter, histoFactory);
+            return new HistogramAggregator.ContextBasedFactory(aggregationName, rounding, order, keyed, histoFactory);
         }
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
@@ -203,13 +202,8 @@ public class DateHistogramParser implements AggregatorParser {
         }
 
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
-        if (searchScript != null) {
-            return new HistogramAggregator.FieldDataFactory(aggregationName, fieldDataContext, searchScript, rounding, order, keyed,formatter, histoFactory);
-        }
-
-        return new HistogramAggregator.FieldDataFactory(aggregationName, fieldDataContext, rounding, order, keyed, formatter, histoFactory);
-
+        FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
+        return new HistogramAggregator.FieldDataFactory(aggregationName, fieldContext, searchScript, rounding, order, keyed, formatter, histoFactory);
     }
 
     private static InternalOrder resolveOrder(String key, boolean asc) {

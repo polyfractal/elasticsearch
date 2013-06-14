@@ -21,7 +21,7 @@ package org.elasticsearch.search.aggregations.calc.numeric;
 
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.calc.CalcAggregation;
-import org.elasticsearch.search.aggregations.format.ValueFormatter;
+import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 
 /**
  *

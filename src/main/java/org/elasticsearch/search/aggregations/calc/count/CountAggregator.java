@@ -24,8 +24,9 @@ import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.calc.BytesCalcAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
+import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 
@@ -36,8 +37,8 @@ public class CountAggregator extends BytesCalcAggregator {
 
     long value;
 
-    public CountAggregator(String name, BytesValuesSource valuesSource, Aggregator parent) {
-        super(name, valuesSource, parent);
+    public CountAggregator(String name, BytesValuesSource valuesSource, SearchContext searchContext, Aggregator parent) {
+        super(name, valuesSource, searchContext, parent);
     }
 
     @Override
@@ -55,7 +56,7 @@ public class CountAggregator extends BytesCalcAggregator {
         long value;
 
         Collector(BytesValuesSource valuesSource) {
-            super(name, valuesSource);
+            super(valuesSource, CountAggregator.this);
         }
 
         @Override
@@ -84,13 +85,13 @@ public class CountAggregator extends BytesCalcAggregator {
 
     public static class FieldDataFactory extends BytesCalcAggregator.FieldDataFactory<CountAggregator> {
 
-        public FieldDataFactory(String name, FieldDataContext fieldDataContext) {
-            super(name, fieldDataContext);
+        public FieldDataFactory(String name, FieldContext fieldContext) {
+            super(name, fieldContext);
         }
 
         @Override
-        protected CountAggregator create(BytesValuesSource source, Aggregator parent) {
-            return new CountAggregator(name, source, parent);
+        protected CountAggregator create(BytesValuesSource source, SearchContext searchContext, Aggregator parent) {
+            return new CountAggregator(name, source, searchContext, parent);
         }
 
     }
@@ -102,8 +103,8 @@ public class CountAggregator extends BytesCalcAggregator {
         }
 
         @Override
-        protected CountAggregator create(BytesValuesSource source, Aggregator parent) {
-            return new CountAggregator(name, source, parent);
+        public CountAggregator create(SearchContext context, Aggregator parent) {
+            return new CountAggregator(name, null, context, parent);
         }
 
     }

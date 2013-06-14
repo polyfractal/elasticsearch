@@ -27,8 +27,7 @@ import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.SearchParseException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
-import org.elasticsearch.search.aggregations.format.ValueFormatter;
+import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -54,6 +53,7 @@ public class HistogramParser implements AggregatorParser {
         boolean keyed = false;
         InternalOrder order = Histogram.Order.Standard.KEY_ASC;
         long interval = -1;
+        boolean multiValued = true;
 
         XContentParser.Token token;
         String currentFieldName = null;
@@ -75,6 +75,8 @@ public class HistogramParser implements AggregatorParser {
             } else if (token == XContentParser.Token.VALUE_BOOLEAN) {
                 if ("keyed".equals(currentFieldName)) {
                     keyed = parser.booleanValue();
+                } else if ("multi_valued".equals(currentFieldName) || "multiValued".equals(currentFieldName)) {
+                    multiValued = parser.booleanValue();
                 }
             } else if (token == XContentParser.Token.START_OBJECT) {
                 if ("params".equals(currentFieldName)) {
@@ -109,11 +111,11 @@ public class HistogramParser implements AggregatorParser {
         if (field == null) {
 
             if (searchScript != null) {
-                return new HistogramAggregator.ScriptFactory(aggregationName, searchScript, rounding, order, keyed, ValueFormatter.NULL, histogramFactory);
+                return new HistogramAggregator.ScriptFactory(aggregationName, searchScript, multiValued, rounding, order, keyed, null, histogramFactory);
             }
 
             // falling back on the aggregation field data context
-            return new HistogramAggregator.ContextBasedFactory(aggregationName, rounding, order, keyed, ValueFormatter.NULL, histogramFactory);
+            return new HistogramAggregator.ContextBasedFactory(aggregationName, rounding, order, keyed, histogramFactory);
         }
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
@@ -122,12 +124,8 @@ public class HistogramParser implements AggregatorParser {
         }
 
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
-        if (searchScript != null) {
-            return new HistogramAggregator.FieldDataFactory(aggregationName, fieldDataContext, searchScript, rounding, order, keyed, ValueFormatter.NULL, histogramFactory);
-        }
-
-        return new HistogramAggregator.FieldDataFactory(aggregationName, fieldDataContext, rounding, order, keyed, ValueFormatter.NULL, histogramFactory);
+        FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
+        return new HistogramAggregator.FieldDataFactory(aggregationName, fieldContext, searchScript, rounding, order, keyed, null, histogramFactory);
 
     }
 

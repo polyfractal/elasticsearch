@@ -23,11 +23,10 @@ import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.script.SearchScript;
-import org.elasticsearch.search.SearchParseException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.string.StringTerms;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
+import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -50,10 +49,12 @@ public class TermsParser implements AggregatorParser {
         String script = null;
         String scriptLang = null;
         Map<String, Object> scriptParams = null;
-        Terms.ScriptValueType valueType = Terms.ScriptValueType.STRING;
+        Terms.ValueType valueType = Terms.ValueType.STRING;
         int requiredSize = 10;
         String orderKey = "_count";
         boolean orderAsc = false;
+        String format = null;
+        boolean multiValued = true;
 
 
         XContentParser.Token token;
@@ -68,12 +69,18 @@ public class TermsParser implements AggregatorParser {
                     script = parser.text();
                 } else if ("script_lang".equals(currentFieldName) || "scriptLang".equals(currentFieldName)) {
                     scriptLang = parser.text();
-                } else if ("script_value_type".equals(currentFieldName) || "scriptLang".equals(currentFieldName)) {
-                    valueType = resolveTermsType(parser.text(), context);
+                } else if ("value_type".equals(currentFieldName) || "valueType".equals(currentFieldName)) {
+                    valueType = Terms.ValueType.resolveType(parser.text());
+                } else if ("format".equals(currentFieldName)) {
+                    format = parser.text();
                 }
             } else if (token == XContentParser.Token.VALUE_NUMBER) {
                 if ("size".equals(currentFieldName)) {
                     requiredSize = parser.intValue();
+                }
+            } else if (token == XContentParser.Token.VALUE_BOOLEAN) {
+                if ("mult_valued".equals(currentFieldName) || "multiValued".equals(currentFieldName)) {
+                    multiValued = parser.booleanValue();
                 }
             } else if (token == XContentParser.Token.START_OBJECT) {
                 if ("params".equals(currentFieldName)) {
@@ -99,10 +106,7 @@ public class TermsParser implements AggregatorParser {
         }
 
         if (field == null) {
-            if (searchScript != null) {
-                return new TermsAggregatorFactory(aggregationName, searchScript, order, requiredSize, valueType);
-            }
-            return new TermsAggregatorFactory(aggregationName, order, requiredSize);
+            return new TermsAggregatorFactory(aggregationName, null, searchScript, multiValued, order, requiredSize, valueType, format);
         }
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
@@ -110,13 +114,8 @@ public class TermsParser implements AggregatorParser {
             return null; // skipping aggregation on unmapped fields
         }
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
-
-        if (searchScript != null) {
-            return new TermsAggregatorFactory(aggregationName, fieldDataContext, searchScript, order, requiredSize);
-        }
-
-        return new TermsAggregatorFactory(aggregationName, fieldDataContext, order, requiredSize);
+        FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
+        return new TermsAggregatorFactory(aggregationName, fieldContext, searchScript, multiValued, order, requiredSize, valueType, format);
     }
 
     static Terms.Order resolveOrder(String key, boolean asc) {
@@ -131,14 +130,6 @@ public class TermsParser implements AggregatorParser {
             return Terms.Order.Aggregation.create(key, asc);
         }
         return Terms.Order.Aggregation.create(key.substring(0, i), key.substring(i+1), asc);
-    }
-
-    static Terms.ScriptValueType resolveTermsType(String typeAsStr, SearchContext context) {
-        Terms.ScriptValueType type = Terms.ScriptValueType.resolveType(typeAsStr);
-        if (type == null) {
-            throw new SearchParseException(context, "Unknown script value type [" + typeAsStr + "]");
-        }
-        return type;
     }
 
 }

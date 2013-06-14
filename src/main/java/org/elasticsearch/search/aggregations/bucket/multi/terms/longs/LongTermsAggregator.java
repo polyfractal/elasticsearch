@@ -33,8 +33,9 @@ import org.elasticsearch.search.aggregations.bucket.multi.terms.BucketPriorityQu
 import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalTerms;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.longs.LongValuesSource;
+import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.facet.terms.support.EntryPriorityQueue;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -53,9 +54,9 @@ public class LongTermsAggregator extends LongBucketAggregator {
 
     ExtTLongObjectHashMap<BucketCollector> bucketCollectors;
 
-    public LongTermsAggregator(String name, List<Aggregator.Factory> factories, LongValuesSource valuesSource,
-                               Terms.Order order, int requiredSize, Aggregator parent) {
-        super(name, valuesSource, parent);
+    public LongTermsAggregator(String name, List<Aggregator.Factory> factories, NumericValuesSource valuesSource,
+                               Terms.Order order, int requiredSize, SearchContext searchContext, Aggregator parent) {
+        super(name, valuesSource, searchContext, parent);
         this.factories = factories;
         this.order = order;
         this.requiredSize = requiredSize;
@@ -70,7 +71,7 @@ public class LongTermsAggregator extends LongBucketAggregator {
     public LongTerms buildAggregation() {
 
         if (bucketCollectors.isEmpty()) {
-            return new LongTerms(name, order, requiredSize, ImmutableList.<InternalTerms.Bucket>of());
+            return new LongTerms(name, order, valuesSource.formatter(), requiredSize, ImmutableList.<InternalTerms.Bucket>of());
         }
 
         if (requiredSize < EntryPriorityQueue.LIMIT) {
@@ -84,7 +85,7 @@ public class LongTermsAggregator extends LongBucketAggregator {
             for (int i = ordered.size() - 1; i >= 0; i--) {
                 list[i] = (LongTerms.Bucket) ordered.pop();
             }
-            return new LongTerms(name, order, requiredSize, Arrays.asList(list));
+            return new LongTerms(name, order, valuesSource.formatter(), requiredSize, Arrays.asList(list));
         } else {
             BoundedTreeSet<InternalTerms.Bucket> ordered = new BoundedTreeSet<InternalTerms.Bucket>(order.comparator(), requiredSize);
             for (Object bucketCollector : bucketCollectors.internalValues()) {
@@ -92,7 +93,7 @@ public class LongTermsAggregator extends LongBucketAggregator {
                     ordered.add(((BucketCollector) bucketCollector).buildBucket());
                 }
             }
-            return new LongTerms(name, order, requiredSize, ordered);
+            return new LongTerms(name, order, valuesSource.formatter(), requiredSize, ordered);
         }
     }
 
@@ -121,7 +122,7 @@ public class LongTermsAggregator extends LongBucketAggregator {
             this.reader = reader;
             this.context = context;
             valuesSource.setNextReader(reader);
-            values = valuesSource.values();
+            values = valuesSource.longValues();
             for (Object bucketCollector : bucketCollectors.internalValues()) {
                 if (bucketCollector != null) {
                     ((BucketCollector) bucketCollector).setNextReader(reader, context);
@@ -197,7 +198,7 @@ public class LongTermsAggregator extends LongBucketAggregator {
         long docCount;
 
         BucketCollector(long term, AtomicReaderContext reader, Scorer scorer, AggregationContext context, LongTermsAggregator parent) {
-            super(parent.name, parent.factories, reader, scorer, context, parent);
+            super(parent.factories, reader, scorer, context, parent);
             this.term = term;
         }
 
@@ -217,7 +218,7 @@ public class LongTermsAggregator extends LongBucketAggregator {
         }
 
         LongTerms.Bucket buildBucket() {
-            return new LongTerms.Bucket(term, docCount, buildAggregations(aggregators));
+            return new LongTerms.Bucket(term, docCount, buildAggregations(subAggregators));
         }
     }
 

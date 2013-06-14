@@ -24,7 +24,7 @@ import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
+import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -63,8 +63,8 @@ public class CountParser implements AggregatorParser {
         FieldMapper mapper = context.smartNameFieldMapper(field);
         if (mapper != null) {
             IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-            FieldDataContext fieldDataContext = new FieldDataContext(field, indexFieldData, context);
-            return new CountAggregator.FieldDataFactory(aggregationName, fieldDataContext);
+            FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
+            return new CountAggregator.FieldDataFactory(aggregationName, fieldContext);
         }
 
         return new UnmappedCountAggregator.Factory(aggregationName);

@@ -32,6 +32,8 @@ import org.elasticsearch.search.aggregations.AggregationStreams;
 import org.elasticsearch.search.aggregations.Aggregations;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
+import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
+import org.elasticsearch.search.aggregations.context.numeric.ValueFormatterStreams;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -61,21 +63,11 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
     public static class Bucket implements Histogram.Bucket {
 
         private long key;
-        private Text keyAsString;
         private long docCount;
         private InternalAggregations aggregations;
 
-        public Bucket(long key, String keyAsString, long docCount, List<InternalAggregation> aggregations) {
-            this(key, (keyAsString == null ? null : new StringText(keyAsString)), docCount, new InternalAggregations(aggregations));
-        }
-
-        public Bucket(long key, Text keyAsString, long docCount, List<InternalAggregation> aggregations) {
-            this(key, keyAsString, docCount, new InternalAggregations(aggregations));
-        }
-
-        public Bucket(long key, Text keyAsString, long docCount, InternalAggregations aggregations) {
+        public Bucket(long key, long docCount, InternalAggregations aggregations) {
             this.key = key;
-            this.keyAsString = keyAsString;
             this.docCount = docCount;
             this.aggregations = aggregations;
         }
@@ -83,11 +75,6 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
         @Override
         public long getKey() {
             return key;
-        }
-
-        @Override
-        public String getKeyAsString() {
-            return keyAsString != null ? keyAsString.string() : String.valueOf(key);
         }
 
         @Override
@@ -121,8 +108,12 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
 
     public static class Factory {
 
-        public InternalHistogram create(String name, List<Histogram.Bucket> buckets, InternalOrder order, boolean keyed) {
-            return new InternalHistogram(name, buckets, order, keyed);
+        public InternalHistogram create(String name, List<Histogram.Bucket> buckets, InternalOrder order, ValueFormatter formatter, boolean keyed) {
+            return new InternalHistogram(name, buckets, order, formatter, keyed);
+        }
+
+        public Bucket createBucket(long key, long docCount, List<InternalAggregation> aggregations) {
+            return new Bucket(key, docCount, new InternalAggregations(aggregations));
         }
 
     }
@@ -130,14 +121,16 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
     private List<Histogram.Bucket> buckets;
     private ExtTLongObjectHashMap<Histogram.Bucket> bucketsMap;
     private InternalOrder order;
+    private ValueFormatter formatter;
     private boolean keyed;
 
     protected InternalHistogram() {} // for serialization
 
-    protected InternalHistogram(String name, List<Histogram.Bucket> buckets, InternalOrder order, boolean keyed) {
+    protected InternalHistogram(String name, List<Histogram.Bucket> buckets, InternalOrder order, ValueFormatter formatter, boolean keyed) {
         super(name);
         this.buckets = buckets;
         this.order = order;
+        this.formatter = formatter;
         this.keyed = keyed;
     }
 
@@ -195,11 +188,12 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
     public void readFrom(StreamInput in) throws IOException {
         name = in.readString();
         order = InternalOrder.Streams.readOrder(in);
+        formatter = ValueFormatterStreams.readOptional(in);
         keyed = in.readBoolean();
         int size = in.readVInt();
         List<Histogram.Bucket> buckets = new ArrayList<Histogram.Bucket>(size);
         for (int i = 0; i < size; i++) {
-            buckets.add(new Bucket(in.readVLong(), in.readOptionalText(), in.readVLong(), InternalAggregations.readAggregations(in)));
+            buckets.add(new Bucket(in.readVLong(), in.readVLong(), InternalAggregations.readAggregations(in)));
         }
         this.buckets = buckets;
         this.bucketsMap = null;
@@ -209,11 +203,11 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
     public void writeTo(StreamOutput out) throws IOException {
         out.writeString(name);
         InternalOrder.Streams.writeOrder(order, out);
+        ValueFormatterStreams.writeOptional(formatter, out);
         out.writeBoolean(keyed);
         out.writeVInt(buckets.size());
         for (Histogram.Bucket bucket : buckets) {
             out.writeVLong(((Bucket) bucket).key);
-            out.writeOptionalText(((Bucket) bucket).keyAsString);
             out.writeVLong(((Bucket) bucket).docCount);
             ((Bucket) bucket).aggregations.writeTo(out);
         }
@@ -228,15 +222,22 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
         }
 
         for (Histogram.Bucket bucket : buckets) {
-            if (keyed) {
-                builder.startObject(bucket.getKeyAsString());
+            if (formatter != null) {
+                Text keyTxt = new StringText(formatter.format(bucket.getKey()));
+                if (keyed) {
+                    builder.startObject(keyTxt.string());
+                } else {
+                    builder.startObject();
+                }
+                builder.field(CommonFields.KEY_AS_STRING, keyTxt);
             } else {
-                builder.startObject();
+                if (keyed) {
+                    builder.startObject(String.valueOf(bucket.getKey()));
+                } else {
+                    builder.startObject();
+                }
             }
             builder.field(CommonFields.KEY, ((Bucket) bucket).key);
-            if (((Bucket) bucket).keyAsString != null) {
-                builder.field(CommonFields.KEY_AS_STRING, ((Bucket) bucket).keyAsString);
-            }
             builder.field(CommonFields.DOC_COUNT, ((Bucket) bucket).docCount);
             ((Bucket) bucket).aggregations.toXContentInternal(builder, params);
             builder.endObject();

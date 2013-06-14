@@ -38,8 +38,6 @@ public interface Range extends Aggregation, Iterable<Range.Bucket> {
         long getDocCount();
 
         Aggregations getAggregations();
-
-        <A extends Aggregation> A getAggregation(String name, Class<A> type);
     }
 
     Bucket getByKey(String key);

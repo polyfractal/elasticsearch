@@ -30,8 +30,8 @@ import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalOrder;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalTerms;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
-import org.elasticsearch.search.aggregations.format.ValueFormatter;
-import org.elasticsearch.search.aggregations.format.ValueFormatterStreams;
+import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
+import org.elasticsearch.search.aggregations.context.numeric.ValueFormatterStreams;
 
 import java.io.IOException;
 import java.util.ArrayList;

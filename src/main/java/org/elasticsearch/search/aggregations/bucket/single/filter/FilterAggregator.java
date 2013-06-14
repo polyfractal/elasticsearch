@@ -28,6 +28,7 @@ import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -41,8 +42,9 @@ public class FilterAggregator extends SingleBucketAggregator {
 
     long docCount;
 
-    public FilterAggregator(String name, org.apache.lucene.search.Filter filter, List<Aggregator.Factory> factories, Aggregator parent) {
-        super(name, factories, parent);
+    public FilterAggregator(String name, org.apache.lucene.search.Filter filter,
+                            List<Aggregator.Factory> factories, SearchContext searchContext, Aggregator parent) {
+        super(name, factories, searchContext, parent);
         this.filter = filter;
     }
 
@@ -61,8 +63,8 @@ public class FilterAggregator extends SingleBucketAggregator {
         private Bits bits;
         private long docCount;
 
-        Collector(Aggregator[] aggregators) {
-            super(name, aggregators);
+        Collector(Aggregator[] subAggregators) {
+            super(subAggregators, FilterAggregator.this);
         }
 
         @Override
@@ -91,19 +93,14 @@ public class FilterAggregator extends SingleBucketAggregator {
 
         private org.apache.lucene.search.Filter filter;
 
-        public Factory(String name, Filter filter) {
+        public Factory(String name, org.apache.lucene.search.Filter filter) {
             super(name);
             this.filter = filter;
         }
 
-        public Factory filter(org.apache.lucene.search.Filter filter) {
-            this.filter = filter;
-            return this;
-        }
-
         @Override
-        public FilterAggregator create(Aggregator parent) {
-            return new FilterAggregator(name, filter, factories, parent);
+        public FilterAggregator create(SearchContext searchContext, Aggregator parent) {
+            return new FilterAggregator(name, filter, factories, searchContext, parent);
         }
 
     }

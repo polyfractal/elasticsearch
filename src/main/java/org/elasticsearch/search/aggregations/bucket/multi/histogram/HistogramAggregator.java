@@ -20,14 +20,17 @@
 package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
 import org.elasticsearch.common.Rounding;
+import org.elasticsearch.common.inject.internal.Nullable;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.bucket.DoubleBucketAggregator;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
-import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
-import org.elasticsearch.search.aggregations.format.ValueFormatter;
+import org.elasticsearch.search.aggregations.bucket.LongBucketAggregator;
+import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
+import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
+import org.elasticsearch.search.aggregations.context.numeric.longs.LongValuesSource;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,10 +39,9 @@ import java.util.List;
 /**
  *
  */
-public class HistogramAggregator extends DoubleBucketAggregator implements HistogramCollector.Listener {
+public class HistogramAggregator extends LongBucketAggregator implements HistogramCollector.Listener {
 
     private final List<Aggregator.Factory> factories;
-    private final ValueFormatter formatter;
     private final Rounding rounding;
     private final InternalOrder order;
     private final boolean keyed;
@@ -47,11 +49,18 @@ public class HistogramAggregator extends DoubleBucketAggregator implements Histo
 
     ExtTLongObjectHashMap<HistogramCollector.BucketCollector> collectors;
 
-    public HistogramAggregator(String name, List<Aggregator.Factory> factories, DoubleValuesSource valuesSource, Rounding rounding,
-                               InternalOrder order, boolean keyed, ValueFormatter formatter, InternalHistogram.Factory histogramFactory, Aggregator parent) {
-        super(name, valuesSource, parent);
+    public HistogramAggregator(String name,
+                               List<Aggregator.Factory> factories,
+                               Rounding rounding,
+                               InternalOrder order,
+                               boolean keyed,
+                               @Nullable NumericValuesSource valuesSource,
+                               InternalHistogram.Factory histogramFactory,
+                               SearchContext searchContext,
+                               Aggregator parent) {
+
+        super(name, valuesSource, searchContext, parent);
         this.factories = factories;
-        this.formatter = formatter;
         this.rounding = rounding;
         this.order = order;
         this.keyed = keyed;
@@ -71,14 +80,14 @@ public class HistogramAggregator extends DoubleBucketAggregator implements Histo
                 continue;
             }
             HistogramCollector.BucketCollector bucketCollector = (HistogramCollector.BucketCollector) collector;
-            List<InternalAggregation> aggregations = new ArrayList<InternalAggregation>(bucketCollector.aggregators.length);
-            for (int i = 0; i < bucketCollector.aggregators.length; i++) {
-                aggregations.add(bucketCollector.aggregators[i].buildAggregation());
+            List<InternalAggregation> aggregations = new ArrayList<InternalAggregation>(bucketCollector.subAggregators.length);
+            for (int i = 0; i < bucketCollector.subAggregators.length; i++) {
+                aggregations.add(bucketCollector.subAggregators[i].buildAggregation());
             }
-            buckets.add(new InternalHistogram.Bucket(bucketCollector.key, formatter.format(bucketCollector.key), bucketCollector.docCount, aggregations));
+            buckets.add(histogramFactory.createBucket(bucketCollector.key, bucketCollector.docCount, aggregations));
         }
         Collections.sort(buckets, order.comparator());
-        return histogramFactory.create(name, buckets, order, keyed);
+        return histogramFactory.create(name, buckets, order, valuesSource.formatter(), keyed);
     }
 
     @Override
@@ -86,7 +95,7 @@ public class HistogramAggregator extends DoubleBucketAggregator implements Histo
         this.collectors = collectors;
     }
 
-    public static class FieldDataFactory extends DoubleBucketAggregator.FieldDataFactory<HistogramAggregator> {
+    public static class FieldDataFactory extends LongBucketAggregator.FieldDataFactory<HistogramAggregator> {
 
         private final Rounding rounding;
         private final InternalOrder order;
@@ -94,42 +103,16 @@ public class HistogramAggregator extends DoubleBucketAggregator implements Histo
         private final ValueFormatter formatter;
         private final InternalHistogram.Factory histogramFactory;
 
-        public FieldDataFactory(String name, FieldDataContext fieldDataContext, Rounding rounding, InternalOrder order,
-                                boolean keyed, ValueFormatter formatter, InternalHistogram.Factory histogramFactory) {
-            super(name, fieldDataContext);
-            this.rounding = rounding;
-            this.order = order;
-            this.keyed = keyed;
-            this.formatter = formatter;
-            this.histogramFactory = histogramFactory;
-        }
+        public FieldDataFactory(String name,
+                                FieldContext fieldContext,
+                                SearchScript valueScript,
+                                Rounding rounding,
+                                InternalOrder order,
+                                boolean keyed,
+                                ValueFormatter formatter,
+                                InternalHistogram.Factory histogramFactory) {
 
-        public FieldDataFactory(String name, FieldDataContext fieldDataContext, SearchScript valueScript, Rounding rounding,
-                                InternalOrder order, boolean keyed, ValueFormatter formatter, InternalHistogram.Factory histogramFactory) {
-            super(name, fieldDataContext, valueScript);
-            this.rounding = rounding;
-            this.order = order;
-            this.keyed = keyed;
-            this.formatter = formatter;
-            this.histogramFactory = histogramFactory;
-        }
-
-        @Override
-        protected HistogramAggregator create(DoubleValuesSource source, Aggregator parent) {
-            return new HistogramAggregator(name, factories, source, rounding, order, keyed, formatter, histogramFactory, parent);
-        }
-    }
-
-    public static class ScriptFactory extends DoubleBucketAggregator.ScriptFactory<HistogramAggregator> {
-
-        private final Rounding rounding;
-        private final InternalOrder order;
-        private final boolean keyed;
-        private final ValueFormatter formatter;
-        private final InternalHistogram.Factory histogramFactory;
-
-        public ScriptFactory(String name, SearchScript script, Rounding rounding, InternalOrder order, boolean keyed, ValueFormatter formatter, InternalHistogram.Factory histogramFactory) {
-            super(name, script);
+            super(name, fieldContext, valueScript, formatter, null);
             this.rounding = rounding;
             this.order = order;
             this.keyed = keyed;
@@ -138,31 +121,60 @@ public class HistogramAggregator extends DoubleBucketAggregator implements Histo
         }
 
         @Override
-        protected HistogramAggregator create(DoubleValuesSource source, Aggregator parent) {
-            return new HistogramAggregator(name, factories, source, rounding, order, keyed, formatter, histogramFactory, parent);
+        protected HistogramAggregator create(NumericValuesSource source, SearchContext searchContext, Aggregator parent) {
+            return new HistogramAggregator(name, factories, rounding, order, keyed, source, histogramFactory, searchContext, parent);
         }
+
     }
 
-    public static class ContextBasedFactory extends DoubleBucketAggregator.ContextBasedFactory<HistogramAggregator> {
+    public static class ScriptFactory extends LongBucketAggregator.ScriptFactory<HistogramAggregator> {
 
         private final Rounding rounding;
         private final InternalOrder order;
         private final boolean keyed;
-        private final ValueFormatter formatter;
         private final InternalHistogram.Factory histogramFactory;
 
-        public ContextBasedFactory(String name, Rounding rounding, InternalOrder order, boolean keyed, ValueFormatter formatter, InternalHistogram.Factory histogramFactory) {
+        public ScriptFactory(String name,
+                             SearchScript script,
+                             boolean multiValued,
+                             Rounding rounding,
+                             InternalOrder order,
+                             boolean keyed,
+                             ValueFormatter formatter,
+                             InternalHistogram.Factory histogramFactory) {
+
+            super(name, script, multiValued, formatter);
+            this.rounding = rounding;
+            this.order = order;
+            this.keyed = keyed;
+            this.histogramFactory = histogramFactory;
+        }
+
+        @Override
+        protected HistogramAggregator create(LongValuesSource source, SearchContext searchContext, Aggregator parent) {
+            return new HistogramAggregator(name, factories, rounding, order, keyed, source, histogramFactory, searchContext, parent);
+        }
+
+    }
+
+    public static class ContextBasedFactory extends LongBucketAggregator.ContextBasedFactory<HistogramAggregator> {
+
+        private final Rounding rounding;
+        private final InternalOrder order;
+        private final boolean keyed;
+        private final InternalHistogram.Factory histogramFactory;
+
+        public ContextBasedFactory(String name, Rounding rounding, InternalOrder order, boolean keyed, InternalHistogram.Factory histogramFactory) {
             super(name);
             this.rounding = rounding;
             this.order = order;
             this.keyed = keyed;
-            this.formatter = formatter;
             this.histogramFactory = histogramFactory;
         }
 
         @Override
-        public HistogramAggregator create(Aggregator parent) {
-            return new HistogramAggregator(name, factories, null, rounding, order, keyed, formatter, histogramFactory, parent);
+        public HistogramAggregator create(SearchContext searchContext, Aggregator parent) {
+            return new HistogramAggregator(name, factories, rounding, order, keyed, null, histogramFactory, searchContext, parent);
         }
     }
 }

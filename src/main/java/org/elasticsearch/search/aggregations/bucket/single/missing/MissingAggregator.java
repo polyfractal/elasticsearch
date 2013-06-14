@@ -26,8 +26,9 @@ import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.BytesBucketAggregator;
 import org.elasticsearch.search.aggregations.bucket.single.SingleBytesBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.FieldDataContext;
+import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -39,13 +40,14 @@ public class MissingAggregator extends SingleBytesBucketAggregator {
 
     long docCount;
 
-    public MissingAggregator(String name, List<Aggregator.Factory> factories, BytesValuesSource valuesSource, Aggregator parent) {
-        super(name, factories, valuesSource, parent);
+    public MissingAggregator(String name, List<Aggregator.Factory> factories, BytesValuesSource valuesSource,
+                             SearchContext searchContext, Aggregator parent) {
+        super(name, factories, valuesSource, searchContext, parent);
     }
 
     @Override
     public Collector collector(Aggregator[] aggregators) {
-        return new Collector(name, valuesSource, aggregators);
+        return new Collector(valuesSource, aggregators);
     }
 
     @Override
@@ -57,8 +59,8 @@ public class MissingAggregator extends SingleBytesBucketAggregator {
 
         private long docCount;
 
-        Collector(String aggregatorName, BytesValuesSource valuesSource, Aggregator[] aggregators) {
-            super(aggregatorName,valuesSource,  aggregators);
+        Collector(BytesValuesSource valuesSource, Aggregator[] subAggregators) {
+            super(valuesSource, subAggregators, MissingAggregator.this);
         }
 
         @Override
@@ -86,24 +88,21 @@ public class MissingAggregator extends SingleBytesBucketAggregator {
 
     public static class Factory extends Aggregator.CompoundFactory<MissingAggregator> {
 
-        private final FieldDataContext fieldDataContext;
+        private final FieldContext fieldContext;
 
-        public Factory(String name) {
-            this(name, null);
-        }
-
-        public Factory(String name, FieldDataContext fieldDataContext) {
+        public Factory(String name, FieldContext fieldContext) {
             super(name);
-            this.fieldDataContext = fieldDataContext;
+            this.fieldContext = fieldContext;
         }
 
         @Override
-        public MissingAggregator create(Aggregator parent) {
-            BytesValuesSource valuesSource = fieldDataContext == null ? null :
-                    new BytesValuesSource.FieldData(fieldDataContext.field(), fieldDataContext.indexFieldData());
-            return new MissingAggregator(name, factories, valuesSource, parent);
+        public MissingAggregator create(SearchContext searchContext, Aggregator parent) {
+            if (fieldContext == null) {
+                return new MissingAggregator(name, factories, null, searchContext, parent);
+            }
+            BytesValuesSource valuesSource = new BytesValuesSource.FieldData(fieldContext, null);
+            return new MissingAggregator(name, factories, valuesSource, searchContext, parent);
         }
-
     }
 }
 

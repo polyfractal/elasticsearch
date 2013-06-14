@@ -33,8 +33,9 @@ import org.elasticsearch.search.aggregations.bucket.multi.terms.BucketPriorityQu
 import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalTerms;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.doubles.DoubleValuesSource;
+import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.facet.terms.support.EntryPriorityQueue;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -53,9 +54,9 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
 
     ExtTDoubleObjectHashMap<BucketCollector> bucketCollectors;
 
-    public DoubleTermsAggregator(String name, List<Aggregator.Factory> factories, DoubleValuesSource valuesSource,
-                                 Terms.Order order, int requiredSize, Aggregator parent) {
-        super(name, valuesSource, parent);
+    public DoubleTermsAggregator(String name, List<Aggregator.Factory> factories, NumericValuesSource valuesSource,
+                                 Terms.Order order, int requiredSize, SearchContext searchContext, Aggregator parent) {
+        super(name, valuesSource, searchContext, parent);
         this.factories = factories;
         this.order = order;
         this.requiredSize = requiredSize;
@@ -121,7 +122,7 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
             this.reader = reader;
             this.context = context;
             valuesSource.setNextReader(reader);
-            values = valuesSource.values();
+            values = valuesSource.doubleValues();
             for (Object bucketCollector : bucketCollectors.internalValues()) {
                 if (bucketCollector != null) {
                     ((BucketCollector) bucketCollector).setNextReader(reader, context);
@@ -198,7 +199,7 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
         long docCount;
 
         BucketCollector(double term, AtomicReaderContext reader, Scorer scorer, AggregationContext context, DoubleTermsAggregator parent) {
-            super(parent.name, parent.factories, reader, scorer, context, parent);
+            super(parent.factories, reader, scorer, context, parent);
             this.term = term;
         }
 
@@ -218,7 +219,7 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
         }
 
         DoubleTerms.Bucket buildBucket() {
-            return new DoubleTerms.Bucket(term, docCount, buildAggregations(aggregators));
+            return new DoubleTerms.Bucket(term, docCount, buildAggregations(subAggregators));
         }
     }
 

@@ -20,6 +20,7 @@
 package org.elasticsearch.search.aggregations.calc.numeric;
 
 import org.elasticsearch.search.aggregations.Aggregator;
+import org.elasticsearch.search.internal.SearchContext;
 
 /**
  *
@@ -28,8 +29,8 @@ public class UnmappedNumericAggregator<S extends NumericAggregation> extends Agg
 
     private final NumericAggregation.Factory<S> statsFactory;
 
-    public UnmappedNumericAggregator(String name, NumericAggregation.Factory<S> statsFactory, Aggregator parent) {
-        super(name, parent);
+    public UnmappedNumericAggregator(String name, NumericAggregation.Factory<S> statsFactory, SearchContext searchContext, Aggregator parent) {
+        super(name, searchContext, parent);
         this.statsFactory = statsFactory;
     }
 
@@ -53,8 +54,8 @@ public class UnmappedNumericAggregator<S extends NumericAggregation> extends Agg
         }
 
         @Override
-        public UnmappedNumericAggregator<S> create(Aggregator parent) {
-            return new UnmappedNumericAggregator<S>(name, statsFactory, parent);
+        public UnmappedNumericAggregator<S> create(SearchContext context, Aggregator parent) {
+            return new UnmappedNumericAggregator<S>(name, statsFactory, context, parent);
         }
     }
 

@@ -22,6 +22,7 @@ package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 import com.google.common.collect.Lists;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.internal.SearchContext;
 
 import java.util.List;
 
@@ -33,8 +34,8 @@ public class UnmappedHistogramAggregator extends Aggregator {
     private final InternalOrder order;
     private final boolean keyed;
 
-    public UnmappedHistogramAggregator(String name, InternalOrder order, boolean keyed, Aggregator parent) {
-        super(name, parent);
+    public UnmappedHistogramAggregator(String name, InternalOrder order, boolean keyed, SearchContext searchContext, Aggregator parent) {
+        super(name, searchContext, parent);
         this.order = order;
         this.keyed = keyed;
     }
@@ -47,7 +48,7 @@ public class UnmappedHistogramAggregator extends Aggregator {
     @Override
     public InternalAggregation buildAggregation() {
         List<Histogram.Bucket> buckets = Lists.newArrayListWithCapacity(0);
-        return new InternalHistogram(name, buckets, order, keyed);
+        return new InternalHistogram(name, buckets, order, null, keyed);
     }
 
     public static class Factory extends Aggregator.CompoundFactory<UnmappedHistogramAggregator> {
@@ -62,8 +63,8 @@ public class UnmappedHistogramAggregator extends Aggregator {
         }
 
         @Override
-        public UnmappedHistogramAggregator create(Aggregator parent) {
-            return new UnmappedHistogramAggregator(name, order, keyed, parent);
+        public UnmappedHistogramAggregator create(SearchContext searchContext, Aggregator parent) {
+            return new UnmappedHistogramAggregator(name, order, keyed, searchContext, parent);
         }
     }
 

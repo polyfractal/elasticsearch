@@ -23,7 +23,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.collect.Casts;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Streamable;
@@ -68,7 +67,9 @@ public class InternalAggregations implements Aggregations, ToXContent, Streamabl
      */
     @Override
     public Iterator<Aggregation> iterator() {
-        return Casts.castImmutable(aggregations.iterator(), Aggregation.class);
+        Object iter = aggregations.iterator();
+        return (Iterator<Aggregation>) iter;
+//        return Casts.castImmutable(aggregations.iterator(), Aggregation.class);
     }
 
     /**
@@ -97,7 +98,9 @@ public class InternalAggregations implements Aggregations, ToXContent, Streamabl
             }
             this.aggregationsAsMap = aggregationsAsMap;
         }
-        return Casts.castImmutable(aggregationsAsMap, String.class, Aggregation.class);
+        Object map = aggregationsAsMap;
+        return (Map<String, Aggregation>) map;
+//        return Casts.castImmutable(aggregationsAsMap, String.class, Aggregation.class);
     }
 
     /**

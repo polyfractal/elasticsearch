@@ -19,64 +19,56 @@
 
 package org.elasticsearch.search.aggregations.context;
 
-import org.elasticsearch.script.SearchScript;
-
-import java.io.IOException;
+import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.search.Scorer;
+import org.elasticsearch.common.lucene.ReaderContextAware;
+import org.elasticsearch.common.lucene.ScorerAware;
 
 /**
  *
  */
 public interface ValuesSource {
 
-    String key();
+    Object key();
 
-    public abstract static class FieldData<Values> implements ValuesSource {
+    public abstract static class FieldData<FDS extends FieldDataSource> implements ValuesSource {
 
-        private final FieldDataSource<Values> source;
-        protected final ValueScriptValues<Values> scriptValues;
+        protected final FDS source;
 
-        public FieldData(FieldDataSource<Values> source, SearchScript script) {
+        public FieldData(FDS source) {
             this.source = source;
-            scriptValues = script == null ? null : createScriptValues(script);
         }
 
         @Override
-        public String key() {
+        public Object key() {
             return source.field();
         }
 
-        public Values values() throws IOException {
-            if (scriptValues != null) {
-                scriptValues.reset(source.values());
-                return (Values) scriptValues;
-            }
-            return source.values();
-        }
-
-        protected abstract ValueScriptValues<Values> createScriptValues(SearchScript script);
-
     }
 
-    public abstract static class Script<Values extends ScriptValues> implements ValuesSource {
+    public abstract static class Script<Values extends ScriptValues> implements ValuesSource, ReaderContextAware, ScorerAware {
 
-        protected final SearchScript script;
         protected final Values values;
 
-        public Script(SearchScript script, boolean multiValue) {
-            this.script = script;
-            this.values = createValues(script, multiValue);
+        public Script(Values values) {
+            this.values = values;
+        }
+
+        public void setNextReader(AtomicReaderContext reader){
+            values.script().setNextReader(reader);
+            values.clearCache();
         }
 
         @Override
-        public String key() {
-            return script.toString();
+        public void setScorer(Scorer scorer) {
+            values.script().setScorer(scorer);
         }
 
-        public Values values() throws IOException {
-            return values;
+        @Override
+        public Object key() {
+            //TODO is this right??? is toString the right thing to represent the key for the script values?
+            return values.script();
         }
-
-        protected abstract Values createValues(SearchScript script, boolean multiValue);
 
     }
 }

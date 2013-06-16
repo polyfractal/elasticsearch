@@ -26,12 +26,10 @@ import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.bucket.LongBucketAggregator;
+import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
-import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
-import org.elasticsearch.search.aggregations.context.numeric.longs.LongValuesSource;
-import org.elasticsearch.search.internal.SearchContext;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -57,11 +55,10 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
                                boolean keyed,
                                @Nullable NumericValuesSource valuesSource,
                                InternalHistogram.Factory histogramFactory,
-                               SearchContext searchContext,
-                               ValuesSourceFactory valuesSourceFactory,
+                               AggregationContext aggregationContext,
                                Aggregator parent) {
 
-        super(name, valuesSource, searchContext, valuesSourceFactory, parent);
+        super(name, valuesSource, aggregationContext, parent);
         this.factories = factories;
         this.rounding = rounding;
         this.order = order;
@@ -123,8 +120,8 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
         }
 
         @Override
-        protected HistogramAggregator create(NumericValuesSource source, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-            return new HistogramAggregator(name, factories, rounding, order, keyed, source, histogramFactory, searchContext, valuesSourceFactory, parent);
+        protected HistogramAggregator create(NumericValuesSource source, AggregationContext aggregationContext, Aggregator parent) {
+            return new HistogramAggregator(name, factories, rounding, order, keyed, source, histogramFactory, aggregationContext, parent);
         }
 
     }
@@ -154,8 +151,8 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
 
 
         @Override
-        protected HistogramAggregator create(LongValuesSource source, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-            return new HistogramAggregator(name, factories, rounding, order, keyed, source, histogramFactory, searchContext, valuesSourceFactory, parent);
+        protected HistogramAggregator create(NumericValuesSource source, AggregationContext aggregationContext, Aggregator parent) {
+            return new HistogramAggregator(name, factories, rounding, order, keyed, source, histogramFactory, aggregationContext, parent);
         }
 
     }
@@ -176,8 +173,8 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
         }
 
         @Override
-        public HistogramAggregator create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-            return new HistogramAggregator(name, factories, rounding, order, keyed, null, histogramFactory, searchContext, valuesSourceFactory, parent);
+        public HistogramAggregator create(AggregationContext aggregationContext, Aggregator parent) {
+            return new HistogramAggregator(name, factories, rounding, order, keyed, null, histogramFactory, aggregationContext, parent);
         }
     }
 }

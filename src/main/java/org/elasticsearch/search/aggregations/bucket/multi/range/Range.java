@@ -25,7 +25,7 @@ import org.elasticsearch.search.aggregations.Aggregations;
 /**
  *
  */
-public interface Range extends Aggregation, Iterable<Range.Bucket> {
+public interface Range<B extends Range.Bucket> extends Aggregation, Iterable<B> {
 
     public static interface Bucket {
 
@@ -40,6 +40,6 @@ public interface Range extends Aggregation, Iterable<Range.Bucket> {
         Aggregations getAggregations();
     }
 
-    Bucket getByKey(String key);
+    B getByKey(String key);
 
 }

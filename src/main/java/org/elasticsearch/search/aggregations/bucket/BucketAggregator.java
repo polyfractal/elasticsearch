@@ -20,13 +20,11 @@
 package org.elasticsearch.search.aggregations.bucket;
 
 import com.google.common.collect.Lists;
-import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
-import org.elasticsearch.search.internal.SearchContext;
+import org.elasticsearch.search.aggregations.context.ValueSpace;
 
 import java.io.IOException;
 import java.util.List;
@@ -36,15 +34,15 @@ import java.util.List;
  */
 public abstract class BucketAggregator extends Aggregator {
 
-    protected BucketAggregator(String name, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-        super(name, searchContext, valuesSourceFactory, parent);
+    protected BucketAggregator(String name, AggregationContext aggregationContext, Aggregator parent) {
+        super(name, aggregationContext, parent);
     }
 
     public static Aggregator[] createAggregators(List<Aggregator.Factory> factories, Aggregator aggregator) {
         int i = 0;
         Aggregator[] aggregators = new Aggregator[factories.size()];
         for (Aggregator.Factory factory : factories) {
-            aggregators[i++] = factory.create(aggregator.searchContext(), aggregator.valuesSourceFactory(), aggregator);
+            aggregators[i++] = factory.create(aggregator.aggregationContext(), aggregator);
         }
         return aggregators;
     }
@@ -72,20 +70,13 @@ public abstract class BucketAggregator extends Aggregator {
             }
         }
 
-        public BucketCollector(List<Aggregator.Factory> factories, AggregationContext context, Aggregator aggregator) {
+        public BucketCollector(List<Aggregator.Factory> factories, Aggregator aggregator) {
             this.aggregator = aggregator;
             this.subAggregators = new Aggregator[factories.size()];
             this.collectors = new Collector[subAggregators.length];
-            int i = 0;
-            for (Aggregator.Factory factory : factories) {
-                subAggregators[i] = factory.create(aggregator.searchContext(), aggregator.valuesSourceFactory(), aggregator);
+            for (int i = 0; i < factories.size(); i++) {
+                subAggregators[i] = factories.get(i).create(aggregator.aggregationContext(), aggregator);
                 collectors[i] = subAggregators[i].collector();
-                try {
-                    collectors[i].setNextContext(context);
-                } catch (IOException ioe) {
-                    throw new AggregationExecutionException("Failed to aggregate [" + aggregator.name() + "]", ioe);
-                }
-                i++;
             }
         }
 
@@ -100,44 +91,28 @@ public abstract class BucketAggregator extends Aggregator {
         }
 
         @Override
-        public final void setNextContext(AggregationContext context) throws IOException {
-            context = setAndGetContext(context);
-            for (int i = 0; i < collectors.length; i++) {
-                if (collectors[i] != null) {
-                    collectors[i].setNextContext(context);
-                }
-            }
-        }
-
-        @Override
-        public final void collect(int doc) throws IOException {
-            if (onDoc(doc)) {
+        public void collect(int doc, ValueSpace valueSpace) throws IOException {
+            valueSpace = onDoc(doc, valueSpace);
+            if (valueSpace != null) {
                 for (int i = 0; i < collectors.length; i++) {
                     if (collectors[i] != null) {
-                        collectors[i].collect(doc);
+                        collectors[i].collect(doc, valueSpace);
                     }
                 }
             }
         }
 
         /**
-         * Called to aggregate the data in the given doc and returns whether the given doc falls within this bucket.
+         * Called to aggregate the data in the given doc and returns whether the value space that should be used for all sub-aggregators
+         * of this bucket.
          *
          * @param doc   The doc to aggregate
-         * @return      {@code true} if the given doc matched this bucket, {@code false} otherwise.
+         * @return      The value space for all the sub-aggregator of this bucket. If the doc doesn't "fall" within this bucket, this
+         *              method <strong>must</strong> return {@code null} (in which case, the sub-aggregators will not be asked to collect
+         *              the doc)
          * @throws IOException
          */
-        protected abstract boolean onDoc(int doc) throws IOException;
-
-
-        /**
-         * Called when the parent aggregation context is set for this bucket, and returns the aggregation context of this bucket (which will
-         * be propagated to all sub aggregators/collectors)
-         *
-         * @param context   The parent context of this bucket
-         * @return          The bucket context
-         */
-        protected abstract AggregationContext setAndGetContext(AggregationContext context) throws IOException;
+        protected abstract ValueSpace onDoc(int doc, ValueSpace valueSpace) throws IOException;
 
         /**
          * Called when collection is finished

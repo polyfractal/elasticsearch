@@ -21,16 +21,15 @@ package org.elasticsearch.search.aggregations.calc.count;
 
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
-import org.elasticsearch.search.internal.SearchContext;
+import org.elasticsearch.search.aggregations.context.AggregationContext;
 
 /**
  * A count aggregator for unmapped fields (basically, will always return a zero count).
  */
 public class UnmappedCountAggregator extends Aggregator {
 
-    public UnmappedCountAggregator(String name, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-        super(name, searchContext, valuesSourceFactory, parent);
+    public UnmappedCountAggregator(String name, AggregationContext aggregationContext, Aggregator parent) {
+        super(name, aggregationContext, parent);
     }
 
     @Override
@@ -50,8 +49,8 @@ public class UnmappedCountAggregator extends Aggregator {
         }
 
         @Override
-        public UnmappedCountAggregator create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-            return new UnmappedCountAggregator(name, searchContext, valuesSourceFactory, parent);
+        public UnmappedCountAggregator create(AggregationContext aggregationContext, Aggregator parent) {
+            return new UnmappedCountAggregator(name, aggregationContext, parent);
         }
     }
 

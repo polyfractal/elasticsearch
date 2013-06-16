@@ -19,8 +19,6 @@
 
 package org.elasticsearch.search.aggregations.bucket;
 
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.search.Scorer;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.geo.GeoPoint;
@@ -29,9 +27,8 @@ import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
-import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
+import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.aggregations.context.geopoints.GeoPointValuesSource;
-import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -43,54 +40,52 @@ public abstract class GeoPointBucketAggregator extends ValuesSourceBucketAggrega
 
     protected GeoPointBucketAggregator(String name,
                                        GeoPointValuesSource valuesSource,
-                                       SearchContext searchContext,
-                                       ValuesSourceFactory valuesSourceFactory,
+                                       AggregationContext aggregationContext,
                                        Aggregator parent) {
 
-        super(name, valuesSource, GeoPointValuesSource.class, searchContext, valuesSourceFactory, parent);
+        super(name, valuesSource, GeoPointValuesSource.class, aggregationContext, parent);
     }
 
-    public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<GeoPointValuesSource> implements AggregationContext {
+    public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<GeoPointValuesSource> implements ValueSpace {
 
-        private GeoPointValues values;
+        private ValueSpace parentContext;
 
         protected BucketCollector(GeoPointValuesSource valuesSource, Aggregator[] subAggregators, Aggregator aggregator) {
             super(valuesSource, subAggregators, aggregator);
         }
 
-        protected BucketCollector(GeoPointValuesSource valuesSource, List<Aggregator.Factory> factories,
-                                  AtomicReaderContext reader, Scorer scorer, AggregationContext context, Aggregator parent) {
-            super(valuesSource, factories, reader, scorer, context, parent);
+        protected BucketCollector(GeoPointValuesSource valuesSource, List<Aggregator.Factory> factories, Aggregator parent) {
+            super(valuesSource, factories, parent);
         }
 
+
         @Override
-        protected AggregationContext setNextValues(GeoPointValuesSource valuesSource, AggregationContext context) throws IOException {
-            values = valuesSource.values();
-            if (!values.isMultiValued()) {
-                return context;
+        protected final ValueSpace onDoc(int doc, ValueSpace context) throws IOException {
+            GeoPointValues values = valuesSource.values();
+            if (!onDoc(doc, values, context)) {
+                return null;
             }
-            return this;
+            if (values.isMultiValued()) {
+                parentContext = context;
+                return this;
+            }
+            return context;
         }
 
-        @Override
-        protected final boolean onDoc(int doc, AggregationContext context) throws IOException {
-            return onDoc(doc, values, context);
-        }
-
-        protected abstract boolean onDoc(int doc, GeoPointValues values, AggregationContext context) throws IOException;
+        protected abstract boolean onDoc(int doc, GeoPointValues values, ValueSpace context) throws IOException;
 
         @Override
-        public boolean accept(String valueSourceKey, double value) {
+        public boolean accept(Object valueSourceKey, double value) {
             return parentContext.accept(valueSourceKey, value);
         }
 
         @Override
-        public boolean accept(String valueSourceKey, long value) {
+        public boolean accept(Object valueSourceKey, long value) {
             return parentContext.accept(valueSourceKey, value);
         }
 
         @Override
-        public boolean accept(String valueSourceKey, GeoPoint value) {
+        public boolean accept(Object valueSourceKey, GeoPoint value) {
             if (!parentContext.accept(valueSourceKey, value)) {
                 return false;
             }
@@ -101,7 +96,7 @@ public abstract class GeoPointBucketAggregator extends ValuesSourceBucketAggrega
         }
 
         @Override
-        public boolean accept(String valueSourceKey, BytesRef value) {
+        public boolean accept(Object valueSourceKey, BytesRef value) {
             return parentContext.accept(valueSourceKey, value);
         }
 
@@ -120,12 +115,12 @@ public abstract class GeoPointBucketAggregator extends ValuesSourceBucketAggrega
         }
 
         @Override
-        public A create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-            GeoPointValuesSource source = valuesSourceFactory.geoPointField(fieldContext);
-            return create(source, searchContext, valuesSourceFactory, parent);
+        public A create(AggregationContext aggregationContext, Aggregator parent) {
+            GeoPointValuesSource source = aggregationContext.geoPointField(fieldContext);
+            return create(source, aggregationContext, parent);
         }
 
-        protected abstract A create(GeoPointValuesSource source, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent);
+        protected abstract A create(GeoPointValuesSource source, AggregationContext aggregationContext, Aggregator parent);
     }
 
     protected abstract static class ContextBasedFactory<A extends GeoPointBucketAggregator> extends CompoundFactory<A> {

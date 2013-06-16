@@ -17,32 +17,12 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.context.geopoints;
+package org.elasticsearch.search.aggregations.bucket.single.nested;
 
-import org.elasticsearch.index.fielddata.GeoPointValues;
-import org.elasticsearch.search.aggregations.context.FieldDataSource;
-import org.elasticsearch.search.aggregations.context.ValuesSource;
-
-import java.io.IOException;
+import org.elasticsearch.search.aggregations.Aggregation;
 
 /**
  *
  */
-public interface GeoPointValuesSource extends ValuesSource {
-
-    GeoPointValues values() throws IOException;
-
-
-    public static class FieldData extends ValuesSource.FieldData<FieldDataSource.GeoPoint> implements GeoPointValuesSource {
-
-        public FieldData(FieldDataSource.GeoPoint source) {
-            super(source);
-        }
-
-        @Override
-        public GeoPointValues values() throws IOException {
-            return source.values();
-        }
-    }
-
+public interface Nested extends Aggregation {
 }

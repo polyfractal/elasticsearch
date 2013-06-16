@@ -17,32 +17,20 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.context.geopoints;
+package org.elasticsearch.search.aggregations.bucket.multi.range.ip4v;
 
-import org.elasticsearch.index.fielddata.GeoPointValues;
-import org.elasticsearch.search.aggregations.context.FieldDataSource;
-import org.elasticsearch.search.aggregations.context.ValuesSource;
-
-import java.io.IOException;
+import org.elasticsearch.search.aggregations.bucket.multi.range.Range;
 
 /**
  *
  */
-public interface GeoPointValuesSource extends ValuesSource {
+public interface IPv4Range<B extends IPv4Range.Bucket> extends Range<B> {
 
-    GeoPointValues values() throws IOException;
+    static interface Bucket extends Range.Bucket {
 
+        String getFromAsString();
 
-    public static class FieldData extends ValuesSource.FieldData<FieldDataSource.GeoPoint> implements GeoPointValuesSource {
+        String getToAsString();
 
-        public FieldData(FieldDataSource.GeoPoint source) {
-            super(source);
-        }
-
-        @Override
-        public GeoPointValues values() throws IOException {
-            return source.values();
-        }
     }
-
 }

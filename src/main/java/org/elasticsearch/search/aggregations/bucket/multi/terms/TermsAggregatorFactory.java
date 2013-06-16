@@ -29,16 +29,13 @@ import org.elasticsearch.search.aggregations.ValuesSourceAggregator;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.doubles.DoubleTermsAggregator;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.longs.LongTermsAggregator;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.string.StringTermsAggregator;
+import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
-import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
-import org.elasticsearch.search.aggregations.context.numeric.doubles.DoubleValuesSource;
-import org.elasticsearch.search.aggregations.context.numeric.longs.LongValuesSource;
-import org.elasticsearch.search.internal.SearchContext;
 
 /**
  *
@@ -72,19 +69,19 @@ public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregato
     }
 
     @Override
-    public Aggregator create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+    public Aggregator create(AggregationContext aggregationContext, Aggregator parent) {
 
-        ValuesSource valuesSource = resolveValueSource(valuesSourceFactory, parent);
+        ValuesSource valuesSource = resolveValueSource(aggregationContext, parent);
 
         if (valuesSource instanceof BytesValuesSource) {
-            return new StringTermsAggregator(name, factories, (BytesValuesSource) valuesSource, order, requiredSize, searchContext, valuesSourceFactory, parent);
+            return new StringTermsAggregator(name, factories, (BytesValuesSource) valuesSource, order, requiredSize, aggregationContext, parent);
         }
 
         if (valuesSource instanceof NumericValuesSource) {
             if (((NumericValuesSource) valuesSource).isFloatingPoint()) {
-                return new DoubleTermsAggregator(name, factories, (NumericValuesSource) valuesSource, order, requiredSize, searchContext, valuesSourceFactory, parent);
+                return new DoubleTermsAggregator(name, factories, (NumericValuesSource) valuesSource, order, requiredSize, aggregationContext, parent);
             }
-            return new LongTermsAggregator(name, factories, (NumericValuesSource) valuesSource, order, requiredSize, searchContext, valuesSourceFactory, parent);
+            return new LongTermsAggregator(name, factories, (NumericValuesSource) valuesSource, order, requiredSize, aggregationContext, parent);
         }
 
         throw new AggregationExecutionException("terms aggregation cannot be applied to field [" + fieldContext.field() +
@@ -92,7 +89,7 @@ public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregato
 
     }
 
-    private ValuesSource resolveValueSource(ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+    private ValuesSource resolveValueSource(AggregationContext aggregationContext, Aggregator parent) {
 
         if (fieldContext == null) {
 
@@ -115,8 +112,8 @@ public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregato
             // we have a script, so it's a script value source
             switch (valueType) {
                 case STRING:    return new BytesValuesSource.Script(script, multiValued);
-                case LONG:      return new LongValuesSource.Script(script, multiValued, null);
-                case DOUBLE:    return new DoubleValuesSource.Script(script, multiValued, null);
+                case LONG:      return new NumericValuesSource.LongScript(script, multiValued, null);
+                case DOUBLE:    return new NumericValuesSource.DoubleScript(script, multiValued, null);
                 default:        throw new AggregationExecutionException("unknown field type [" + valueType.name() + "]");
             }
         }
@@ -128,22 +125,22 @@ public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregato
                     new ValueFormatter.DateTime(mapper.dateTimeFormatter()) :
                     new ValueFormatter.DateTime(format);
             ValueParser parser = new ValueParser.DateMath(mapper.dateMathParser());
-            return valuesSourceFactory.longField(fieldContext, script, formatter, parser);
+            return aggregationContext.longField(fieldContext, script, formatter, parser);
         }
 
         // ip field
         if (fieldContext.mapper() instanceof IpFieldMapper) {
-            return valuesSourceFactory.longField(fieldContext, script, ValueFormatter.IPv4, ValueParser.IPv4);
+            return aggregationContext.longField(fieldContext, script, ValueFormatter.IPv4, ValueParser.IPv4);
         }
 
         if (fieldContext.indexFieldData() instanceof IndexNumericFieldData) {
             if (((IndexNumericFieldData) fieldContext.indexFieldData()).getNumericType().isFloatingPoint()) {
-                return valuesSourceFactory.doubleField(fieldContext, script, null, null);
+                return aggregationContext.doubleField(fieldContext, script, null, null);
             }
-            return valuesSourceFactory.longField(fieldContext, script, null, null);
+            return aggregationContext.longField(fieldContext, script, null, null);
         }
 
-        return valuesSourceFactory.bytesField(fieldContext, script);
+        return aggregationContext.bytesField(fieldContext, script);
     }
 
 }

@@ -24,9 +24,8 @@ import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
-import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
+import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
-import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 
@@ -35,32 +34,22 @@ import java.io.IOException;
  */
 public abstract class BytesCalcAggregator extends ValuesSourceCalcAggregator<BytesValuesSource>  {
 
-    public BytesCalcAggregator(String name, BytesValuesSource valuesSource, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-        super(name, valuesSource, BytesValuesSource.class, searchContext, valuesSourceFactory, parent);
+    public BytesCalcAggregator(String name, BytesValuesSource valuesSource, AggregationContext aggregationContext, Aggregator parent) {
+        super(name, valuesSource, BytesValuesSource.class, aggregationContext, parent);
     }
 
     protected static abstract class Collector extends ValuesSourceCalcAggregator.Collector<BytesValuesSource> {
-
-        private BytesValues values;
-        private AggregationContext context;
 
         protected Collector(BytesValuesSource valuesSource, Aggregator aggregator) {
             super(valuesSource, aggregator);
         }
 
         @Override
-        protected void setNextValues(BytesValuesSource valuesSource, AggregationContext context) throws IOException {
-            this.context = context;
-            values = valuesSource.values();
+        public void collect(int doc, ValueSpace valueSpace) throws IOException {
+            collect(doc, valuesSource.values(), valueSpace);
         }
 
-
-        @Override
-        public final void collect(int doc) throws IOException {
-            collect(doc, values, context);
-        }
-
-        protected abstract void collect(int doc, BytesValues values, AggregationContext context) throws IOException;
+        protected abstract void collect(int doc, BytesValues values, ValueSpace context) throws IOException;
     }
 
     protected abstract static class FieldDataFactory<A extends BytesCalcAggregator> extends Factory<A> {
@@ -79,12 +68,12 @@ public abstract class BytesCalcAggregator extends ValuesSourceCalcAggregator<Byt
         }
 
         @Override
-        public A create(SearchContext context, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-            BytesValuesSource source = valuesSourceFactory.bytesField(fieldContext, valueScript);
-            return create(source, context, valuesSourceFactory, parent);
+        public A create(AggregationContext aggregationContext, Aggregator parent) {
+            BytesValuesSource source = aggregationContext.bytesField(fieldContext, valueScript);
+            return create(source, aggregationContext, parent);
         }
 
-        protected abstract A create(BytesValuesSource source, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent);
+        protected abstract A create(BytesValuesSource source, AggregationContext aggregationContext, Aggregator parent);
     }
 
     protected abstract static class ScriptFactory<A extends BytesCalcAggregator> extends Factory<A> {
@@ -99,12 +88,12 @@ public abstract class BytesCalcAggregator extends ValuesSourceCalcAggregator<Byt
         }
 
         @Override
-        public A create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-            BytesValuesSource source = valuesSourceFactory.bytesScript(script, multiValued);
-            return create(source, searchContext, parent);
+        public A create(AggregationContext aggregationContext, Aggregator parent) {
+            BytesValuesSource source = aggregationContext.bytesScript(script, multiValued);
+            return create(source, aggregationContext, parent);
         }
 
-        protected abstract A create(BytesValuesSource source, SearchContext searchContext, Aggregator parent);
+        protected abstract A create(BytesValuesSource source, AggregationContext aggregationContext, Aggregator parent);
     }
 
     protected abstract static class ContextBasedFactory<A extends ValuesSourceCalcAggregator> extends Factory<A> {

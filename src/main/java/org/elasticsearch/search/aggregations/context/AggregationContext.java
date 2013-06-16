@@ -19,51 +19,194 @@
 
 package org.elasticsearch.search.aggregations.context;
 
-import org.apache.lucene.util.BytesRef;
-import org.elasticsearch.common.geo.GeoPoint;
+import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.search.Scorer;
+import org.elasticsearch.common.lucene.ReaderContextAware;
+import org.elasticsearch.common.lucene.ScorerAware;
+import org.elasticsearch.common.trove.ExtTHashMap;
+import org.elasticsearch.script.SearchScript;
+import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
+import org.elasticsearch.search.aggregations.context.geopoints.GeoPointValuesSource;
+import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
+import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
+import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
+import org.elasticsearch.search.internal.SearchContext;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * The aggregation context is passed down the collector hierarchy during the aggregation process. The context may
- * determine whether a specific value for a specific field should be counted for aggregation. This only applies for
- * calc aggregators - as bucketing aggregators aggregation (bucket) based on doc ids, while calc aggregators aggregate
- * based on field values.
+ *
  */
-public interface AggregationContext {
+@SuppressWarnings({"unchecked", "ForLoopReplaceableByForEach"})
+public class AggregationContext implements ReaderContextAware, ScorerAware {
 
-    /**
-     * Determines whether the given double value for the given field should be aggregated.
-     *
-     * @param valueSourceKey    The key of the value source
-     * @param value             The value
-     * @return {@code true} if the value should be aggregated, {@code false} otherwise.
-     */
-    boolean accept(String valueSourceKey, double value);
+    private final SearchContext searchContext;
 
-    /**
-     * Determines whether the given long value for the given field should be aggregated.
-     *
-     * @param valueSourceKey    The key of the value source
-     * @param value             The value
-     * @return {@code true} if the value should be aggregated, {@code false} otherwise.
-     */
-    boolean accept(String valueSourceKey, long value);
+    private ExtTHashMap<String, FieldDataSource> fieldDataSources = new ExtTHashMap<String, FieldDataSource>();
+    private List<ReaderContextAware> readerAwares = new ArrayList<ReaderContextAware>();
+    private List<ScorerAware> scorerAwares = new ArrayList<ScorerAware>();
 
-    /**
-     * Determines whether the given bytesref value for the given field should be aggregated.
-     *
-     * @param valueSourceKey    The key of the value source
-     * @param value             The value
-     * @return {@code true} if the value should be aggregated, {@code false} otherwise.
-     */
-    boolean accept(String valueSourceKey, BytesRef value);
+    private AtomicReaderContext reader;
+    private Scorer scorer;
 
-    /**
-     * Determines whether the given geo point value for the given field should be aggregated.
-     *
-     * @param valueSourceKey    The key of the value source
-     * @param value             The value
-     * @return {@code true} if the value should be aggregated, {@code false} otherwise.
-     */
-    boolean accept(String valueSourceKey, GeoPoint value);
+    public AggregationContext(SearchContext searchContext) {
+        this.searchContext = searchContext;
+    }
 
+    public SearchContext searchContext() {
+        return searchContext;
+    }
+
+    public AtomicReaderContext currentReader() {
+        return reader;
+    }
+
+    public Scorer currentScorer() {
+        return scorer;
+    }
+
+    public void setNextReader(AtomicReaderContext reader) {
+        this.reader = reader;
+        for (int i = 0; i < readerAwares.size(); i++) {
+            readerAwares.get(i).setNextReader(reader);
+        }
+        Object[] sources = fieldDataSources.internalValues();
+        for (int i = 0; i < sources.length; i++) {
+            if (sources[i] != null) {
+                ((FieldDataSource) sources[i]).setNextReader(reader);
+            }
+        }
+    }
+
+    public void setScorer(Scorer scorer) {
+        this.scorer = scorer;
+        for (int i = 0; i < scorerAwares.size(); i++) {
+            scorerAwares.get(i).setScorer(scorer);
+        }
+    }
+
+    @Deprecated
+    public NumericValuesSource doubleField(FieldContext fieldContext, SearchScript script, ValueFormatter formatter, ValueParser parser) {
+        FieldDataSource.Numeric dataSource = (FieldDataSource.Numeric) fieldDataSources.get(fieldContext.field());
+        if (dataSource == null) {
+            dataSource = new FieldDataSource.Double(fieldContext.field(), fieldContext.indexFieldData());
+            setReaderIfNeeded(dataSource);
+            fieldDataSources.put(fieldContext.field(), dataSource);
+        }
+        if (script != null) {
+            setScorerIfNeeded(script);
+            setReaderIfNeeded(script);
+            scorerAwares.add(script);
+            readerAwares.add(script);
+        }
+        return new NumericValuesSource.FieldData(dataSource, script, formatter, parser);
+
+    }
+
+    public NumericValuesSource.DoubleScript doubleScript(SearchScript script, boolean multiValued, ValueFormatter formatter) {
+        NumericValuesSource.DoubleScript valuesSource =  new NumericValuesSource.DoubleScript(script, multiValued, formatter);
+        setScorerIfNeeded(script);
+        setReaderIfNeeded(valuesSource);
+        scorerAwares.add(valuesSource);
+        readerAwares.add(valuesSource);
+        return valuesSource;
+    }
+
+    @Deprecated
+    public NumericValuesSource longField(FieldContext fieldContext, SearchScript script, ValueFormatter formatter, ValueParser parser) {
+        FieldDataSource.Numeric dataSource = (FieldDataSource.Numeric) fieldDataSources.get(fieldContext.field());
+        if (dataSource == null) {
+            dataSource = new FieldDataSource.Long(fieldContext.field(), fieldContext.indexFieldData());
+            setReaderIfNeeded(dataSource);
+            fieldDataSources.put(fieldContext.field(), dataSource);
+        }
+        if (script != null) {
+            setScorerIfNeeded(script);
+            setReaderIfNeeded(script);
+            scorerAwares.add(script);
+            readerAwares.add(script);
+        }
+        return new NumericValuesSource.FieldData(dataSource, script, formatter, parser);
+    }
+
+    public NumericValuesSource numericField(FieldContext fieldContext, SearchScript script, ValueFormatter formatter, ValueParser parser) {
+        FieldDataSource.Numeric dataSource = (FieldDataSource.Numeric) fieldDataSources.get(fieldContext.field());
+        if (dataSource == null) {
+            dataSource = new FieldDataSource.Long(fieldContext.field(), fieldContext.indexFieldData());
+            setReaderIfNeeded(dataSource);
+            fieldDataSources.put(fieldContext.field(), dataSource);
+        }
+        if (script != null) {
+            setScorerIfNeeded(script);
+            setReaderIfNeeded(script);
+            scorerAwares.add(script);
+            readerAwares.add(script);
+        }
+        return new NumericValuesSource.FieldData(dataSource, script, formatter, parser);
+    }
+
+    public NumericValuesSource.LongScript longScript(SearchScript script, boolean multiValued, ValueFormatter formatter) {
+        NumericValuesSource.LongScript valuesSource = new NumericValuesSource.LongScript(script, multiValued, formatter);
+        setScorerIfNeeded(script);
+        setReaderIfNeeded(valuesSource);
+        scorerAwares.add(valuesSource);
+        readerAwares.add(valuesSource);
+        return valuesSource;
+    }
+
+    public BytesValuesSource bytesField(FieldContext fieldContext, SearchScript script) {
+        FieldDataSource dataSource = fieldDataSources.get(fieldContext.field());
+        if (dataSource == null) {
+            dataSource = new FieldDataSource.Bytes(fieldContext.field(), fieldContext.indexFieldData());
+            setReaderIfNeeded(dataSource);
+            fieldDataSources.put(fieldContext.field(), dataSource);
+        }
+        if (script != null) {
+            setScorerIfNeeded(script);
+            setReaderIfNeeded(script);
+            scorerAwares.add(script);
+            readerAwares.add(script);
+        }
+        return new BytesValuesSource.FieldData(dataSource, script);
+    }
+
+    public BytesValuesSource bytesScript(SearchScript script, boolean multiValued) {
+        BytesValuesSource.Script valuesSource = new BytesValuesSource.Script(script, multiValued);
+        setScorerIfNeeded(script);
+        setReaderIfNeeded(valuesSource);
+        scorerAwares.add(valuesSource);
+        readerAwares.add(valuesSource);
+        return valuesSource;
+    }
+
+    public GeoPointValuesSource geoPointField(FieldContext fieldContext) {
+        FieldDataSource.GeoPoint dataSource = (FieldDataSource.GeoPoint) fieldDataSources.get(fieldContext.field());
+        if (dataSource == null) {
+            dataSource = new FieldDataSource.GeoPoint(fieldContext.field(), fieldContext.indexFieldData());
+            setReaderIfNeeded(dataSource);
+            fieldDataSources.put(fieldContext.field(), dataSource);
+        }
+        return new GeoPointValuesSource.FieldData(dataSource);
+    }
+
+    public void registerReaderContextAware(ReaderContextAware readerContextAware) {
+        readerAwares.add(readerContextAware);
+    }
+
+    public void registerScorerAware(ScorerAware scorerAware) {
+        scorerAwares.add(scorerAware);
+    }
+
+    private void setReaderIfNeeded(ReaderContextAware readerContextAware) {
+        if (reader != null) {
+            readerContextAware.setNextReader(reader);
+        }
+    }
+
+    private void setScorerIfNeeded(ScorerAware scorerAware) {
+        if (scorer != null) {
+            scorerAware.setScorer(scorer);
+        }
+    }
 }

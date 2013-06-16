@@ -19,7 +19,7 @@
 
 package org.elasticsearch.search.aggregations;
 
-import org.elasticsearch.search.aggregations.context.ValuesSourceContext;
+import org.elasticsearch.search.aggregations.context.AggregationContext;
 
 import java.util.List;
 
@@ -30,7 +30,7 @@ public class SearchContextAggregations {
 
     private final List<Aggregator.Factory> factories;
     private List<Aggregator> aggregators;
-    private ValuesSourceContext valuesSourceContext;
+    private AggregationContext aggregationContext;
 
     /**
      * Creates a new aggregation context with all parsed aggregator factories
@@ -49,12 +49,12 @@ public class SearchContextAggregations {
         return aggregators;
     }
 
-    public ValuesSourceContext valuesSourceContext() {
-        return valuesSourceContext;
+    public AggregationContext valuesSourceContext() {
+        return aggregationContext;
     }
 
-    public void valuesSourceContext(ValuesSourceContext valuesSourceContext) {
-        this.valuesSourceContext = valuesSourceContext;
+    public void valuesSourceContext(AggregationContext aggregationContext) {
+        this.aggregationContext = aggregationContext;
     }
 
     /**

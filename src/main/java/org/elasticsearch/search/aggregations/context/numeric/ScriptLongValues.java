@@ -17,9 +17,9 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.context.numeric.doubles;
+package org.elasticsearch.search.aggregations.context.numeric;
 
-import org.elasticsearch.index.fielddata.DoubleValues;
+import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.context.ScriptValues;
 
@@ -30,7 +30,7 @@ import java.util.List;
 /**
  *
  */
-public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
+public class ScriptLongValues extends LongValues implements ScriptValues {
 
     final SearchScript script;
     final InternalIter iter;
@@ -38,11 +38,7 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
     private int docId = -1;
     private Object value;
 
-    public ScriptDoubleValues(SearchScript script) {
-        this(script, true);
-    }
-
-    public ScriptDoubleValues(SearchScript script, boolean multiValue) {
+    public ScriptLongValues(SearchScript script, boolean multiValue) {
         super(multiValue);
         this.script = script;
         this.iter = new InternalIter();
@@ -52,6 +48,11 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
     public void clearCache() {
         docId = -1;
         value = null;
+    }
+
+    @Override
+    public SearchScript script() {
+        return script;
     }
 
     @Override
@@ -77,14 +78,13 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
             return !((List) value).isEmpty();
         }
         if (value instanceof Iterator) {
-            return ((Iterator<Number>) value).hasNext();
+            return ((Iterator) value).hasNext();
         }
-
         return true;
     }
 
     @Override
-    public double getValue(int docId) {
+    public long getValue(int docId) {
         if (this.docId != docId) {
             this.docId = docId;
             script.setNextDocId(docId);
@@ -93,19 +93,19 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
 
         // shortcutting on single valued
         if (!isMultiValued()) {
-            return ((Number) value).doubleValue();
+            return ((Number) value).longValue();
         }
 
         if (value.getClass().isArray()) {
-            return ((Number) Array.get(value, 0)).doubleValue();
+            return ((Number) Array.get(value, 0)).longValue();
         }
         if (value instanceof List) {
-            return ((Number) ((List) value).get(0)).doubleValue();
+            return ((Number) ((List) value).get(0)).longValue();
         }
         if (value instanceof Iterator) {
-            return ((Iterator<Number>) value).next().doubleValue();
+            return ((Iterator<Number>) value).next().longValue();
         }
-        return ((Number) value).doubleValue();
+        return ((Number) value).longValue();
     }
 
     @Override
@@ -166,11 +166,11 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
         }
 
         @Override
-        public double next() {
+        public long next() {
             if (iterator != null) {
-                return iterator.next().doubleValue();
+                return iterator.next().longValue();
             }
-            return ((Number) Array.get(array, ++i)).doubleValue();
+            return ((Number) Array.get(array, ++i)).longValue();
         }
     }
 }

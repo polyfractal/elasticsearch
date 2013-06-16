@@ -22,6 +22,8 @@ package org.elasticsearch.search.aggregations;
 import com.google.common.collect.Lists;
 import org.elasticsearch.common.inject.AbstractModule;
 import org.elasticsearch.common.inject.multibindings.Multibinder;
+import org.elasticsearch.search.aggregations.bucket.multi.range.date.DateRangeParser;
+import org.elasticsearch.search.aggregations.bucket.multi.range.ip4v.IpRangeParser;
 import org.elasticsearch.search.aggregations.bucket.single.filter.FilterParser;
 import org.elasticsearch.search.aggregations.bucket.multi.geo.distance.GeoDistanceParser;
 import org.elasticsearch.search.aggregations.bucket.single.global.GlobalParser;
@@ -30,6 +32,7 @@ import org.elasticsearch.search.aggregations.bucket.multi.histogram.date.DateHis
 import org.elasticsearch.search.aggregations.bucket.single.missing.MissingParser;
 import org.elasticsearch.search.aggregations.bucket.multi.range.RangeParser;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.TermsParser;
+import org.elasticsearch.search.aggregations.bucket.single.nested.NestedParser;
 import org.elasticsearch.search.aggregations.calc.count.CountParser;
 import org.elasticsearch.search.aggregations.calc.numeric.avg.AvgParser;
 import org.elasticsearch.search.aggregations.calc.numeric.max.MaxParser;
@@ -61,9 +64,12 @@ public class AggregationModule extends AbstractModule {
         parsers.add(FilterParser.class);
         parsers.add(TermsParser.class);
         parsers.add(RangeParser.class);
+        parsers.add(DateRangeParser.class);
+        parsers.add(IpRangeParser.class);
         parsers.add(HistogramParser.class);
         parsers.add(DateHistogramParser.class);
         parsers.add(GeoDistanceParser.class);
+        parsers.add(NestedParser.class);
     }
 
     /**

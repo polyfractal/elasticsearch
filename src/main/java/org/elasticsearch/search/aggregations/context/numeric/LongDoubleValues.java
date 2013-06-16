@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.context.numeric.doubles;
+package org.elasticsearch.search.aggregations.context.numeric;
 
 import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.index.fielddata.LongValues;
@@ -25,18 +25,22 @@ import org.elasticsearch.index.fielddata.LongValues;
 /**
  *
  */
-public class DoubleLongValues extends LongValues {
+public class LongDoubleValues extends DoubleValues {
 
-    private final LongIter scratchIter = new LongIter();
+    private final DoubleIter scratchIter = new DoubleIter();
 
-    private DoubleValues values;
+    private LongValues values;
 
-    DoubleLongValues(DoubleValues values) {
+    public LongDoubleValues() {
+        super(true);
+    }
+
+    public LongDoubleValues(LongValues values) {
         super(values.isMultiValued());
         this.values = values;
     }
 
-    void reset(DoubleValues values) {
+    public void reset(LongValues values) {
         this.values = values;
         this.multiValued = values.isMultiValued();
     }
@@ -47,8 +51,8 @@ public class DoubleLongValues extends LongValues {
     }
 
     @Override
-    public long getValue(int docId) {
-        return (long) values.getValue(docId);
+    public double getValue(int docId) {
+        return (double) values.getValue(docId);
     }
 
     @Override
@@ -57,9 +61,9 @@ public class DoubleLongValues extends LongValues {
         return scratchIter;
     }
 
-    private static class LongIter implements Iter {
+    private static class DoubleIter implements Iter {
 
-        private DoubleValues.Iter iter;
+        private LongValues.Iter iter;
 
         @Override
         public boolean hasNext() {
@@ -67,9 +71,8 @@ public class DoubleLongValues extends LongValues {
         }
 
         @Override
-        public long next() {
-            return (long) iter.next();
+        public double next() {
+            return (double) iter.next();
         }
     }
-
 }

@@ -17,32 +17,21 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.context.geopoints;
+package org.elasticsearch.search.aggregations.bucket.multi.range.date;
 
-import org.elasticsearch.index.fielddata.GeoPointValues;
-import org.elasticsearch.search.aggregations.context.FieldDataSource;
-import org.elasticsearch.search.aggregations.context.ValuesSource;
-
-import java.io.IOException;
+import org.elasticsearch.search.aggregations.bucket.multi.range.Range;
+import org.joda.time.DateTime;
 
 /**
  *
  */
-public interface GeoPointValuesSource extends ValuesSource {
+public interface DateRange<B extends DateRange.Bucket> extends Range<B> {
 
-    GeoPointValues values() throws IOException;
+    static interface Bucket extends Range.Bucket {
 
+        DateTime getFromAsDate();
 
-    public static class FieldData extends ValuesSource.FieldData<FieldDataSource.GeoPoint> implements GeoPointValuesSource {
-
-        public FieldData(FieldDataSource.GeoPoint source) {
-            super(source);
-        }
-
-        @Override
-        public GeoPointValues values() throws IOException {
-            return source.values();
-        }
+        DateTime getToAsDate();
     }
 
 }

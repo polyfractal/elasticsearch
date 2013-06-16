@@ -24,12 +24,15 @@ import org.elasticsearch.search.aggregations.bucket.multi.geo.distance.InternalG
 import org.elasticsearch.search.aggregations.bucket.multi.histogram.InternalHistogram;
 import org.elasticsearch.search.aggregations.bucket.multi.histogram.date.InternalDateHistogram;
 import org.elasticsearch.search.aggregations.bucket.multi.range.InternalRange;
+import org.elasticsearch.search.aggregations.bucket.multi.range.date.InternalDateRange;
+import org.elasticsearch.search.aggregations.bucket.multi.range.ip4v.InternalIPv4Range;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.doubles.DoubleTerms;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.longs.LongTerms;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.string.StringTerms;
 import org.elasticsearch.search.aggregations.bucket.single.filter.InternalFilter;
 import org.elasticsearch.search.aggregations.bucket.single.global.InternalGlobal;
 import org.elasticsearch.search.aggregations.bucket.single.missing.InternalMissing;
+import org.elasticsearch.search.aggregations.bucket.single.nested.InternalNested;
 import org.elasticsearch.search.aggregations.calc.count.InternalCount;
 import org.elasticsearch.search.aggregations.calc.numeric.avg.InternalAvg;
 import org.elasticsearch.search.aggregations.calc.numeric.max.InternalMax;
@@ -63,8 +66,11 @@ public class TransportAggregationModule extends AbstractModule {
         LongTerms.registerStreams();
         DoubleTerms.registerStreams();
         InternalRange.registerStream();
+        InternalDateRange.registerStream();
+        InternalIPv4Range.registerStream();
         InternalHistogram.registerStream();
         InternalDateHistogram.registerStream();
         InternalGeoDistance.registerStream();
+        InternalNested.registerStream();
     }
 }

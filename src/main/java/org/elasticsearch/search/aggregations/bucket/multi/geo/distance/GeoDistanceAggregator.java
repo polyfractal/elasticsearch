@@ -29,9 +29,8 @@ import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
 import org.elasticsearch.search.aggregations.bucket.GeoPointBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
-import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
+import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.aggregations.context.geopoints.GeoPointValuesSource;
-import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -67,12 +66,12 @@ public class GeoDistanceAggregator extends GeoPointBucketAggregator {
     private final BucketCollector[] collectors;
 
     public GeoDistanceAggregator(String name, GeoPointValuesSource valuesSource, List<Aggregator.Factory> factories,
-                                 List<DistanceRange> ranges, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-        super(name, valuesSource, searchContext, valuesSourceFactory, parent);
+                                 List<DistanceRange> ranges, AggregationContext aggregationContext, Aggregator parent) {
+        super(name, valuesSource, aggregationContext, parent);
         collectors = new BucketCollector[ranges.size()];
         int i = 0;
         for (DistanceRange range : ranges) {
-            collectors[i++] = new BucketCollector(range, valuesSource, BucketAggregator.createAggregators(factories, parent), this);
+            collectors[i++] = new BucketCollector(range, valuesSource, BucketAggregator.createAggregators(factories, this), this);
         }
     }
 
@@ -93,16 +92,9 @@ public class GeoDistanceAggregator extends GeoPointBucketAggregator {
     class Collector implements Aggregator.Collector {
 
         @Override
-        public void collect(int doc) throws IOException {
+        public void collect(int doc, ValueSpace valueSpace) throws IOException {
             for (BucketCollector collector : collectors) {
-                collector.collect(doc);
-            }
-        }
-
-        @Override
-        public void setNextContext(AggregationContext context) throws IOException {
-            for (BucketCollector collector : collectors) {
-                collector.setNextContext(context);
+                collector.collect(doc, valueSpace);
             }
         }
 
@@ -126,7 +118,7 @@ public class GeoDistanceAggregator extends GeoPointBucketAggregator {
         }
 
         @Override
-        protected boolean onDoc(int doc, GeoPointValues values, AggregationContext context) throws IOException {
+        protected boolean onDoc(int doc, GeoPointValues values, ValueSpace context) throws IOException {
             if (matches(doc, valuesSource.key(), values, context)) {
                 docCount++;
                 return true;
@@ -134,7 +126,7 @@ public class GeoDistanceAggregator extends GeoPointBucketAggregator {
             return false;
         }
 
-        private boolean matches(int doc, String valuesSourceKey, GeoPointValues values, AggregationContext context) {
+        private boolean matches(int doc, Object valuesSourceKey, GeoPointValues values, ValueSpace context) {
             if (!values.hasValue(doc)) {
                 return false;
             }
@@ -174,8 +166,8 @@ public class GeoDistanceAggregator extends GeoPointBucketAggregator {
         }
 
         @Override
-        protected GeoDistanceAggregator create(GeoPointValuesSource source, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-            return new GeoDistanceAggregator(name, source, factories, ranges, searchContext, valuesSourceFactory, parent);
+        protected GeoDistanceAggregator create(GeoPointValuesSource source, AggregationContext aggregationContext, Aggregator parent) {
+            return new GeoDistanceAggregator(name, source, factories, ranges, aggregationContext, parent);
         }
 
     }
@@ -190,8 +182,8 @@ public class GeoDistanceAggregator extends GeoPointBucketAggregator {
         }
 
         @Override
-        public GeoDistanceAggregator create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-            return new GeoDistanceAggregator(name, null, factories, ranges, searchContext, valuesSourceFactory, parent);
+        public GeoDistanceAggregator create(AggregationContext aggregationContext, Aggregator parent) {
+            return new GeoDistanceAggregator(name, null, factories, ranges, aggregationContext, parent);
         }
     }
 

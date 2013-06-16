@@ -24,10 +24,6 @@ import org.elasticsearch.search.aggregations.ValuesSourceAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
 import org.elasticsearch.search.aggregations.context.ValuesSourceBased;
-import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
-import org.elasticsearch.search.internal.SearchContext;
-
-import java.io.IOException;
 
 /**
  *
@@ -37,11 +33,10 @@ public abstract class ValuesSourceCalcAggregator<VS extends ValuesSource> extend
     public ValuesSourceCalcAggregator(String name,
                                       VS valuesSource,
                                       Class<VS> valueSourceType,
-                                      SearchContext searchContext,
-                                      ValuesSourceFactory valuesSourceFactory,
+                                      AggregationContext aggregationContext,
                                       Aggregator parent) {
 
-        super(name, valuesSource, valueSourceType, searchContext, valuesSourceFactory, parent);
+        super(name, valuesSource, valueSourceType, aggregationContext, parent);
     }
 
 
@@ -54,21 +49,6 @@ public abstract class ValuesSourceCalcAggregator<VS extends ValuesSource> extend
             this.valuesSource = valuesSource;
             this.aggregator = aggregator;
         }
-
-        @Override
-        public void setNextContext(AggregationContext context) throws IOException {
-            setNextValues(valuesSource, context);
-        }
-
-        /**
-         * Calls on the underlying implementation to set the next values on which this aggregator will act.
-         *
-         * @param valuesSource  The value source this aggregator is working with
-         * @param context       The aggregation context
-         * @throws IOException
-         */
-        protected abstract void setNextValues(VS valuesSource, AggregationContext context) throws IOException;
-
     }
 
 }

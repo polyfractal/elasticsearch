@@ -38,12 +38,13 @@ import org.elasticsearch.search.aggregations.context.numeric.ValueFormatterStrea
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 /**
  * An internal implementation of {@link Histogram}
  */
-public class InternalHistogram extends InternalAggregation implements Histogram, ToXContent, Streamable {
+public class InternalHistogram<B extends Histogram.Bucket> extends InternalAggregation implements Histogram<B>, ToXContent, Streamable {
 
     public final static Type TYPE = new Type("histogram", "histo");
 
@@ -106,9 +107,9 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
         }
     }
 
-    public static class Factory {
+    public static class Factory<B extends Histogram.Bucket> {
 
-        public InternalHistogram create(String name, List<Histogram.Bucket> buckets, InternalOrder order, ValueFormatter formatter, boolean keyed) {
+        public InternalHistogram create(String name, List<B> buckets, InternalOrder order, ValueFormatter formatter, boolean keyed) {
             return new InternalHistogram(name, buckets, order, formatter, keyed);
         }
 
@@ -118,7 +119,7 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
 
     }
 
-    private List<Histogram.Bucket> buckets;
+    private List<B> buckets;
     private ExtTLongObjectHashMap<Histogram.Bucket> bucketsMap;
     private InternalOrder order;
     private ValueFormatter formatter;
@@ -126,7 +127,7 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
 
     protected InternalHistogram() {} // for serialization
 
-    protected InternalHistogram(String name, List<Histogram.Bucket> buckets, InternalOrder order, ValueFormatter formatter, boolean keyed) {
+    protected InternalHistogram(String name, List<B> buckets, InternalOrder order, ValueFormatter formatter, boolean keyed) {
         super(name);
         this.buckets = buckets;
         this.order = order;
@@ -140,14 +141,19 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
     }
 
     @Override
-    public Histogram.Bucket getByKey(long key) {
+    public Iterator<B> iterator() {
+        return buckets.iterator();
+    }
+
+    @Override
+    public B getByKey(long key) {
         if (bucketsMap == null) {
             bucketsMap = new ExtTLongObjectHashMap<Histogram.Bucket>(buckets.size());
             for (Histogram.Bucket bucket : buckets) {
                 bucketsMap.put(bucket.getKey(), bucket);
             }
         }
-        return bucketsMap.get(key);
+        return (B) bucketsMap.get(key);
     }
 
     @Override
@@ -159,8 +165,8 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
 
         ExtTLongObjectHashMap<List<Bucket>> bucketsByKey = CacheRecycler.popLongObjectMap();
         for (InternalAggregation aggregation : aggregations) {
-            InternalHistogram histogram = (InternalHistogram) aggregation;
-            for (Histogram.Bucket bucket : histogram.buckets) {
+            InternalHistogram<B> histogram = (InternalHistogram) aggregation;
+            for (B bucket : histogram.buckets) {
                 List<Bucket> bucketList = bucketsByKey.get(((Bucket) bucket).key);
                 if (bucketList == null) {
                     bucketList = new ArrayList<Bucket>(aggregations.size());
@@ -184,6 +190,10 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
         return reduced;
     }
 
+    protected B createBucket(long key, long docCount, InternalAggregations aggregations) {
+        return (B) new Bucket(key, docCount, aggregations);
+    }
+
     @Override
     public void readFrom(StreamInput in) throws IOException {
         name = in.readString();
@@ -191,9 +201,9 @@ public class InternalHistogram extends InternalAggregation implements Histogram,
         formatter = ValueFormatterStreams.readOptional(in);
         keyed = in.readBoolean();
         int size = in.readVInt();
-        List<Histogram.Bucket> buckets = new ArrayList<Histogram.Bucket>(size);
+        List<B> buckets = new ArrayList<B>(size);
         for (int i = 0; i < size; i++) {
-            buckets.add(new Bucket(in.readVLong(), in.readVLong(), InternalAggregations.readAggregations(in)));
+            buckets.add(createBucket(in.readVLong(), in.readVLong(), InternalAggregations.readAggregations(in)));
         }
         this.buckets = buckets;
         this.bucketsMap = null;

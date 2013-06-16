@@ -17,17 +17,15 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.context;
+package org.elasticsearch.common.lucene;
 
-import org.apache.lucene.index.AtomicReaderContext;
-
-import java.io.IOException;
+import org.apache.lucene.search.Scorer;
 
 /**
  *
  */
-public interface ReaderBasedDataSource<T> {
+public interface ScorerAware {
 
-    void setNextReader(AtomicReaderContext reader) throws IOException;
+    void setScorer(Scorer scorer);
 
 }

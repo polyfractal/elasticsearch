@@ -24,8 +24,7 @@ import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
-import org.elasticsearch.search.internal.SearchContext;
+import org.elasticsearch.search.aggregations.context.ValueSpace;
 
 import java.io.IOException;
 import java.util.List;
@@ -37,8 +36,8 @@ public class GlobalAggregator extends SingleBucketAggregator {
 
     long docCount;
 
-    public GlobalAggregator(String name, List<Aggregator.Factory> factories, ValuesSourceFactory valuesSourceFactory, SearchContext searchContext) {
-        super(name, factories, searchContext, valuesSourceFactory, null);
+    public GlobalAggregator(String name, List<Aggregator.Factory> factories, AggregationContext aggregationContext) {
+        super(name, factories, aggregationContext, null);
     }
 
     @Override
@@ -60,14 +59,9 @@ public class GlobalAggregator extends SingleBucketAggregator {
         }
 
         @Override
-        protected AggregationContext setAndGetContext(AggregationContext context) throws IOException {
-            return context;
-        }
-
-        @Override
-        protected boolean onDoc(int doc) throws IOException {
+        protected ValueSpace onDoc(int doc, ValueSpace context) throws IOException {
             docCount++;
-            return true;
+            return context;
         }
 
         @Override
@@ -83,12 +77,12 @@ public class GlobalAggregator extends SingleBucketAggregator {
         }
 
         @Override
-        public GlobalAggregator create(SearchContext searchContext, ValuesSourceFactory factory, Aggregator parent) {
+        public GlobalAggregator create(AggregationContext aggregationContext, Aggregator parent) {
             if (parent != null) {
                 throw new AggregationExecutionException("Aggregation [" + parent.name() + "] cannot have a global " +
                         "sub-aggregation [" + name + "].Global aggregations can only be defined as top level aggregations");
             }
-            return new GlobalAggregator(name, factories, factory, searchContext);
+            return new GlobalAggregator(name, factories, aggregationContext);
         }
 
     }

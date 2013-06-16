@@ -25,7 +25,7 @@ import org.joda.time.DateTime;
 /**
  *
  */
-public interface DateHistogram extends Histogram {
+public interface DateHistogram extends Histogram<DateHistogram.Bucket> {
 
     static interface Bucket extends Histogram.Bucket {
 

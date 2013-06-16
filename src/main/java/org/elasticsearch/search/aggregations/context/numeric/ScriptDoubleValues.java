@@ -17,39 +17,35 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.context.geopoints;
+package org.elasticsearch.search.aggregations.context.numeric;
 
-import org.elasticsearch.common.geo.GeoPoint;
-import org.elasticsearch.index.fielddata.GeoPointValues;
+import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.context.ScriptValues;
 
+import java.lang.reflect.Array;
 import java.util.Iterator;
 import java.util.List;
 
 /**
  *
  */
-public class ScriptGeoPointValues implements GeoPointValues, ScriptValues {
+public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
 
-    final boolean multiValue;
     final SearchScript script;
     final InternalIter iter;
-    final InternalSafeIter safeIter;
-    final InternalIter.Single singleIter = new Iter.Single();
 
     private int docId = -1;
     private Object value;
 
-    public ScriptGeoPointValues(SearchScript script) {
+    public ScriptDoubleValues(SearchScript script) {
         this(script, true);
     }
 
-    public ScriptGeoPointValues(SearchScript script, boolean multiValue) {
-        this.multiValue = multiValue;
+    public ScriptDoubleValues(SearchScript script, boolean multiValue) {
+        super(multiValue);
         this.script = script;
         this.iter = new InternalIter();
-        this.safeIter = new InternalSafeIter();
     }
 
     @Override
@@ -59,8 +55,8 @@ public class ScriptGeoPointValues implements GeoPointValues, ScriptValues {
     }
 
     @Override
-    public boolean isMultiValued() {
-        return multiValue;
+    public SearchScript script() {
+        return script;
     }
 
     @Override
@@ -79,20 +75,21 @@ public class ScriptGeoPointValues implements GeoPointValues, ScriptValues {
             return true;
         }
 
-        if (value instanceof GeoPoint[]) {
-            return ((GeoPoint[]) value).length != 0;
+        if (value.getClass().isArray()) {
+            return Array.getLength(value) != 0;
         }
         if (value instanceof List) {
             return !((List) value).isEmpty();
         }
         if (value instanceof Iterator) {
-            return ((Iterator<GeoPoint>) value).hasNext();
+            return ((Iterator<Number>) value).hasNext();
         }
+
         return true;
     }
 
     @Override
-    public GeoPoint getValue(int docId) {
+    public double getValue(int docId) {
         if (this.docId != docId) {
             this.docId = docId;
             script.setNextDocId(docId);
@@ -101,25 +98,19 @@ public class ScriptGeoPointValues implements GeoPointValues, ScriptValues {
 
         // shortcutting on single valued
         if (!isMultiValued()) {
-            return (GeoPoint) value;
+            return ((Number) value).doubleValue();
         }
 
-        if (value instanceof GeoPoint[]) {
-            return ((GeoPoint[]) value)[0];
+        if (value.getClass().isArray()) {
+            return ((Number) Array.get(value, 0)).doubleValue();
         }
         if (value instanceof List) {
-            return (GeoPoint) ((List) value).get(0);
+            return ((Number) ((List) value).get(0)).doubleValue();
         }
         if (value instanceof Iterator) {
-            return ((Iterator<GeoPoint>) value).next();
+            return ((Iterator<Number>) value).next().doubleValue();
         }
-        return (GeoPoint) value;
-    }
-
-    @Override
-    public GeoPoint getValueSafe(int docId) {
-        GeoPoint value = getValue(docId);
-        return new GeoPoint(value.lat(), value.lon());
+        return ((Number) value).doubleValue();
     }
 
     @Override
@@ -132,47 +123,41 @@ public class ScriptGeoPointValues implements GeoPointValues, ScriptValues {
 
         // shortcutting on single valued
         if (!isMultiValued()) {
-            singleIter.reset((GeoPoint) value);
-            return singleIter;
+            return super.getIter(docId);
         }
 
-        if (value instanceof GeoPoint[]) {
-            iter.reset((GeoPoint[]) value);
+        if (value.getClass().isArray()) {
+            iter.reset(value);
             return iter;
         }
         if (value instanceof List) {
-            iter.reset(((List<GeoPoint>) value).iterator());
+            iter.reset(((List<Number>) value).iterator());
             return iter;
         }
         if (value instanceof Iterator) {
-            iter.reset((Iterator<GeoPoint>) value);
+            iter.reset((Iterator<Number>) value);
             return iter;
         }
 
         // falling back to single value iterator
-        singleIter.reset((GeoPoint) value);
-        return singleIter;
-    }
-
-    @Override
-    public Iter getIterSafe(int docId) {
-        safeIter.reset(getIter(docId));
-        return safeIter;
+        return super.getIter(docId);
     }
 
     static class InternalIter implements Iter {
 
-        GeoPoint[] array;
+        Object array;
+        int arrayLength;
         int i = 0;
 
-        Iterator<GeoPoint> iterator;
+        Iterator<Number> iterator;
 
-        void reset(GeoPoint[] array) {
+        void reset(Object array) {
             this.array = array;
+            this.arrayLength = Array.getLength(array);
             this.iterator = null;
         }
 
-        void reset(Iterator<GeoPoint> iterator) {
+        void reset(Iterator<Number> iterator) {
             this.iterator = iterator;
             this.array = null;
         }
@@ -182,35 +167,15 @@ public class ScriptGeoPointValues implements GeoPointValues, ScriptValues {
             if (iterator != null) {
                 return iterator.hasNext();
             }
-            return i + 1 < array.length;
+            return i + 1 < arrayLength;
         }
 
         @Override
-        public GeoPoint next() {
+        public double next() {
             if (iterator != null) {
-                return iterator.next();
+                return iterator.next().doubleValue();
             }
-            return array[++i];
-        }
-    }
-
-    static class InternalSafeIter implements Iter {
-
-        Iter iter;
-
-        void reset(Iter iter) {
-            this.iter = iter;
-        }
-
-        @Override
-        public boolean hasNext() {
-            return iter.hasNext();
-        }
-
-        @Override
-        public GeoPoint next() {
-            GeoPoint point = iter.next();
-            return new GeoPoint(point.lat(), point.lon());
+            return ((Number) Array.get(array, ++i)).doubleValue();
         }
     }
 }

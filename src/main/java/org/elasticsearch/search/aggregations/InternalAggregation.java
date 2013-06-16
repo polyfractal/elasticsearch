@@ -19,6 +19,7 @@
 
 package org.elasticsearch.search.aggregations;
 
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.HashedBytesArray;
 import org.elasticsearch.common.io.stream.Streamable;
@@ -45,11 +46,11 @@ public abstract class InternalAggregation implements Aggregation, ToXContent, St
         private BytesReference stream;
 
         public Type(String name) {
-            this(name, new HashedBytesArray(name));
+            this(name, new BytesArray(name));
         }
 
         public Type(String name, String stream) {
-            this(name, new HashedBytesArray(stream));
+            this(name, new BytesArray(stream));
         }
 
         public Type(String name, BytesReference stream) {
@@ -120,9 +121,9 @@ public abstract class InternalAggregation implements Aggregation, ToXContent, St
         public static final XContentBuilderString KEY = new XContentBuilderString("key");
         public static final XContentBuilderString KEY_AS_STRING = new XContentBuilderString("key_as_string");
         public static final XContentBuilderString FROM = new XContentBuilderString("from");
-        public static final XContentBuilderString FROM_AS_STRING = new XContentBuilderString("from");
+        public static final XContentBuilderString FROM_AS_STRING = new XContentBuilderString("from_as_string");
         public static final XContentBuilderString TO = new XContentBuilderString("to");
-        public static final XContentBuilderString TO_AS_STRING = new XContentBuilderString("to");
+        public static final XContentBuilderString TO_AS_STRING = new XContentBuilderString("to_as_string");
     }
 
 }

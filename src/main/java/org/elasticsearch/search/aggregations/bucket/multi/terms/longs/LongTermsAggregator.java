@@ -32,10 +32,9 @@ import org.elasticsearch.search.aggregations.bucket.multi.terms.BucketPriorityQu
 import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalTerms;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
+import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.facet.terms.support.EntryPriorityQueue;
-import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -55,8 +54,8 @@ public class LongTermsAggregator extends LongBucketAggregator {
     final ExtTLongObjectHashMap<BucketCollector> bucketCollectors;
 
     public LongTermsAggregator(String name, List<Aggregator.Factory> factories, NumericValuesSource valuesSource,
-                               Terms.Order order, int requiredSize, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-        super(name, valuesSource, searchContext, valuesSourceFactory, parent);
+                               Terms.Order order, int requiredSize, AggregationContext aggregationContext, Aggregator parent) {
+        super(name, valuesSource, aggregationContext, parent);
         this.factories = factories;
         this.order = order;
         this.requiredSize = requiredSize;
@@ -103,57 +102,58 @@ public class LongTermsAggregator extends LongBucketAggregator {
 
     class Collector implements Aggregator.Collector {
 
-        LongValues values;
-        AggregationContext context;
-
-        @Override
-        public void setNextContext(AggregationContext context) throws IOException {
-            this.context = context;
-            values = valuesSource.longValues();
-            Object[] collectors = bucketCollectors.internalValues();
-            for (int i = 0; i <collectors.length; i++) {
-                if (collectors[i] != null) {
-                    ((BucketCollector) collectors[i]).setNextContext(context);
-                }
-            }
-        }
-
         long time = 0;
+        long time2 = 0;
 
         @Override
-        public void collect(int doc) throws IOException {
+        public void collect(int doc, ValueSpace valueSpace) throws IOException {
+
+            LongValues values = valuesSource.longValues();
+
+
 
             if (!values.hasValue(doc)) {
                 return;
             }
 
-            String valuesSourceKey = valuesSource.key();
+
+            Object valuesSourceKey = valuesSource.key();
             if (!values.isMultiValued()) {
                 long term = values.getValue(doc);
-                if (!context.accept(valuesSourceKey, term)) {
+                if (!valueSpace.accept(valuesSourceKey, term)) {
                     return;
                 }
+
+
+
+                long start = System.currentTimeMillis();
+
                 BucketCollector bucket = bucketCollectors.get(term);
                 if (bucket == null) {
-                    long start = System.currentTimeMillis();
-                    bucket = new BucketCollector(term, context, LongTermsAggregator.this);
-                    time += System.currentTimeMillis() - start;
+                    bucket = new BucketCollector(term, LongTermsAggregator.this);
                     bucketCollectors.put(term, bucket);
                 }
-                bucket.collect(doc);
+
+                time += System.currentTimeMillis() - start;
+
+                start = System.currentTimeMillis();
+
+                bucket.collect(doc, valueSpace);
+
+                time2 += System.currentTimeMillis() - start;
 
                 return;
             }
 
-            List<BucketCollector> matchedBuckets = findMatchingBuckets(doc, valuesSourceKey, values);
+            List<BucketCollector> matchedBuckets = findMatchingBuckets(doc, valuesSourceKey, values, valueSpace);
             if (matchedBuckets != null) {
                 for (int i = 0; i < matchedBuckets.size(); i++) {
-                    matchedBuckets.get(i).collect(doc);
+                    matchedBuckets.get(i).collect(doc, valueSpace);
                 }
             }
         }
 
-        private List<BucketCollector> findMatchingBuckets(int doc, String valuesSourceKey, LongValues values) {
+        private List<BucketCollector> findMatchingBuckets(int doc, Object valuesSourceKey, LongValues values, ValueSpace context) {
             List<BucketCollector> matchedBuckets = null;
             for (LongValues.Iter iter = values.getIter(doc); iter.hasNext();) {
                 long term = iter.next();
@@ -162,7 +162,7 @@ public class LongTermsAggregator extends LongBucketAggregator {
                 }
                 BucketCollector bucket = bucketCollectors.get(term);
                 if (bucket == null) {
-                    bucket = new BucketCollector(term, context, LongTermsAggregator.this);
+                    bucket = new BucketCollector(term, LongTermsAggregator.this);
                     bucketCollectors.put(term, bucket);
                 }
                 if (matchedBuckets == null) {
@@ -175,7 +175,7 @@ public class LongTermsAggregator extends LongBucketAggregator {
 
         @Override
         public void postCollection() {
-            System.out.println("agg: total collect - " + time);
+            System.out.println("agg: total collect - " + time + "\t\t" + time2);
             for (Object bucketCollector : bucketCollectors.internalValues()) {
                 if (bucketCollector != null) {
                     ((BucketCollector) bucketCollector).postCollection();
@@ -190,19 +190,14 @@ public class LongTermsAggregator extends LongBucketAggregator {
 
         long docCount;
 
-        BucketCollector(long term, AggregationContext context, LongTermsAggregator parent) {
-            super(parent.factories, context, parent);
+        BucketCollector(long term, LongTermsAggregator parent) {
+            super(parent.factories, parent);
             this.term = term;
         }
 
         @Override
-        protected boolean onDoc(int doc) throws IOException {
+        protected ValueSpace onDoc(int doc, ValueSpace context) throws IOException {
             docCount++;
-            return true;
-        }
-
-        @Override
-        protected AggregationContext setAndGetContext(AggregationContext context) throws IOException {
             return context;
         }
 

@@ -19,8 +19,6 @@
 
 package org.elasticsearch.search.aggregations.bucket;
 
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.search.Scorer;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.index.fielddata.BytesValues;
@@ -28,9 +26,8 @@ import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
-import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
+import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
-import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -42,59 +39,56 @@ public abstract class BytesBucketAggregator extends ValuesSourceBucketAggregator
 
     protected BytesBucketAggregator(String name,
                                     BytesValuesSource valuesSource,
-                                    SearchContext searchContext,
-                                    ValuesSourceFactory valuesSourceFactory,
+                                    AggregationContext aggregationContext,
                                     Aggregator parent) {
 
-        super(name, valuesSource, BytesValuesSource.class, searchContext, valuesSourceFactory, parent);
+        super(name, valuesSource, BytesValuesSource.class, aggregationContext, parent);
     }
 
-    public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<BytesValuesSource> implements AggregationContext {
+    public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<BytesValuesSource> implements ValueSpace {
 
-        private BytesValues values;
+        private ValueSpace parentContext;
 
         protected BucketCollector(BytesValuesSource valuesSource, Aggregator[] subAggregators, Aggregator aggregator) {
             super(valuesSource, subAggregators, aggregator);
         }
 
-        protected BucketCollector(BytesValuesSource valuesSource, List<Aggregator.Factory> factories,
-                                  AtomicReaderContext reader, Scorer scorer, AggregationContext context, Aggregator aggregator) {
-            super(valuesSource, factories, reader, scorer, context, aggregator);
+        protected BucketCollector(BytesValuesSource valuesSource, List<Aggregator.Factory> factories,Aggregator aggregator) {
+            super(valuesSource, factories, aggregator);
         }
 
         @Override
-        protected AggregationContext setNextValues(BytesValuesSource valuesSource, AggregationContext context) throws IOException {
-            values = valuesSource.values();
-            if (!values.isMultiValued()) {
-                return context;
+        protected final ValueSpace onDoc(int doc, ValueSpace context) throws IOException {
+            BytesValues values = valuesSource.values();
+            if (!onDoc(doc, values, context)) {
+                return null;
             }
-            return this;
+            if (values.isMultiValued()) {
+                parentContext = context;
+                return this;
+            }
+            return context;
         }
 
-        @Override
-        protected final boolean onDoc(int doc, AggregationContext context) throws IOException {
-            return onDoc(doc, values, context);
-        }
-
-        protected abstract boolean onDoc(int doc, BytesValues values, AggregationContext context) throws IOException;
+        protected abstract boolean onDoc(int doc, BytesValues values, ValueSpace context) throws IOException;
 
         @Override
-        public boolean accept(String valueSourceKey, double value) {
+        public boolean accept(Object valueSourceKey, double value) {
             return parentContext.accept(valueSourceKey, value);
         }
 
         @Override
-        public boolean accept(String valueSourceKey, long value) {
+        public boolean accept(Object valueSourceKey, long value) {
             return parentContext.accept(valueSourceKey, value);
         }
 
         @Override
-        public boolean accept(String valueSourceKey, GeoPoint value) {
+        public boolean accept(Object valueSourceKey, GeoPoint value) {
             return parentContext.accept(valueSourceKey, value);
         }
 
         @Override
-        public boolean accept(String valueSourceKey, BytesRef value) {
+        public boolean accept(Object valueSourceKey, BytesRef value) {
             if (valuesSource.key().equals(valueSourceKey)) {
                 return accept(value);
             }
@@ -116,12 +110,12 @@ public abstract class BytesBucketAggregator extends ValuesSourceBucketAggregator
         }
 
         @Override
-        public A create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-            BytesValuesSource source = valuesSourceFactory.bytesField(fieldContext, valueScript);
-            return create(source, searchContext, parent);
+        public A create(AggregationContext aggregationContext, Aggregator parent) {
+            BytesValuesSource source = aggregationContext.bytesField(fieldContext, valueScript);
+            return create(source, parent);
         }
 
-        protected abstract A create(BytesValuesSource source, SearchContext searchContext, Aggregator parent);
+        protected abstract A create(BytesValuesSource source, Aggregator parent);
     }
 
     protected abstract static class ScriptFactory<A extends BytesBucketAggregator> extends CompoundFactory<A> {
@@ -136,11 +130,11 @@ public abstract class BytesBucketAggregator extends ValuesSourceBucketAggregator
         }
 
         @Override
-        public A create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-            return create(valuesSourceFactory.bytesScript(script, multiValued), searchContext, parent);
+        public A create(AggregationContext aggregationContext, Aggregator parent) {
+            return create(aggregationContext.bytesScript(script, multiValued), parent);
         }
 
-        protected abstract A create(BytesValuesSource source, SearchContext searchContext, Aggregator parent);
+        protected abstract A create(BytesValuesSource source, Aggregator parent);
     }
 
     protected abstract static class ContextBasedFactory<A extends BytesBucketAggregator> extends CompoundFactory<A> {

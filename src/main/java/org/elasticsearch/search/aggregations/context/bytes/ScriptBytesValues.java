@@ -58,6 +58,11 @@ public class ScriptBytesValues extends BytesValues implements ScriptValues {
     }
 
     @Override
+    public SearchScript script() {
+        return script;
+    }
+
+    @Override
     public boolean hasValue(int docId) {
         if (this.docId != docId) {
             this.docId = docId;

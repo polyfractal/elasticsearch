@@ -19,10 +19,8 @@
 
 package org.elasticsearch.script;
 
-import org.apache.lucene.index.AtomicReader;
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.search.Scorer;
+import org.elasticsearch.common.lucene.ReaderContextAware;
+import org.elasticsearch.common.lucene.ScorerAware;
 
 import java.util.Map;
 
@@ -31,11 +29,7 @@ import java.util.Map;
  *
  * @see ExplainableSearchScript for script which can explain a score
  */
-public interface SearchScript extends ExecutableScript {
-
-    void setScorer(Scorer scorer);
-
-    void setNextReader(AtomicReaderContext context);
+public interface SearchScript extends ExecutableScript, ReaderContextAware, ScorerAware {
 
     void setNextDocId(int doc);
 

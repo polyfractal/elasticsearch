@@ -35,27 +35,33 @@ public interface BytesValuesSource extends ValuesSource {
 
     BytesValues values() throws IOException;
 
-    public static class FieldData extends ValuesSource.FieldData<BytesValues> implements BytesValuesSource {
+    public static class FieldData extends ValuesSource.FieldData<FieldDataSource> implements BytesValuesSource {
 
-        public FieldData(FieldDataSource<BytesValues> source, SearchScript script) {
-            super(source, script);
+        private final ValueScriptBytesValues scriptValues;
+
+        public FieldData(FieldDataSource source, SearchScript script) {
+            super(source);
+            scriptValues = script == null ? null : new ValueScriptBytesValues(script);
         }
 
-        @Override
-        protected ValueScriptValues<BytesValues> createScriptValues(SearchScript script) {
-            return new ValueScriptBytesValues(script);
+        public BytesValues values() throws IOException {
+            if (scriptValues != null) {
+                scriptValues.reset(source.bytesValues());
+                return scriptValues;
+            }
+            return source.bytesValues();
         }
     }
 
     public class Script extends ValuesSource.Script<ScriptBytesValues> implements BytesValuesSource {
 
         public Script(SearchScript script, boolean multiValue) {
-            super(script, multiValue);
+            super(new ScriptBytesValues(script, multiValue));
         }
 
         @Override
-        public ScriptBytesValues createValues(SearchScript script, boolean multiValue) {
-            return new ScriptBytesValues(script);
+        public BytesValues values() throws IOException {
+            return values;
         }
     }
 

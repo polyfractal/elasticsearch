@@ -19,11 +19,15 @@
 
 package org.elasticsearch.search.aggregations.context;
 
+import org.elasticsearch.script.SearchScript;
+
 /**
  *
  */
 public interface ScriptValues {
 
     void clearCache();
+
+    SearchScript script();
 
 }

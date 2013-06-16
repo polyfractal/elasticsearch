@@ -23,7 +23,10 @@ import com.google.common.collect.Lists;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.search.aggregations.*;
+import org.elasticsearch.search.aggregations.AggregationStreams;
+import org.elasticsearch.search.aggregations.Aggregations;
+import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatterStreams;
 
@@ -33,7 +36,7 @@ import java.util.*;
 /**
  *
  */
-public class InternalRange extends InternalAggregation implements Range {
+public class InternalRange<B extends InternalRange.Bucket> extends InternalAggregation implements Range<B> {
 
     static final Factory FACTORY = new Factory();
 
@@ -138,26 +141,26 @@ public class InternalRange extends InternalAggregation implements Range {
 
     }
 
-    public static class Factory {
+    public static class Factory<B extends InternalRange.Bucket> {
 
-        public InternalRange create(String name, List<Bucket> buckets, ValueFormatter formatter, boolean keyed) {
-            return new InternalRange(name, buckets, formatter, keyed);
+        public InternalRange<B> create(String name, List<B> buckets, ValueFormatter formatter, boolean keyed) {
+            return new InternalRange<B>(name, buckets, formatter, keyed);
         }
 
-        public Bucket createBucket(String key, double from, double to, long docCount, InternalAggregations aggregations) {
-            return new Bucket(key, from, to, docCount, aggregations);
+        public B createBucket(String key, double from, double to, long docCount, InternalAggregations aggregations) {
+            return (B) new Bucket(key, from, to, docCount, aggregations);
         }
 
     }
 
-    private List<Bucket> ranges;
-    private Map<String, Bucket> rangeMap;
+    private List<B> ranges;
+    private Map<String, B> rangeMap;
     private ValueFormatter formatter;
     private boolean keyed;
 
     public InternalRange() {} // for serialization
 
-    public InternalRange(String name, List<Bucket> ranges, ValueFormatter formatter, boolean keyed) {
+    public InternalRange(String name, List<B> ranges, ValueFormatter formatter, boolean keyed) {
         super(name);
         this.ranges = ranges;
         this.formatter = formatter;
@@ -166,20 +169,20 @@ public class InternalRange extends InternalAggregation implements Range {
 
     @Override
     @SuppressWarnings("unchecked")
-    public Iterator<Range.Bucket> iterator() {
+    public Iterator<B> iterator() {
         Object iter = ranges.iterator();
-        return (Iterator<Range.Bucket>) iter;
+        return (Iterator<B>) iter;
     }
 
     @Override
-    public Range.Bucket getByKey(String key) {
+    public B getByKey(String key) {
         if (rangeMap == null) {
-            rangeMap = new HashMap<String, Bucket>();
+            rangeMap = new HashMap<String, B>();
             for (Range.Bucket bucket : ranges) {
-                rangeMap.put(key(bucket, formatter), (InternalRange.Bucket) bucket);
+                rangeMap.put(key(bucket, formatter), (B) bucket);
             }
         }
-        return rangeMap.get(key);
+        return (B) rangeMap.get(key);
     }
 
     @Override
@@ -192,19 +195,19 @@ public class InternalRange extends InternalAggregation implements Range {
         if (aggregations.size() == 1) {
             return (InternalRange) aggregations.get(0);
         }
-        List<List<Bucket>> rangesList = null;
+        List<List<B>> rangesList = null;
         for (InternalAggregation aggregation : aggregations) {
-            InternalRange ranges = (InternalRange) aggregation;
+            InternalRange<B> ranges = (InternalRange<B>) aggregation;
             if (rangesList == null) {
-                rangesList = new ArrayList<List<Bucket>>(ranges.ranges.size());
-                for (Bucket range : ranges.ranges) {
-                    List<Bucket> sameRangeList = new ArrayList<Bucket>(aggregations.size());
-                    sameRangeList.add(range);
+                rangesList = new ArrayList<List<B>>(ranges.ranges.size());
+                for (B bucket : ranges.ranges) {
+                    List<B> sameRangeList = new ArrayList<B>(aggregations.size());
+                    sameRangeList.add(bucket);
                     rangesList.add(sameRangeList);
                 }
             } else {
                 int i = 0;
-                for (Bucket range : ranges.ranges) {
+                for (B range : ranges.ranges) {
                     rangesList.get(i++).add(range);
                 }
             }
@@ -212,10 +215,14 @@ public class InternalRange extends InternalAggregation implements Range {
 
         InternalRange reduced = (InternalRange) aggregations.get(0);
         int i = 0;
-        for (List<Bucket> sameRangeList : rangesList) {
-            reduced.ranges.set(i++, sameRangeList.get(0).reduce(sameRangeList));
+        for (List<B> sameRangeList : rangesList) {
+            reduced.ranges.set(i++, (sameRangeList.get(0)).reduce((List<Bucket>) sameRangeList));
         }
         return reduced;
+    }
+
+    protected B createBucket(String key, double from, double to, long docCount, InternalAggregations aggregations) {
+        return (B) new Bucket(key, from, to, docCount, aggregations);
     }
 
     @Override
@@ -224,10 +231,10 @@ public class InternalRange extends InternalAggregation implements Range {
         formatter = ValueFormatterStreams.readOptional(in);
         keyed = in.readBoolean();
         int size = in.readVInt();
-        List<Bucket> ranges = Lists.newArrayListWithCapacity(size);
+        List<B> ranges = Lists.newArrayListWithCapacity(size);
         for (int i = 0; i < size; i++) {
             String key = in.readOptionalString();
-            ranges.add(new Bucket(key, in.readDouble(), in.readDouble(), in.readVLong(), InternalAggregations.readAggregations(in)));
+            ranges.add(createBucket(key, in.readDouble(), in.readDouble(), in.readVLong(), InternalAggregations.readAggregations(in)));
         }
         this.ranges = ranges;
         this.rangeMap = null;
@@ -239,12 +246,12 @@ public class InternalRange extends InternalAggregation implements Range {
         ValueFormatterStreams.writeOptional(formatter, out);
         out.writeBoolean(keyed);
         out.writeVInt(ranges.size());
-        for (Bucket range : ranges) {
-            out.writeOptionalString(range.key);
-            out.writeDouble(range.from);
-            out.writeDouble(range.to);
-            out.writeVLong(range.docCount);
-            range.aggregations.writeTo(out);
+        for (B bucket : ranges) {
+            out.writeOptionalString(((Bucket) bucket).key);
+            out.writeDouble(((Bucket) bucket).from);
+            out.writeDouble(((Bucket) bucket).to);
+            out.writeVLong(((Bucket) bucket).docCount);
+            ((Bucket) bucket).aggregations.writeTo(out);
         }
     }
 
@@ -255,7 +262,7 @@ public class InternalRange extends InternalAggregation implements Range {
         } else {
             builder.startArray(name);
         }
-        for (Bucket range : ranges) {
+        for (B range : ranges) {
             range.toXContent(builder, params, formatter, keyed);
         }
         if (keyed) {

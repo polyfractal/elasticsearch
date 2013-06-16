@@ -24,8 +24,7 @@ import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
-import org.elasticsearch.search.internal.SearchContext;
+import org.elasticsearch.search.aggregations.context.ValueSpace;
 
 import java.io.IOException;
 import java.util.List;
@@ -39,11 +38,10 @@ public class UnmappedMissingAggregator extends SingleBucketAggregator {
 
     UnmappedMissingAggregator(String name,
                               List<Aggregator.Factory> factories,
-                              SearchContext searchContext,
-                              ValuesSourceFactory valuesSourceFactory,
+                              AggregationContext aggregationContext,
                               Aggregator parent) {
 
-        super(name, factories, searchContext, valuesSourceFactory, parent);
+        super(name, factories, aggregationContext, parent);
     }
 
     @Override
@@ -65,13 +63,8 @@ public class UnmappedMissingAggregator extends SingleBucketAggregator {
         }
 
         @Override
-        protected boolean onDoc(int doc) throws IOException {
+        protected ValueSpace onDoc(int doc, ValueSpace context) throws IOException {
             docCount++;
-            return true;
-        }
-
-        @Override
-        protected AggregationContext setAndGetContext(AggregationContext context) throws IOException {
             return context;
         }
 
@@ -89,8 +82,8 @@ public class UnmappedMissingAggregator extends SingleBucketAggregator {
         }
 
         @Override
-        public UnmappedMissingAggregator create(SearchContext searchContext, ValuesSourceFactory factory, Aggregator parent) {
-            return new UnmappedMissingAggregator(name, factories, searchContext, factory, parent);
+        public UnmappedMissingAggregator create(AggregationContext factory, Aggregator parent) {
+            return new UnmappedMissingAggregator(name, factories, factory, parent);
         }
     }
 

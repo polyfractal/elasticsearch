@@ -28,7 +28,7 @@ import java.util.Comparator;
 /**
  * A histogram aggregation result
  */
-public interface Histogram extends Aggregation {
+public interface Histogram<B extends Histogram.Bucket> extends Aggregation, Iterable<B> {
 
     /**
      * A bucket in the histogram where documents fall in
@@ -53,7 +53,7 @@ public interface Histogram extends Aggregation {
      * @param key The key of the bucket.
      * @return The bucket that is associated with the given key.
      */
-    Bucket getByKey(long key);
+    B getByKey(long key);
 
 
     /**

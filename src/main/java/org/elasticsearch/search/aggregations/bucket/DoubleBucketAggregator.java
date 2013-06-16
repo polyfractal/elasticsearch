@@ -19,8 +19,6 @@
 
 package org.elasticsearch.search.aggregations.bucket;
 
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.search.Scorer;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.inject.internal.Nullable;
@@ -29,12 +27,10 @@ import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
-import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
+import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
-import org.elasticsearch.search.aggregations.context.numeric.doubles.DoubleValuesSource;
-import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -46,45 +42,42 @@ public abstract class DoubleBucketAggregator extends ValuesSourceBucketAggregato
 
     protected DoubleBucketAggregator(String name,
                                      NumericValuesSource valuesSource,
-                                     SearchContext searchContext,
-                                     ValuesSourceFactory valuesSourceFactory,
+                                     AggregationContext aggregationContext,
                                      Aggregator parent) {
 
-        super(name, valuesSource, NumericValuesSource.class, searchContext, valuesSourceFactory, parent);
+        super(name, valuesSource, NumericValuesSource.class, aggregationContext, parent);
     }
 
-    public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<NumericValuesSource> implements AggregationContext {
+    public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<NumericValuesSource> implements ValueSpace {
 
-        private DoubleValues values;
+        private ValueSpace parentValueSpace;
 
         protected BucketCollector(NumericValuesSource valuesSource, Aggregator[] subAggregators, Aggregator aggregator) {
             super(valuesSource, subAggregators, aggregator);
         }
 
-        protected BucketCollector(NumericValuesSource valuesSource, List<Aggregator.Factory> factories,
-                                  AtomicReaderContext reader, Scorer scorer, AggregationContext context, Aggregator parent) {
-            super(valuesSource, factories, reader, scorer, context, parent);
+        protected BucketCollector(NumericValuesSource valuesSource, List<Aggregator.Factory> factories, Aggregator parent) {
+            super(valuesSource, factories, parent);
         }
 
         @Override
-        protected AggregationContext setNextValues(NumericValuesSource valuesSource, AggregationContext context) throws IOException {
-            values = valuesSource.doubleValues();
-            if (!values.isMultiValued()) {
-                return context;
+        protected final ValueSpace onDoc(int doc, ValueSpace valueSpace) throws IOException {
+            DoubleValues values = valuesSource.doubleValues();
+            if (!onDoc(doc, values, valueSpace)) {
+                return null;
             }
-            return this;
+            if (values.isMultiValued()) {
+                parentValueSpace = valueSpace;
+                return this;
+            }
+            return valueSpace;
         }
 
-        @Override
-        protected final boolean onDoc(int doc, AggregationContext context) throws IOException {
-            return onDoc(doc, values, context);
-        }
-
-        protected abstract boolean onDoc(int doc, DoubleValues values, AggregationContext context) throws IOException;
+        protected abstract boolean onDoc(int doc, DoubleValues values, ValueSpace context) throws IOException;
 
         @Override
-        public boolean accept(String valueSourceKey, double value) {
-            if (!parentContext.accept(valueSourceKey, value)) {
+        public boolean accept(Object valueSourceKey, double value) {
+            if (!parentValueSpace.accept(valueSourceKey, value)) {
                 return false;
             }
             if (valuesSource.key().equals(valueSourceKey)) {
@@ -94,18 +87,18 @@ public abstract class DoubleBucketAggregator extends ValuesSourceBucketAggregato
         }
 
         @Override
-        public boolean accept(String valueSourceKey, long value) {
-            return parentContext.accept(valueSourceKey, value);
+        public boolean accept(Object valueSourceKey, long value) {
+            return parentValueSpace.accept(valueSourceKey, value);
         }
 
         @Override
-        public boolean accept(String valueSourceKey, GeoPoint value) {
-            return parentContext.accept(valueSourceKey, value);
+        public boolean accept(Object valueSourceKey, GeoPoint value) {
+            return parentValueSpace.accept(valueSourceKey, value);
         }
 
         @Override
-        public boolean accept(String valueSourceKey, BytesRef value) {
-            return parentContext.accept(valueSourceKey, value);
+        public boolean accept(Object valueSourceKey, BytesRef value) {
+            return parentValueSpace.accept(valueSourceKey, value);
         }
 
         public abstract boolean accept(double value);
@@ -131,12 +124,12 @@ public abstract class DoubleBucketAggregator extends ValuesSourceBucketAggregato
         }
 
         @Override
-        public A create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-            DoubleValuesSource source = valuesSourceFactory.doubleField(fieldContext, valueScript, formatter, parser);
-            return create(source, searchContext, valuesSourceFactory, parent);
+        public A create(AggregationContext aggregationContext, Aggregator parent) {
+            NumericValuesSource source = aggregationContext.doubleField(fieldContext, valueScript, formatter, parser);
+            return create(source, aggregationContext, parent);
         }
 
-        protected abstract A create(NumericValuesSource source, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent);
+        protected abstract A create(NumericValuesSource source, AggregationContext aggregationContext, Aggregator parent);
     }
 
     protected abstract static class ScriptFactory<A extends DoubleBucketAggregator> extends CompoundFactory<A> {
@@ -153,11 +146,11 @@ public abstract class DoubleBucketAggregator extends ValuesSourceBucketAggregato
         }
 
         @Override
-        public A create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-            return create(valuesSourceFactory.doubleScript(script, multiValued, formatter), searchContext, valuesSourceFactory, parent);
+        public A create(AggregationContext aggregationContext, Aggregator parent) {
+            return create(aggregationContext.doubleScript(script, multiValued, formatter), aggregationContext, parent);
         }
 
-        protected abstract A create(DoubleValuesSource source, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent);
+        protected abstract A create(NumericValuesSource source, AggregationContext aggregationContext, Aggregator parent);
     }
 
     protected abstract static class ContextBasedFactory<A extends DoubleBucketAggregator> extends CompoundFactory<A> {

@@ -33,10 +33,9 @@ import org.elasticsearch.search.aggregations.bucket.multi.terms.BucketPriorityQu
 import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalTerms;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
+import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 import org.elasticsearch.search.facet.terms.support.EntryPriorityQueue;
-import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -57,10 +56,9 @@ public class StringTermsAggregator extends BytesBucketAggregator {
     ExtTHashMap<HashedBytesRef, BucketCollector> buckets;
 
     public StringTermsAggregator(String name, List<Aggregator.Factory> factories, BytesValuesSource valuesSource,
-                                 Terms.Order order, int requiredSize, SearchContext searchContext,
-                                 ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+                                 Terms.Order order, int requiredSize, AggregationContext aggregationContext, Aggregator parent) {
 
-        super(name, valuesSource, searchContext, valuesSourceFactory, parent);
+        super(name, valuesSource, aggregationContext, parent);
         this.factories = factories;
         this.order = order;
         this.requiredSize = requiredSize;
@@ -101,55 +99,44 @@ public class StringTermsAggregator extends BytesBucketAggregator {
 
         final ExtTHashMap<HashedBytesRef, BucketCollector> buckets = new ExtTHashMap<HashedBytesRef, BucketCollector>();
 
-        BytesValues values;
-        AggregationContext context;
-
         @Override
-        public void setNextContext(AggregationContext context) throws IOException {
-            this.context = context;
-            values = valuesSource.values();
-            for (Map.Entry<HashedBytesRef, BucketCollector> entry : buckets.entrySet()) {
-                entry.getValue().setNextContext(context);
-            }
-        }
-
-        @Override
-        public void collect(int doc) throws IOException {
+        public void collect(int doc, ValueSpace valueSpace) throws IOException {
+            BytesValues values = valuesSource.values();
 
             if (!values.hasValue(doc)) {
                 return;
             }
 
-            String valuesSourceKey = valuesSource.key();
+            Object valuesSourceKey = valuesSource.key();
             BytesRef scratch = new BytesRef();
             if (!values.isMultiValued()) {
                 int hash = values.getValueHashed(doc, scratch);
-                if (!context.accept(valuesSourceKey, scratch)) {
+                if (!valueSpace.accept(valuesSourceKey, scratch)) {
                     return;
                 }
                 HashedBytesRef term = new HashedBytesRef(scratch, hash);
                 BucketCollector bucket = buckets.get(term);
                 if (bucket == null) {
                     term.bytes = values.makeSafe(scratch);
-                    bucket = new BucketCollector(term.bytes, factories, context, StringTermsAggregator.this);
+                    bucket = new BucketCollector(term.bytes, factories, StringTermsAggregator.this);
                     buckets.put(term, bucket);
                 }
-                bucket.collect(doc);
+                bucket.collect(doc, valueSpace);
                 return;
             }
 
             // we'll first find all the buckets that match the values, and then propagate the document through them
             // we need to do that to avoid counting the same document more than once.
-            List<BucketCollector> matchedBuckets = findMatchedBuckets(doc, valuesSourceKey, values, context);
+            List<BucketCollector> matchedBuckets = findMatchedBuckets(doc, valuesSourceKey, values, valueSpace);
             if (matchedBuckets != null) {
                 for (int i = 0; i < matchedBuckets.size(); i++) {
-                    matchedBuckets.get(i).collect(doc);
+                    matchedBuckets.get(i).collect(doc, valueSpace);
                 }
             }
 
         }
 
-        private List<BucketCollector> findMatchedBuckets(int doc, String valuesSourceKey, BytesValues values, AggregationContext context) throws IOException {
+        private List<BucketCollector> findMatchedBuckets(int doc, Object valuesSourceKey, BytesValues values, ValueSpace context) throws IOException {
             List<BucketCollector> matchedBuckets = null;
             for (BytesValues.Iter iter = values.getIter(doc); iter.hasNext();) {
                 BytesRef value = iter.next();
@@ -161,7 +148,7 @@ public class StringTermsAggregator extends BytesBucketAggregator {
                 BucketCollector bucket = buckets.get(term);
                 if (bucket == null) {
                     term.bytes = values.makeSafe(value);
-                    bucket = new BucketCollector(term.bytes, factories, context, StringTermsAggregator.this);
+                    bucket = new BucketCollector(term.bytes, factories, StringTermsAggregator.this);
                     buckets.put(term, bucket);
                 }
                 if (matchedBuckets == null) {
@@ -190,19 +177,14 @@ public class StringTermsAggregator extends BytesBucketAggregator {
 
         long docCount;
 
-        BucketCollector(BytesRef term, List<Aggregator.Factory> factories, AggregationContext context, Aggregator aggregator) {
-            super(factories, context, aggregator);
+        BucketCollector(BytesRef term, List<Aggregator.Factory> factories, Aggregator aggregator) {
+            super(factories, aggregator);
             this.term = term;
         }
 
         @Override
-        protected boolean onDoc(int doc) throws IOException {
+        protected ValueSpace onDoc(int doc, ValueSpace context) throws IOException {
             docCount++;
-            return true;
-        }
-
-        @Override
-        protected AggregationContext setAndGetContext(AggregationContext context) throws IOException {
             return context;
         }
 

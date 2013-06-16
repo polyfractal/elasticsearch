@@ -22,15 +22,15 @@ package org.elasticsearch.search.aggregations.bucket.single.filter;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.util.Bits;
+import org.elasticsearch.common.lucene.ReaderContextAware;
 import org.elasticsearch.common.lucene.docset.DocIdSets;
+import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.ReaderBasedDataSource;
-import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
-import org.elasticsearch.search.internal.SearchContext;
+import org.elasticsearch.search.aggregations.context.ValueSpace;
 
 import java.io.IOException;
 import java.util.List;
@@ -38,7 +38,7 @@ import java.util.List;
 /**
  * Aggregate all docs that match a filter.
  */
-public class FilterAggregator extends SingleBucketAggregator implements ReaderBasedDataSource<Bits> {
+public class FilterAggregator extends SingleBucketAggregator implements ReaderContextAware {
 
     private final Filter filter;
 
@@ -49,11 +49,10 @@ public class FilterAggregator extends SingleBucketAggregator implements ReaderBa
     public FilterAggregator(String name,
                             org.apache.lucene.search.Filter filter,
                             List<Aggregator.Factory> factories,
-                            SearchContext searchContext,
-                            ValuesSourceFactory valuesSourceFactory,
+                            AggregationContext aggregationContext,
                             Aggregator parent) {
 
-        super(name, factories, searchContext, valuesSourceFactory, parent);
+        super(name, factories, aggregationContext, parent);
         this.filter = filter;
     }
 
@@ -68,8 +67,12 @@ public class FilterAggregator extends SingleBucketAggregator implements ReaderBa
     }
 
     @Override
-    public void setNextReader(AtomicReaderContext reader) throws IOException {
-        bits = DocIdSets.toSafeBits(reader.reader(), filter.getDocIdSet(reader, reader.reader().getLiveDocs()));
+    public void setNextReader(AtomicReaderContext reader) {
+        try {
+            bits = DocIdSets.toSafeBits(reader.reader(), filter.getDocIdSet(reader, reader.reader().getLiveDocs()));
+        } catch (IOException ioe) {
+            throw new AggregationExecutionException("Failed to aggregate filter aggregator [" + name + "]", ioe);
+        }
     }
 
     class Collector extends SingleBucketAggregator.BucketCollector {
@@ -81,18 +84,14 @@ public class FilterAggregator extends SingleBucketAggregator implements ReaderBa
             super(subAggregators, FilterAggregator.this);
         }
 
-        @Override
-        protected AggregationContext setAndGetContext(AggregationContext context) throws IOException {
-            return context;
-        }
 
         @Override
-        protected boolean onDoc(int doc) throws IOException {
+        protected ValueSpace onDoc(int doc, ValueSpace context) throws IOException {
             if (bits.get(doc)) {
                 docCount++;
-                return true;
+                return context;
             }
-            return false;
+            return null;
         }
 
         @Override
@@ -112,8 +111,10 @@ public class FilterAggregator extends SingleBucketAggregator implements ReaderBa
         }
 
         @Override
-        public FilterAggregator create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
-            return new FilterAggregator(name, filter, factories, searchContext, valuesSourceFactory, parent);
+        public FilterAggregator create(AggregationContext aggregationContext, Aggregator parent) {
+            FilterAggregator aggregator = new FilterAggregator(name, filter, factories, aggregationContext, parent);
+            aggregationContext.registerReaderContextAware(aggregator);
+            return aggregator;
         }
 
     }

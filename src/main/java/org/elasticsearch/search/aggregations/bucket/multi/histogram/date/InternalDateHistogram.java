@@ -23,7 +23,6 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.search.aggregations.AggregationStreams;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
-import org.elasticsearch.search.aggregations.bucket.multi.histogram.Histogram;
 import org.elasticsearch.search.aggregations.bucket.multi.histogram.InternalHistogram;
 import org.elasticsearch.search.aggregations.bucket.multi.histogram.InternalOrder;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
@@ -35,7 +34,7 @@ import java.util.List;
 /**
  *
  */
-public class InternalDateHistogram extends InternalHistogram implements DateHistogram {
+public class InternalDateHistogram extends InternalHistogram<DateHistogram.Bucket> implements DateHistogram {
 
     public final static Type TYPE = new Type("date_histogram", "dhisto");
 
@@ -54,6 +53,10 @@ public class InternalDateHistogram extends InternalHistogram implements DateHist
 
     static class Bucket extends InternalHistogram.Bucket implements DateHistogram.Bucket {
 
+        Bucket(long key, long docCount, InternalAggregations aggregations) {
+            super(key, docCount, aggregations);
+        }
+
         Bucket(long key, long docCount, List<InternalAggregation> aggregations) {
             super(key, docCount, new InternalAggregations(aggregations));
         }
@@ -64,10 +67,10 @@ public class InternalDateHistogram extends InternalHistogram implements DateHist
         }
     }
 
-    static class Factory extends InternalHistogram.Factory {
+    static class Factory extends InternalHistogram.Factory<DateHistogram.Bucket> {
 
         @Override
-        public InternalHistogram create(String name, List<Histogram.Bucket> buckets, InternalOrder order, ValueFormatter formatter, boolean keyed) {
+        public InternalHistogram create(String name, List<DateHistogram.Bucket> buckets, InternalOrder order, ValueFormatter formatter, boolean keyed) {
             return new InternalDateHistogram(name, buckets, order, formatter, keyed);
         }
 
@@ -79,7 +82,12 @@ public class InternalDateHistogram extends InternalHistogram implements DateHist
 
     InternalDateHistogram() {} // for serialization
 
-    InternalDateHistogram(String name, List<Histogram.Bucket> buckets, InternalOrder order, ValueFormatter formatter, boolean keyed) {
+    InternalDateHistogram(String name, List<DateHistogram.Bucket> buckets, InternalOrder order, ValueFormatter formatter, boolean keyed) {
         super(name, buckets, order, formatter, keyed);
+    }
+
+    @Override
+    protected DateHistogram.Bucket createBucket(long key, long docCount, InternalAggregations aggregations) {
+        return new Bucket(key, docCount, aggregations);
     }
 }

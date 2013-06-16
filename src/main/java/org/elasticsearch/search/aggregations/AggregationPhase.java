@@ -33,8 +33,8 @@ import org.elasticsearch.common.lucene.search.XFilteredQuery;
 import org.elasticsearch.search.SearchParseElement;
 import org.elasticsearch.search.SearchPhase;
 import org.elasticsearch.search.aggregations.bucket.single.global.GlobalAggregator;
-import org.elasticsearch.search.aggregations.context.DefaultAggregationContext;
-import org.elasticsearch.search.aggregations.context.ValuesSourceContext;
+import org.elasticsearch.search.aggregations.context.AggregationContext;
+import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.search.query.QueryPhaseExecutionException;
 
@@ -70,12 +70,12 @@ public class AggregationPhase implements SearchPhase {
     @Override
     public void preProcess(SearchContext context) {
         if (context.aggregations() != null) {
-            ValuesSourceContext valuesSourceContext = new ValuesSourceContext();
-            context.aggregations().valuesSourceContext(valuesSourceContext);
+            AggregationContext aggregationContext = new AggregationContext(context);
+            context.aggregations().valuesSourceContext(aggregationContext);
             List<Aggregator.Collector> collectors = new ArrayList<Aggregator.Collector>();
             List<Aggregator> aggregators = new ArrayList<Aggregator>(context.aggregations().factories().size());
             for (Aggregator.Factory factory : context.aggregations().factories()) {
-                Aggregator aggregator = factory.create(context, valuesSourceContext, null);
+                Aggregator aggregator = factory.create(aggregationContext, null);
                 aggregators.add(aggregator);
                 if (!(aggregator instanceof GlobalAggregator)) {
                     Aggregator.Collector collector = aggregator.collector();
@@ -86,7 +86,7 @@ public class AggregationPhase implements SearchPhase {
             }
             context.aggregations().aggregators(aggregators);
             if (!collectors.isEmpty()) {
-                context.searcher().addMainQueryCollector(new AggregationsCollector(collectors, valuesSourceContext));
+                context.searcher().addMainQueryCollector(new AggregationsCollector(collectors, aggregationContext));
             }
         }
     }
@@ -136,32 +136,29 @@ public class AggregationPhase implements SearchPhase {
 
     static class AggregationsCollector extends XCollector {
 
-        private final ValuesSourceContext valuesSourceContext;
+        private final AggregationContext aggregationContext;
         private final List<Aggregator.Collector> collectors;
 
-        AggregationsCollector(List<Aggregator.Collector> collectors, ValuesSourceContext valuesSourceContext) {
+        AggregationsCollector(List<Aggregator.Collector> collectors, AggregationContext aggregationContext) {
             this.collectors = collectors;
-            this.valuesSourceContext = valuesSourceContext;
+            this.aggregationContext = aggregationContext;
         }
 
         @Override
         public void setScorer(Scorer scorer) throws IOException {
-            valuesSourceContext.setScorer(scorer);
+            aggregationContext.setScorer(scorer);
         }
 
         @Override
         public void collect(int doc) throws IOException {
             for (int i = 0; i < collectors.size(); i++) {
-                collectors.get(i).collect(doc);
+                collectors.get(i).collect(doc, ValueSpace.DEFAULT);
             }
         }
 
         @Override
         public void setNextReader(AtomicReaderContext context) throws IOException {
-            valuesSourceContext.setNextReader(context);
-            for (int i = 0; i < collectors.size(); i++) {
-                collectors.get(i).setNextContext(DefaultAggregationContext.INSTANCE);
-            }
+            aggregationContext.setNextReader(context);
         }
 
         @Override

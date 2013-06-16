@@ -19,16 +19,12 @@
 
 package org.elasticsearch.search.aggregations.bucket;
 
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.search.Scorer;
-import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.ValuesSourceAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
+import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
 import org.elasticsearch.search.aggregations.context.ValuesSourceBased;
-import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
-import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -41,11 +37,10 @@ public abstract class ValuesSourceBucketAggregator<VS extends ValuesSource> exte
     public ValuesSourceBucketAggregator(String name,
                                         VS valuesSource,
                                         Class<VS> valuesSourceType,
-                                        SearchContext searchContext,
-                                        ValuesSourceFactory valuesSourceFactory,
+                                        AggregationContext aggregationContext,
                                         Aggregator parent) {
 
-        super(name, valuesSource, valuesSourceType, searchContext, valuesSourceFactory, parent);
+        super(name, valuesSource, valuesSourceType, aggregationContext, parent);
     }
 
     protected static abstract class BucketCollector<VS extends ValuesSource> implements Collector {
@@ -54,8 +49,6 @@ public abstract class ValuesSourceBucketAggregator<VS extends ValuesSource> exte
         protected final VS valuesSource;
         public final Aggregator[] subAggregators;
         public final Collector[] collectors;
-
-        protected AggregationContext parentContext;
 
         /**
          * Creates a new bucket level collector with already initialized sub-aggregators. This ctor will normally be used
@@ -84,13 +77,9 @@ public abstract class ValuesSourceBucketAggregator<VS extends ValuesSource> exte
          *
          * @param valuesSource  The value source this collector works with
          * @param factories     The factories for all the sub-aggregators of the bucket
-         * @param reader        The current reader context
-         * @param scorer        The current scorer
-         * @param context       The current aggregation context
          * @param aggregator    The "owning" aggregator (the aggregator this collector belongs to)
          */
-        public BucketCollector(VS valuesSource, List<Aggregator.Factory> factories, AtomicReaderContext reader,
-                               Scorer scorer, AggregationContext context, Aggregator aggregator) {
+        public BucketCollector(VS valuesSource, List<Aggregator.Factory> factories, Aggregator aggregator) {
 
             this.aggregator = aggregator;
             this.valuesSource = valuesSource;
@@ -98,13 +87,8 @@ public abstract class ValuesSourceBucketAggregator<VS extends ValuesSource> exte
             this.collectors = new Collector[subAggregators.length];
             int i = 0;
             for (Aggregator.Factory factory : factories) {
-                subAggregators[i] = factory.create(aggregator.searchContext(), aggregator.valuesSourceFactory(), aggregator);
+                subAggregators[i] = factory.create(aggregator.aggregationContext(), aggregator);
                 collectors[i] = subAggregators[i].collector();
-                try {
-                    collectors[i].setNextContext(context);
-                } catch (IOException ioe) {
-                    throw new AggregationExecutionException("Failed to aggregate [" + aggregator.name() + "]", ioe);
-                }
                 i++;
             }
         }
@@ -120,30 +104,18 @@ public abstract class ValuesSourceBucketAggregator<VS extends ValuesSource> exte
         }
 
         @Override
-        public void setNextContext(AggregationContext context) throws IOException {
-            this.parentContext = context;
-            context = setNextValues(valuesSource, context);
-            for (int i = 0; i < collectors.length; i++) {
-                if (collectors[i] != null) {
-                    collectors[i].setNextContext(context);
-                }
-            }
-        }
-
-        @Override
-        public final void collect(int doc) throws IOException {
-            if (onDoc(doc, parentContext)) {
+        public final void collect(int doc, ValueSpace valueSpace) throws IOException {
+            valueSpace = onDoc(doc, valueSpace);
+            if (valueSpace != null) {
                 for (int i = 0; i < collectors.length; i++) {
                     if (collectors[i] != null) {
-                        collectors[i].collect(doc);
+                        collectors[i].collect(doc, valueSpace);
                     }
                 }
             }
         }
 
-        protected abstract AggregationContext setNextValues(VS valuesSource, AggregationContext context) throws IOException;
-
-        protected abstract boolean onDoc(int doc, AggregationContext context) throws IOException;
+        protected abstract ValueSpace onDoc(int doc, ValueSpace context) throws IOException;
 
         protected abstract void postCollection(Aggregator[] aggregators);
 

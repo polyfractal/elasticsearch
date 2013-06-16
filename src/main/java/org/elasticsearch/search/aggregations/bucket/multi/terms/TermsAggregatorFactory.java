@@ -31,6 +31,7 @@ import org.elasticsearch.search.aggregations.bucket.multi.terms.longs.LongTermsA
 import org.elasticsearch.search.aggregations.bucket.multi.terms.string.StringTermsAggregator;
 import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
@@ -71,19 +72,19 @@ public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregato
     }
 
     @Override
-    public Aggregator create(SearchContext searchContext, Aggregator parent) {
+    public Aggregator create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
 
-        ValuesSource valuesSource = resolveValueSource(parent);
+        ValuesSource valuesSource = resolveValueSource(valuesSourceFactory, parent);
 
         if (valuesSource instanceof BytesValuesSource) {
-            return new StringTermsAggregator(name, factories, (BytesValuesSource) valuesSource, order, requiredSize, searchContext, parent);
+            return new StringTermsAggregator(name, factories, (BytesValuesSource) valuesSource, order, requiredSize, searchContext, valuesSourceFactory, parent);
         }
 
         if (valuesSource instanceof NumericValuesSource) {
             if (((NumericValuesSource) valuesSource).isFloatingPoint()) {
-                return new DoubleTermsAggregator(name, factories, (NumericValuesSource) valuesSource, order, requiredSize, searchContext, parent);
+                return new DoubleTermsAggregator(name, factories, (NumericValuesSource) valuesSource, order, requiredSize, searchContext, valuesSourceFactory, parent);
             }
-            return new LongTermsAggregator(name, factories, (NumericValuesSource) valuesSource, order, requiredSize, searchContext, parent);
+            return new LongTermsAggregator(name, factories, (NumericValuesSource) valuesSource, order, requiredSize, searchContext, valuesSourceFactory, parent);
         }
 
         throw new AggregationExecutionException("terms aggregation cannot be applied to field [" + fieldContext.field() +
@@ -91,7 +92,7 @@ public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregato
 
     }
 
-    private ValuesSource resolveValueSource(Aggregator parent) {
+    private ValuesSource resolveValueSource(ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
 
         if (fieldContext == null) {
 
@@ -103,6 +104,8 @@ public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregato
                         // the user defined a format that should be used with the inherited value source... so we wrap it with the new format
                         // but right now we only support configurable date formats
                         ValueFormatter formatter = new ValueFormatter.DateTime(format);
+
+                        //TODO move to the factory
                         return new NumericValuesSource.Delegate((NumericValuesSource) valuesSource, formatter);
                     }
                     return valuesSource;
@@ -125,22 +128,22 @@ public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregato
                     new ValueFormatter.DateTime(mapper.dateTimeFormatter()) :
                     new ValueFormatter.DateTime(format);
             ValueParser parser = new ValueParser.DateMath(mapper.dateMathParser());
-            return new LongValuesSource.FieldData(fieldContext, script, formatter, parser);
+            return valuesSourceFactory.longField(fieldContext, script, formatter, parser);
         }
 
         // ip field
         if (fieldContext.mapper() instanceof IpFieldMapper) {
-            return new LongValuesSource.FieldData(fieldContext, script, ValueFormatter.IPv4, ValueParser.IPv4);
+            return valuesSourceFactory.longField(fieldContext, script, ValueFormatter.IPv4, ValueParser.IPv4);
         }
 
         if (fieldContext.indexFieldData() instanceof IndexNumericFieldData) {
             if (((IndexNumericFieldData) fieldContext.indexFieldData()).getNumericType().isFloatingPoint()) {
-                return new DoubleValuesSource.FieldData(fieldContext.field(), fieldContext.indexFieldData(), script, null, null);
+                return valuesSourceFactory.doubleField(fieldContext, script, null, null);
             }
-            return new LongValuesSource.FieldData(fieldContext.field(), fieldContext.indexFieldData(), script, null, null);
+            return valuesSourceFactory.longField(fieldContext, script, null, null);
         }
 
-        return new BytesValuesSource.FieldData(fieldContext.field(), fieldContext.indexFieldData(), script);
+        return valuesSourceFactory.bytesField(fieldContext, script);
     }
 
 }

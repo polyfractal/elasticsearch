@@ -21,12 +21,13 @@ package org.elasticsearch.search.aggregations.bucket;
 
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
-import org.elasticsearch.search.aggregations.ValuesSourceAggregator;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
+import org.elasticsearch.search.aggregations.ValuesSourceAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
 import org.elasticsearch.search.aggregations.context.ValuesSourceBased;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -37,8 +38,14 @@ import java.util.List;
  */
 public abstract class ValuesSourceBucketAggregator<VS extends ValuesSource> extends ValuesSourceAggregator<VS> implements ValuesSourceBased {
 
-    public ValuesSourceBucketAggregator(String name, VS valuesSource, Class<VS> valuesSourceType, SearchContext searchContext, Aggregator parent) {
-        super(name, valuesSource, valuesSourceType, searchContext, parent);
+    public ValuesSourceBucketAggregator(String name,
+                                        VS valuesSource,
+                                        Class<VS> valuesSourceType,
+                                        SearchContext searchContext,
+                                        ValuesSourceFactory valuesSourceFactory,
+                                        Aggregator parent) {
+
+        super(name, valuesSource, valuesSourceType, searchContext, valuesSourceFactory, parent);
     }
 
     protected static abstract class BucketCollector<VS extends ValuesSource> implements Collector {
@@ -91,15 +98,10 @@ public abstract class ValuesSourceBucketAggregator<VS extends ValuesSource> exte
             this.collectors = new Collector[subAggregators.length];
             int i = 0;
             for (Aggregator.Factory factory : factories) {
-                subAggregators[i] = factory.create(aggregator.searchContext(), aggregator);
+                subAggregators[i] = factory.create(aggregator.searchContext(), aggregator.valuesSourceFactory(), aggregator);
                 collectors[i] = subAggregators[i].collector();
                 try {
-                    if (reader != null) {
-                        collectors[i].setNextReader(reader, context);
-                    }
-                    if (scorer != null) {
-                        collectors[i].setScorer(scorer);
-                    }
+                    collectors[i].setNextContext(context);
                 } catch (IOException ioe) {
                     throw new AggregationExecutionException("Failed to aggregate [" + aggregator.name() + "]", ioe);
                 }
@@ -118,26 +120,15 @@ public abstract class ValuesSourceBucketAggregator<VS extends ValuesSource> exte
         }
 
         @Override
-        public void setScorer(Scorer scorer) throws IOException {
-            for (int i = 0; i < collectors.length; i++) {
-                if (collectors[i] != null) {
-                    collectors[i].setScorer(scorer);
-                }
-            }
-        }
-
-        @Override
-        public final void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException {
+        public void setNextContext(AggregationContext context) throws IOException {
             this.parentContext = context;
-            valuesSource.setNextReader(reader);
             context = setNextValues(valuesSource, context);
             for (int i = 0; i < collectors.length; i++) {
                 if (collectors[i] != null) {
-                    collectors[i].setNextReader(reader, context);
+                    collectors[i].setNextContext(context);
                 }
             }
         }
-
 
         @Override
         public final void collect(int doc) throws IOException {

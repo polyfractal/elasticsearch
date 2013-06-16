@@ -20,12 +20,11 @@
 package org.elasticsearch.search.aggregations.context.numeric.longs;
 
 import org.elasticsearch.common.Nullable;
-import org.elasticsearch.index.fielddata.AtomicNumericFieldData;
 import org.elasticsearch.index.fielddata.DoubleValues;
-import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.script.SearchScript;
-import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.FieldDataSource;
+import org.elasticsearch.search.aggregations.context.ValueScriptValues;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
@@ -41,20 +40,12 @@ public interface LongValuesSource extends NumericValuesSource {
 
         private LongDoubleValues doubleValues;
 
-        public FieldData(FieldContext fieldContext,
-                         @Nullable SearchScript searchScript,
-                         @Nullable ValueFormatter formatter,
-                         @Nullable ValueParser parser) {
-            this(fieldContext.field(), fieldContext.indexFieldData(), searchScript, formatter, parser);
-        }
-
-        public FieldData(String field,
-                         IndexFieldData indexFieldData,
-                         @Nullable SearchScript valueScript,
+        public FieldData(FieldDataSource<LongValues> source,
+                         @Nullable SearchScript script,
                          @Nullable ValueFormatter formatter,
                          @Nullable ValueParser parser) {
 
-            super(field, indexFieldData, valueScript, formatter, parser);
+            super(source, script, formatter, parser);
         }
 
         @Override
@@ -78,12 +69,8 @@ public interface LongValuesSource extends NumericValuesSource {
         }
 
         @Override
-        public LongValues loadValues() throws IOException {
-            LongValues values = fieldData != null ? ((AtomicNumericFieldData) fieldData).getLongValues() : null;
-            if (values == null) {
-                return null;
-            }
-            return valueScript != null ? new ValueScriptLongValues(values, valueScript) : values;
+        protected ValueScriptValues<LongValues> createScriptValues(SearchScript script) {
+            return new ValueScriptLongValues(script);
         }
     }
 
@@ -116,9 +103,68 @@ public interface LongValuesSource extends NumericValuesSource {
         }
 
         @Override
-        public ScriptLongValues createValues(SearchScript script, boolean multiValue) throws IOException {
+        public ScriptLongValues createValues(SearchScript script, boolean multiValue) {
             return new ScriptLongValues(script, multiValue);
         }
     }
 
+    /**
+     *
+     */
+    static class ValueScriptLongValues extends LongValues implements ValueScriptValues<LongValues> {
+
+        private LongValues values;
+        private final SearchScript script;
+        private final InternalIter iter;
+
+        public ValueScriptLongValues(SearchScript script) {
+            super(true);
+            this.script = script;
+            this.iter = new InternalIter(script);
+        }
+
+        @Override
+        public void reset(LongValues values) {
+            this.multiValued = values.isMultiValued();
+            this.values = values;
+        }
+
+        @Override
+        public boolean hasValue(int docId) {
+            return values.hasValue(docId);
+        }
+
+        @Override
+        public long getValue(int docId) {
+            script.setNextVar("_value", values.getValue(docId));
+            return script.runAsLong();
+        }
+
+        @Override
+        public Iter getIter(int docId) {
+            this.iter.iter = values.getIter(docId);
+            return this.iter;
+        }
+
+        static class InternalIter implements Iter {
+
+            private final SearchScript script;
+            private Iter iter;
+
+            InternalIter(SearchScript script) {
+                this.script = script;
+            }
+
+            @Override
+            public boolean hasNext() {
+                return iter.hasNext();
+            }
+
+            @Override
+            public long next() {
+                script.setNextVar("_value", iter.next());
+                return script.runAsLong();
+            }
+        }
+    }
 }

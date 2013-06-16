@@ -20,8 +20,6 @@
 package org.elasticsearch.search.aggregations.bucket.multi.range;
 
 import com.google.common.collect.Lists;
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.search.Scorer;
 import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
@@ -29,6 +27,7 @@ import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.bucket.DoubleBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
@@ -92,9 +91,10 @@ public class RangeAggregator extends DoubleBucketAggregator {
                            List<Range> ranges,
                            boolean keyed,
                            SearchContext searchContext,
+                           ValuesSourceFactory valuesSourceFactory,
                            Aggregator parent) {
 
-        super(name, valuesSource, searchContext, parent);
+        super(name, valuesSource, searchContext, valuesSourceFactory, parent);
         this.keyed = keyed;
         this.rangeFactory = rangeFactory;
         bucketCollectors = new BucketCollector[ranges.size()];
@@ -121,12 +121,6 @@ public class RangeAggregator extends DoubleBucketAggregator {
 
     class Collector implements Aggregator.Collector {
 
-        @Override
-        public void setScorer(Scorer scorer) throws IOException {
-            for (int i = 0; i < bucketCollectors.length; i++) {
-                bucketCollectors[i].setScorer(scorer);
-            }
-        }
 
         @Override
         public void collect(int doc) throws IOException {
@@ -136,9 +130,9 @@ public class RangeAggregator extends DoubleBucketAggregator {
         }
 
         @Override
-        public void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException {
+        public void setNextContext(AggregationContext context) throws IOException {
             for (int i = 0; i < bucketCollectors.length; i++) {
-                bucketCollectors[i].setNextReader(reader, context);
+                bucketCollectors[i].setNextContext(context);
             }
         }
 
@@ -227,9 +221,10 @@ public class RangeAggregator extends DoubleBucketAggregator {
         }
 
         @Override
-        protected RangeAggregator create(NumericValuesSource source, SearchContext searchContext, Aggregator parent) {
-            return new RangeAggregator(name, factories, source, rangeFactory, ranges, keyed, searchContext, parent);
+        protected RangeAggregator create(NumericValuesSource source, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            return new RangeAggregator(name, factories, source, rangeFactory, ranges, keyed, searchContext, valuesSourceFactory, parent);
         }
+
     }
 
     public static class ScriptFactory extends DoubleBucketAggregator.ScriptFactory<RangeAggregator> {
@@ -253,8 +248,8 @@ public class RangeAggregator extends DoubleBucketAggregator {
         }
 
         @Override
-        protected RangeAggregator create(DoubleValuesSource source, SearchContext searchContext, Aggregator parent) {
-            return new RangeAggregator(name, factories, source, rangeFactory, ranges, keyed, searchContext, parent);
+        protected RangeAggregator create(DoubleValuesSource source, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            return new RangeAggregator(name, factories, source, rangeFactory, ranges, keyed, searchContext, valuesSourceFactory, parent);
         }
     }
 
@@ -272,8 +267,8 @@ public class RangeAggregator extends DoubleBucketAggregator {
         }
 
         @Override
-        public RangeAggregator create(SearchContext searchContext, Aggregator parent) {
-            return new RangeAggregator(name, factories, null, rangeFactory, ranges, keyed, searchContext, parent);
+        public RangeAggregator create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            return new RangeAggregator(name, factories, null, rangeFactory, ranges, keyed, searchContext, valuesSourceFactory, parent);
         }
     }
 

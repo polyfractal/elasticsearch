@@ -25,6 +25,7 @@ import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.calc.BytesCalcAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
 
@@ -37,8 +38,8 @@ public class CountAggregator extends BytesCalcAggregator {
 
     long value;
 
-    public CountAggregator(String name, BytesValuesSource valuesSource, SearchContext searchContext, Aggregator parent) {
-        super(name, valuesSource, searchContext, parent);
+    public CountAggregator(String name, BytesValuesSource valuesSource, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+        super(name, valuesSource, searchContext, valuesSourceFactory, parent);
     }
 
     @Override
@@ -90,10 +91,9 @@ public class CountAggregator extends BytesCalcAggregator {
         }
 
         @Override
-        protected CountAggregator create(BytesValuesSource source, SearchContext searchContext, Aggregator parent) {
-            return new CountAggregator(name, source, searchContext, parent);
+        protected CountAggregator create(BytesValuesSource source, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            return new CountAggregator(name, source, searchContext, valuesSourceFactory, parent);
         }
-
     }
 
     public static class ContextBasedFactory extends BytesCalcAggregator.ContextBasedFactory<CountAggregator> {
@@ -103,8 +103,8 @@ public class CountAggregator extends BytesCalcAggregator {
         }
 
         @Override
-        public CountAggregator create(SearchContext context, Aggregator parent) {
-            return new CountAggregator(name, null, context, parent);
+        public CountAggregator create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            return new CountAggregator(name, null, searchContext, valuesSourceFactory, parent);
         }
 
     }

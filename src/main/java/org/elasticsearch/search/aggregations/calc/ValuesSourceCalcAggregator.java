@@ -19,13 +19,12 @@
 
 package org.elasticsearch.search.aggregations.calc;
 
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.search.Scorer;
-import org.elasticsearch.search.aggregations.ValuesSourceAggregator;
 import org.elasticsearch.search.aggregations.Aggregator;
+import org.elasticsearch.search.aggregations.ValuesSourceAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
 import org.elasticsearch.search.aggregations.context.ValuesSourceBased;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -35,8 +34,14 @@ import java.io.IOException;
  */
 public abstract class ValuesSourceCalcAggregator<VS extends ValuesSource> extends ValuesSourceAggregator<VS> implements ValuesSourceBased {
 
-    public ValuesSourceCalcAggregator(String name, VS valuesSource, Class<VS> valueSourceType, SearchContext searchContext, Aggregator parent) {
-        super(name, valuesSource, valueSourceType, searchContext, parent);
+    public ValuesSourceCalcAggregator(String name,
+                                      VS valuesSource,
+                                      Class<VS> valueSourceType,
+                                      SearchContext searchContext,
+                                      ValuesSourceFactory valuesSourceFactory,
+                                      Aggregator parent) {
+
+        super(name, valuesSource, valueSourceType, searchContext, valuesSourceFactory, parent);
     }
 
 
@@ -51,15 +56,7 @@ public abstract class ValuesSourceCalcAggregator<VS extends ValuesSource> extend
         }
 
         @Override
-        public void setScorer(Scorer scorer) throws IOException {
-            if (valuesSource != null) {
-                valuesSource.setNextScorer(scorer);
-            }
-        }
-
-        @Override
-        public final void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException {
-            valuesSource.setNextReader(reader);
+        public void setNextContext(AggregationContext context) throws IOException {
             setNextValues(valuesSource, context);
         }
 

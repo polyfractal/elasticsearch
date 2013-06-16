@@ -23,6 +23,7 @@ import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.util.List;
@@ -36,8 +37,9 @@ public abstract class SingleBucketAggregator extends BucketAggregator {
 
     private final Aggregator[] subAggregators;
 
-    protected SingleBucketAggregator(String name, List<Aggregator.Factory> factories, SearchContext searchContext, Aggregator parent) {
-        super(name, searchContext, parent);
+    protected SingleBucketAggregator(String name, List<Aggregator.Factory> factories,
+                                     SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+        super(name, searchContext, valuesSourceFactory, parent);
         subAggregators = createAggregators(factories, this);
     }
 

@@ -29,6 +29,7 @@ import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
@@ -43,8 +44,13 @@ import java.util.List;
  */
 public abstract class LongBucketAggregator extends ValuesSourceBucketAggregator<NumericValuesSource> {
 
-    public LongBucketAggregator(String name, NumericValuesSource valuesSource, SearchContext searchContext, Aggregator parent) {
-        super(name, valuesSource, NumericValuesSource.class, searchContext, parent);
+    public LongBucketAggregator(String name,
+                                NumericValuesSource valuesSource,
+                                SearchContext searchContext,
+                                ValuesSourceFactory valuesSourceFactory,
+                                Aggregator parent) {
+
+        super(name, valuesSource, NumericValuesSource.class, searchContext, valuesSourceFactory, parent);
     }
 
     public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<NumericValuesSource> implements AggregationContext {
@@ -125,12 +131,12 @@ public abstract class LongBucketAggregator extends ValuesSourceBucketAggregator<
         }
 
         @Override
-        public final A create(SearchContext searchContext, Aggregator parent) {
-            NumericValuesSource source = new LongValuesSource.FieldData(fieldContext, valueScript, formatter, parser);
-            return create(source, searchContext, parent);
+        public final A create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            NumericValuesSource source = valuesSourceFactory.longField(fieldContext, valueScript, formatter, parser);
+            return create(source, searchContext, valuesSourceFactory, parent);
         }
 
-        protected abstract A create(NumericValuesSource source, SearchContext searchContext, Aggregator parent);
+        protected abstract A create(NumericValuesSource source, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent);
     }
 
     protected abstract static class ScriptFactory<A extends LongBucketAggregator> extends CompoundFactory<A> {
@@ -147,11 +153,11 @@ public abstract class LongBucketAggregator extends ValuesSourceBucketAggregator<
         }
 
         @Override
-        public final A create(SearchContext searchContext, Aggregator parent) {
-            return create(new LongValuesSource.Script(script, multiValued, formatter), searchContext, parent);
+        public A create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            return create(valuesSourceFactory.longScript(script, multiValued, formatter), searchContext, valuesSourceFactory, parent);
         }
 
-        protected abstract A create(LongValuesSource source, SearchContext searchContext, Aggregator parent);
+        protected abstract A create(LongValuesSource source, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent);
     }
 
     protected abstract static class ContextBasedFactory<A extends LongBucketAggregator> extends CompoundFactory<A> {

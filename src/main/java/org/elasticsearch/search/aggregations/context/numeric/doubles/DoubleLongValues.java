@@ -71,4 +71,5 @@ public class DoubleLongValues extends LongValues {
             return (long) iter.next();
         }
     }
+
 }

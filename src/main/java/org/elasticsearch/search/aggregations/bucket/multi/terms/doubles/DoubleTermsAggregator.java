@@ -21,8 +21,6 @@ package org.elasticsearch.search.aggregations.bucket.multi.terms.doubles;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.search.Scorer;
 import org.elasticsearch.common.collect.BoundedTreeSet;
 import org.elasticsearch.common.trove.ExtTDoubleObjectHashMap;
 import org.elasticsearch.index.fielddata.DoubleValues;
@@ -33,6 +31,7 @@ import org.elasticsearch.search.aggregations.bucket.multi.terms.BucketPriorityQu
 import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalTerms;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.facet.terms.support.EntryPriorityQueue;
 import org.elasticsearch.search.internal.SearchContext;
@@ -55,8 +54,8 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
     ExtTDoubleObjectHashMap<BucketCollector> bucketCollectors;
 
     public DoubleTermsAggregator(String name, List<Aggregator.Factory> factories, NumericValuesSource valuesSource,
-                                 Terms.Order order, int requiredSize, SearchContext searchContext, Aggregator parent) {
-        super(name, valuesSource, searchContext, parent);
+                                 Terms.Order order, int requiredSize, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+        super(name, valuesSource, searchContext, valuesSourceFactory, parent);
         this.factories = factories;
         this.order = order;
         this.requiredSize = requiredSize;
@@ -102,30 +101,15 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
         final ExtTDoubleObjectHashMap<BucketCollector> bucketCollectors = new ExtTDoubleObjectHashMap<BucketCollector>();
 
         DoubleValues values;
-        Scorer scorer;
-        AtomicReaderContext reader;
         AggregationContext context;
 
         @Override
-        public void setScorer(Scorer scorer) throws IOException {
-            this.scorer = scorer;
-            valuesSource.setNextScorer(scorer);
-            for (Object bucketCollector : bucketCollectors.internalValues()) {
-                if (bucketCollector != null) {
-                    ((BucketCollector) bucketCollector).setScorer(scorer);
-                }
-            }
-        }
-
-        @Override
-        public void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException {
-            this.reader = reader;
+        public void setNextContext(AggregationContext context) throws IOException {
             this.context = context;
-            valuesSource.setNextReader(reader);
             values = valuesSource.doubleValues();
             for (Object bucketCollector : bucketCollectors.internalValues()) {
                 if (bucketCollector != null) {
-                    ((BucketCollector) bucketCollector).setNextReader(reader, context);
+                    ((BucketCollector) bucketCollector).setNextContext(context);
                 }
             }
         }
@@ -145,7 +129,7 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
                 }
                 BucketCollector bucket = bucketCollectors.get(term);
                 if (bucket == null) {
-                    bucket = new BucketCollector(term, reader, scorer, context, DoubleTermsAggregator.this);
+                    bucket = new BucketCollector(term, context, DoubleTermsAggregator.this);
                     bucketCollectors.put(term, bucket);
                 }
                 bucket.collect(doc);
@@ -170,7 +154,7 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
                 }
                 BucketCollector bucket = bucketCollectors.get(term);
                 if (bucket == null) {
-                    bucket = new BucketCollector(term, reader, scorer, context, DoubleTermsAggregator.this);
+                    bucket = new BucketCollector(term, context, DoubleTermsAggregator.this);
                     bucketCollectors.put(term, bucket);
                 }
                 if (matchedBuckets == null) {
@@ -198,13 +182,13 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
 
         long docCount;
 
-        BucketCollector(double term, AtomicReaderContext reader, Scorer scorer, AggregationContext context, DoubleTermsAggregator parent) {
-            super(parent.factories, reader, scorer, context, parent);
+        BucketCollector(double term, AggregationContext context, DoubleTermsAggregator parent) {
+            super(parent.factories, context, parent);
             this.term = term;
         }
 
         @Override
-        protected AggregationContext setReaderAngGetContext(AtomicReaderContext reader, AggregationContext context) throws IOException {
+        protected AggregationContext setAndGetContext(AggregationContext context) throws IOException {
             return context;
         }
 

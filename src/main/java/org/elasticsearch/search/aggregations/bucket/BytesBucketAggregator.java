@@ -28,6 +28,7 @@ import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
 
@@ -39,8 +40,13 @@ import java.util.List;
  */
 public abstract class BytesBucketAggregator extends ValuesSourceBucketAggregator<BytesValuesSource> {
 
-    protected BytesBucketAggregator(String name, BytesValuesSource valuesSource, SearchContext searchContext, Aggregator parent) {
-        super(name, valuesSource, BytesValuesSource.class, searchContext, parent);
+    protected BytesBucketAggregator(String name,
+                                    BytesValuesSource valuesSource,
+                                    SearchContext searchContext,
+                                    ValuesSourceFactory valuesSourceFactory,
+                                    Aggregator parent) {
+
+        super(name, valuesSource, BytesValuesSource.class, searchContext, valuesSourceFactory, parent);
     }
 
     public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<BytesValuesSource> implements AggregationContext {
@@ -110,8 +116,8 @@ public abstract class BytesBucketAggregator extends ValuesSourceBucketAggregator
         }
 
         @Override
-        public final A create(SearchContext searchContext, Aggregator parent) {
-            BytesValuesSource source = new BytesValuesSource.FieldData(fieldContext.field(), fieldContext.indexFieldData(), valueScript);
+        public A create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            BytesValuesSource source = valuesSourceFactory.bytesField(fieldContext, valueScript);
             return create(source, searchContext, parent);
         }
 
@@ -130,8 +136,8 @@ public abstract class BytesBucketAggregator extends ValuesSourceBucketAggregator
         }
 
         @Override
-        public final A create(SearchContext searchContext, Aggregator parent) {
-            return create(new BytesValuesSource.Script(script, multiValued), searchContext, parent);
+        public A create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            return create(valuesSourceFactory.bytesScript(script, multiValued), searchContext, parent);
         }
 
         protected abstract A create(BytesValuesSource source, SearchContext searchContext, Aggregator parent);

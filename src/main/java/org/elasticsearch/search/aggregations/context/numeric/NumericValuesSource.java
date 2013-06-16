@@ -19,13 +19,11 @@
 
 package org.elasticsearch.search.aggregations.context.numeric;
 
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.search.Scorer;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.index.fielddata.DoubleValues;
-import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.script.SearchScript;
+import org.elasticsearch.search.aggregations.context.FieldDataSource;
 import org.elasticsearch.search.aggregations.context.ScriptValues;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
 
@@ -51,13 +49,12 @@ public interface NumericValuesSource extends ValuesSource {
         private final ValueFormatter formatter;
         private final ValueParser parser;
 
-        protected FieldData(String field,
-                            IndexFieldData indexFieldData,
-                            @Nullable SearchScript valueScript,
+        protected FieldData(FieldDataSource<Values> source,
+                            @Nullable SearchScript script,
                             @Nullable ValueFormatter formatter,
                             @Nullable ValueParser parser) {
 
-            super(field, indexFieldData, valueScript);
+            super(source, script);
             this.formatter = formatter;
             this.parser = parser;
         }
@@ -142,16 +139,6 @@ public interface NumericValuesSource extends ValuesSource {
         @Override
         public String key() {
             return valuesSource.key();
-        }
-
-        @Override
-        public void setNextScorer(Scorer scorer) {
-            valuesSource.setNextScorer(scorer);
-        }
-
-        @Override
-        public void setNextReader(AtomicReaderContext reader) {
-            valuesSource.setNextReader(reader);
         }
     }
 }

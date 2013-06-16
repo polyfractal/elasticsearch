@@ -29,6 +29,7 @@ import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
@@ -43,8 +44,13 @@ import java.util.List;
  */
 public abstract class DoubleBucketAggregator extends ValuesSourceBucketAggregator<NumericValuesSource> {
 
-    protected DoubleBucketAggregator(String name, NumericValuesSource valuesSource, SearchContext searchContext, Aggregator parent) {
-        super(name, valuesSource, NumericValuesSource.class, searchContext, parent);
+    protected DoubleBucketAggregator(String name,
+                                     NumericValuesSource valuesSource,
+                                     SearchContext searchContext,
+                                     ValuesSourceFactory valuesSourceFactory,
+                                     Aggregator parent) {
+
+        super(name, valuesSource, NumericValuesSource.class, searchContext, valuesSourceFactory, parent);
     }
 
     public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<NumericValuesSource> implements AggregationContext {
@@ -125,12 +131,12 @@ public abstract class DoubleBucketAggregator extends ValuesSourceBucketAggregato
         }
 
         @Override
-        public final A create(SearchContext searchContext, Aggregator parent) {
-            DoubleValuesSource source = new DoubleValuesSource.FieldData(fieldContext, valueScript, formatter, parser);
-            return create(source, searchContext, parent);
+        public A create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            DoubleValuesSource source = valuesSourceFactory.doubleField(fieldContext, valueScript, formatter, parser);
+            return create(source, searchContext, valuesSourceFactory, parent);
         }
 
-        protected abstract A create(NumericValuesSource source, SearchContext searchContext, Aggregator parent);
+        protected abstract A create(NumericValuesSource source, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent);
     }
 
     protected abstract static class ScriptFactory<A extends DoubleBucketAggregator> extends CompoundFactory<A> {
@@ -147,11 +153,11 @@ public abstract class DoubleBucketAggregator extends ValuesSourceBucketAggregato
         }
 
         @Override
-        public final A create(SearchContext searchContext, Aggregator parent) {
-            return create(new DoubleValuesSource.Script(script, multiValued, formatter), searchContext, parent);
+        public A create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            return create(valuesSourceFactory.doubleScript(script, multiValued, formatter), searchContext, valuesSourceFactory, parent);
         }
 
-        protected abstract A create(DoubleValuesSource source, SearchContext searchContext, Aggregator parent);
+        protected abstract A create(DoubleValuesSource source, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent);
     }
 
     protected abstract static class ContextBasedFactory<A extends DoubleBucketAggregator> extends CompoundFactory<A> {

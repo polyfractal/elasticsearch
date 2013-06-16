@@ -112,28 +112,39 @@ public class TermsStatsLongFacetExecutor extends FacetExecutor {
 
         @Override
         public void setScorer(Scorer scorer) throws IOException {
+//            long start = System.currentTimeMillis();
             if (script != null) {
                 script.setScorer(scorer);
             }
+//            long delta = System.currentTimeMillis() - start;
+//            System.out.println("facet: setScorer - " + delta);
         }
 
         @Override
         public void setNextReader(AtomicReaderContext context) throws IOException {
+//            long start = System.currentTimeMillis();
             keyValues = keyIndexFieldData.load(context).getLongValues();
             if (script != null) {
                 script.setNextReader(context);
             } else {
                 aggregator.valueValues = valueIndexFieldData.load(context).getDoubleValues();
             }
+//            long delta = System.currentTimeMillis() - start;
+//            System.out.println("facet: setNextReader - " + delta);
         }
+
+//        long time = 0;
 
         @Override
         public void collect(int doc) throws IOException {
+//            long start = System.currentTimeMillis();
             aggregator.onDoc(doc, keyValues);
+//            time += System.currentTimeMillis() - start;
         }
 
         @Override
         public void postCollection() {
+            System.out.println("facet: total collect - " + aggregator.time);
             TermsStatsLongFacetExecutor.this.missing = aggregator.missing();
         }
     }
@@ -148,11 +159,16 @@ public class TermsStatsLongFacetExecutor extends FacetExecutor {
             this.entries = entries;
         }
 
+        long time = 0;
+
+
         @Override
         public void onValue(int docId, long value) {
             InternalTermsStatsLongFacet.LongEntry longEntry = entries.get(value);
             if (longEntry == null) {
+                long start = System.currentTimeMillis();
                 longEntry = new InternalTermsStatsLongFacet.LongEntry(value, 0, 0, 0, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY);
+                time += System.currentTimeMillis() - start;
                 entries.put(value, longEntry);
             }
             longEntry.count++;

@@ -19,12 +19,12 @@
 
 package org.elasticsearch.search.aggregations.bucket.single.missing;
 
-import org.apache.lucene.index.AtomicReaderContext;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -37,8 +37,13 @@ public class UnmappedMissingAggregator extends SingleBucketAggregator {
 
     long docCount;
 
-    UnmappedMissingAggregator(String name, List<Aggregator.Factory> factories, SearchContext searchContext, Aggregator parent) {
-        super(name, factories, searchContext, parent);
+    UnmappedMissingAggregator(String name,
+                              List<Aggregator.Factory> factories,
+                              SearchContext searchContext,
+                              ValuesSourceFactory valuesSourceFactory,
+                              Aggregator parent) {
+
+        super(name, factories, searchContext, valuesSourceFactory, parent);
     }
 
     @Override
@@ -66,7 +71,7 @@ public class UnmappedMissingAggregator extends SingleBucketAggregator {
         }
 
         @Override
-        protected AggregationContext setReaderAngGetContext(AtomicReaderContext reader, AggregationContext context) throws IOException {
+        protected AggregationContext setAndGetContext(AggregationContext context) throws IOException {
             return context;
         }
 
@@ -84,8 +89,8 @@ public class UnmappedMissingAggregator extends SingleBucketAggregator {
         }
 
         @Override
-        public UnmappedMissingAggregator create(SearchContext searchContext, Aggregator parent) {
-            return new UnmappedMissingAggregator(name, factories, searchContext, parent);
+        public UnmappedMissingAggregator create(SearchContext searchContext, ValuesSourceFactory factory, Aggregator parent) {
+            return new UnmappedMissingAggregator(name, factories, searchContext, factory, parent);
         }
     }
 

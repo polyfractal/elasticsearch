@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.util.List;
@@ -34,8 +35,9 @@ public class UnmappedGeoDistanceAggregator extends Aggregator {
 
     private final List<GeoDistanceAggregator.DistanceRange> ranges;
 
-    public UnmappedGeoDistanceAggregator(String name, List<GeoDistanceAggregator.DistanceRange> ranges, SearchContext searchContext, Aggregator parent) {
-        super(name, searchContext, parent);
+    public UnmappedGeoDistanceAggregator(String name, List<GeoDistanceAggregator.DistanceRange> ranges,
+                                         SearchContext searchContext, ValuesSourceFactory factory, Aggregator parent) {
+        super(name, searchContext, factory, parent);
         this.ranges = ranges;
     }
 
@@ -63,8 +65,9 @@ public class UnmappedGeoDistanceAggregator extends Aggregator {
         }
 
         @Override
-        public UnmappedGeoDistanceAggregator create(SearchContext searchContext, Aggregator parent) {
-            return new UnmappedGeoDistanceAggregator(name, ranges, searchContext, parent);
+        public UnmappedGeoDistanceAggregator create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            return new UnmappedGeoDistanceAggregator(name, ranges, searchContext, valuesSourceFactory, parent);
         }
+
     }
 }

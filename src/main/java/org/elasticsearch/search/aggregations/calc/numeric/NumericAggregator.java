@@ -26,8 +26,8 @@ import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.calc.ValuesSourceCalcAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
-import org.elasticsearch.search.aggregations.context.numeric.doubles.DoubleValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -45,9 +45,10 @@ public class NumericAggregator<A extends NumericAggregation> extends ValuesSourc
                              NumericValuesSource valuesSource,
                              NumericAggregation.Factory<A> aggregationFactory,
                              SearchContext searchContext,
+                             ValuesSourceFactory valuesSourceFactory,
                              Aggregator parent) {
 
-        super(name, valuesSource, NumericValuesSource.class, searchContext, parent);
+        super(name, valuesSource, NumericValuesSource.class, searchContext, valuesSourceFactory, parent);
         this.aggregationFactory = aggregationFactory;
     }
 
@@ -129,9 +130,9 @@ public class NumericAggregator<A extends NumericAggregation> extends ValuesSourc
         }
 
         @Override
-        public NumericAggregator<A> create(SearchContext context, Aggregator parent) {
-            NumericValuesSource valuesSource = new DoubleValuesSource.FieldData(fieldContext, valueScript, null, null);
-            return new NumericAggregator<A>(name, valuesSource, aggregationFactory, context, parent);
+        public NumericAggregator<A> create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            NumericValuesSource valuesSource = valuesSourceFactory.doubleField(fieldContext, valueScript, null, null);
+            return new NumericAggregator<A>(name, valuesSource, aggregationFactory, searchContext, valuesSourceFactory, parent);
         }
 
     }
@@ -150,9 +151,9 @@ public class NumericAggregator<A extends NumericAggregation> extends ValuesSourc
         }
 
         @Override
-        public NumericAggregator<A> create(SearchContext context, Aggregator parent) {
-            NumericValuesSource valuesSource = new DoubleValuesSource.Script(script, multiValued, null);
-            return new NumericAggregator<A>(name, valuesSource, aggregationFactory, context, parent);
+        public NumericAggregator<A> create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            NumericValuesSource valuesSource = valuesSourceFactory.doubleScript(script, multiValued, null);
+            return new NumericAggregator<A>(name, valuesSource, aggregationFactory, searchContext, valuesSourceFactory, parent);
         }
     }
 
@@ -166,8 +167,8 @@ public class NumericAggregator<A extends NumericAggregation> extends ValuesSourc
         }
 
         @Override
-        public NumericAggregator<A> create(SearchContext context, Aggregator parent) {
-            return new NumericAggregator<A>(name, null, aggregationFactory, context, parent);
+        public NumericAggregator<A> create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            return new NumericAggregator<A>(name, null, aggregationFactory, searchContext, valuesSourceFactory, parent);
         }
     }
 

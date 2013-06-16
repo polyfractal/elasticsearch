@@ -19,11 +19,11 @@
 
 package org.elasticsearch.search.aggregations.context.geopoints;
 
-import org.elasticsearch.common.Nullable;
-import org.elasticsearch.index.fielddata.AtomicGeoPointFieldData;
+import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.index.fielddata.GeoPointValues;
-import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.script.SearchScript;
+import org.elasticsearch.search.aggregations.context.FieldDataSource;
+import org.elasticsearch.search.aggregations.context.ValueScriptValues;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
 
 import java.io.IOException;
@@ -38,17 +38,13 @@ public interface GeoPointValuesSource extends ValuesSource {
 
     public static class FieldData extends ValuesSource.FieldData<GeoPointValues> implements GeoPointValuesSource {
 
-        public FieldData(String field, IndexFieldData indexFieldData, @Nullable SearchScript valueScript) {
-            super(field, indexFieldData, valueScript);
+        public FieldData(FieldDataSource<GeoPointValues> source) {
+            super(source, null);
         }
 
         @Override
-        protected GeoPointValues loadValues() throws IOException {
-            GeoPointValues values = fieldData != null ? ((AtomicGeoPointFieldData) fieldData).getGeoPointValues() : null;
-            if (values == null) {
-                return null;
-            }
-            return valueScript != null ? new ValueScriptGeoPointValues(values, valueScript) : values;
+        protected ValueScriptValues<GeoPointValues> createScriptValues(SearchScript script) {
+            return null;
         }
     }
 
@@ -59,8 +55,83 @@ public interface GeoPointValuesSource extends ValuesSource {
         }
 
         @Override
-        protected ScriptGeoPointValues createValues(SearchScript script, boolean multiValue) throws IOException {
+        protected ScriptGeoPointValues createValues(SearchScript script, boolean multiValue) {
             return new ScriptGeoPointValues(script, multiValue);
+        }
+    }
+
+    /**
+     *
+     */
+    static class ValueScriptGeoPointValues implements GeoPointValues, ValueScriptValues<GeoPointValues> {
+
+        private final SearchScript script;
+        private final InternalIter iter;
+        private GeoPointValues values;
+
+        public ValueScriptGeoPointValues(SearchScript script) {
+            this.script = script;
+            this.iter = new InternalIter(script);
+        }
+
+        @Override
+        public void reset(GeoPointValues values) {
+            this.values = values;
+        }
+
+        @Override
+        public boolean isMultiValued() {
+            return values.isMultiValued();
+        }
+
+        @Override
+        public boolean hasValue(int docId) {
+            return values.hasValue(docId);
+        }
+
+        @Override
+        public GeoPoint getValue(int docId) {
+            script.setNextVar("_value", values.getValue(docId));
+            return (GeoPoint) script.run();
+        }
+
+        @Override
+        public GeoPoint getValueSafe(int docId) {
+            script.setNextVar("_value", values.getValueSafe(docId));
+            return (GeoPoint) script.run();
+        }
+
+        @Override
+        public Iter getIter(int docId) {
+            this.iter.iter = values.getIter(docId);
+            return this.iter;
+        }
+
+        @Override
+        public Iter getIterSafe(int docId) {
+            this.iter.iter = values.getIterSafe(docId);
+            return this.iter;
+        }
+
+        static class InternalIter implements Iter {
+
+            private final SearchScript script;
+            private Iter iter;
+
+            InternalIter(SearchScript script) {
+                this.script = script;
+            }
+
+            @Override
+            public boolean hasNext() {
+                return iter.hasNext();
+            }
+
+            @Override
+            public GeoPoint next() {
+                script.setNextVar("_value", iter.next());
+                return (GeoPoint) script.run();
+            }
         }
     }
 }

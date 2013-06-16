@@ -28,6 +28,8 @@ import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
+import org.elasticsearch.search.aggregations.context.ReaderBasedDataSource;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -36,15 +38,22 @@ import java.util.List;
 /**
  * Aggregate all docs that match a filter.
  */
-public class FilterAggregator extends SingleBucketAggregator {
+public class FilterAggregator extends SingleBucketAggregator implements ReaderBasedDataSource<Bits> {
 
     private final Filter filter;
 
     long docCount;
 
-    public FilterAggregator(String name, org.apache.lucene.search.Filter filter,
-                            List<Aggregator.Factory> factories, SearchContext searchContext, Aggregator parent) {
-        super(name, factories, searchContext, parent);
+    private Bits bits;
+
+    public FilterAggregator(String name,
+                            org.apache.lucene.search.Filter filter,
+                            List<Aggregator.Factory> factories,
+                            SearchContext searchContext,
+                            ValuesSourceFactory valuesSourceFactory,
+                            Aggregator parent) {
+
+        super(name, factories, searchContext, valuesSourceFactory, parent);
         this.filter = filter;
     }
 
@@ -58,6 +67,11 @@ public class FilterAggregator extends SingleBucketAggregator {
         return new InternalFilter(name, docCount, aggregations);
     }
 
+    @Override
+    public void setNextReader(AtomicReaderContext reader) throws IOException {
+        bits = DocIdSets.toSafeBits(reader.reader(), filter.getDocIdSet(reader, reader.reader().getLiveDocs()));
+    }
+
     class Collector extends SingleBucketAggregator.BucketCollector {
 
         private Bits bits;
@@ -68,8 +82,7 @@ public class FilterAggregator extends SingleBucketAggregator {
         }
 
         @Override
-        protected AggregationContext setReaderAngGetContext(AtomicReaderContext reader, AggregationContext context) throws IOException {
-            bits = DocIdSets.toSafeBits(reader.reader(), filter.getDocIdSet(reader, reader.reader().getLiveDocs()));
+        protected AggregationContext setAndGetContext(AggregationContext context) throws IOException {
             return context;
         }
 
@@ -99,8 +112,8 @@ public class FilterAggregator extends SingleBucketAggregator {
         }
 
         @Override
-        public FilterAggregator create(SearchContext searchContext, Aggregator parent) {
-            return new FilterAggregator(name, filter, factories, searchContext, parent);
+        public FilterAggregator create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            return new FilterAggregator(name, filter, factories, searchContext, valuesSourceFactory, parent);
         }
 
     }

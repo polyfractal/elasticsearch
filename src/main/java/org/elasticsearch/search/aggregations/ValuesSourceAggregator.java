@@ -21,6 +21,7 @@ package org.elasticsearch.search.aggregations;
 
 import org.elasticsearch.search.aggregations.context.ValuesSource;
 import org.elasticsearch.search.aggregations.context.ValuesSourceBased;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.internal.SearchContext;
 
 /**
@@ -30,8 +31,14 @@ public abstract class ValuesSourceAggregator<VS extends ValuesSource> extends Ag
 
     protected final VS valuesSource;
 
-    public ValuesSourceAggregator(String name, VS valuesSource, Class<VS> requiredValuesSourceType, SearchContext searchContext, Aggregator parent) {
-        super(name, searchContext, parent);
+    public ValuesSourceAggregator(String name,
+                                  VS valuesSource,
+                                  Class<VS> requiredValuesSourceType,
+                                  SearchContext searchContext,
+                                  ValuesSourceFactory valuesSourceFactory,
+                                  Aggregator parent) {
+
+        super(name, searchContext, valuesSourceFactory, parent);
         if (valuesSource != null) {
             this.valuesSource = valuesSource;
         } else {

@@ -21,6 +21,7 @@ package org.elasticsearch.search.aggregations.bucket.multi.range;
 
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregations;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.util.ArrayList;
@@ -34,8 +35,8 @@ public class UnmappedRangeAggregator extends Aggregator {
     private final List<RangeAggregator.Range> ranges;
     private final boolean keyed;
 
-    public UnmappedRangeAggregator(String name, List<RangeAggregator.Range> ranges, boolean keyed, SearchContext searchContext, Aggregator parent) {
-        super(name, searchContext, parent);
+    public UnmappedRangeAggregator(String name, List<RangeAggregator.Range> ranges, boolean keyed, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+        super(name, searchContext, valuesSourceFactory, parent);
         this.ranges = ranges;
         this.keyed = keyed;
     }
@@ -66,8 +67,8 @@ public class UnmappedRangeAggregator extends Aggregator {
         }
 
         @Override
-        public UnmappedRangeAggregator create(SearchContext searchContext, Aggregator parent) {
-            return new UnmappedRangeAggregator(name, ranges, keyed, searchContext, parent);
+        public UnmappedRangeAggregator create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            return new UnmappedRangeAggregator(name, ranges, keyed, searchContext, valuesSourceFactory, parent);
         }
     }
 

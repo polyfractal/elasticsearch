@@ -29,6 +29,7 @@ import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.aggregations.context.geopoints.GeoPointValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
 
@@ -40,8 +41,13 @@ import java.util.List;
  */
 public abstract class GeoPointBucketAggregator extends ValuesSourceBucketAggregator<GeoPointValuesSource> {
 
-    protected GeoPointBucketAggregator(String name, GeoPointValuesSource valuesSource, SearchContext searchContext, Aggregator parent) {
-        super(name, valuesSource, GeoPointValuesSource.class, searchContext, parent);
+    protected GeoPointBucketAggregator(String name,
+                                       GeoPointValuesSource valuesSource,
+                                       SearchContext searchContext,
+                                       ValuesSourceFactory valuesSourceFactory,
+                                       Aggregator parent) {
+
+        super(name, valuesSource, GeoPointValuesSource.class, searchContext, valuesSourceFactory, parent);
     }
 
     public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<GeoPointValuesSource> implements AggregationContext {
@@ -114,31 +120,12 @@ public abstract class GeoPointBucketAggregator extends ValuesSourceBucketAggrega
         }
 
         @Override
-        public final A create(SearchContext searchContext, Aggregator parent) {
-            GeoPointValuesSource source = new GeoPointValuesSource.FieldData(fieldContext.field(), fieldContext.indexFieldData(), valueScript);
-            return create(source, searchContext, parent);
+        public A create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            GeoPointValuesSource source = valuesSourceFactory.geoPointField(fieldContext);
+            return create(source, searchContext, valuesSourceFactory, parent);
         }
 
-        protected abstract A create(GeoPointValuesSource source, SearchContext searchContext, Aggregator parent);
-    }
-
-    protected abstract static class ScriptFactory<A extends GeoPointBucketAggregator> extends CompoundFactory<A> {
-
-        private final SearchScript script;
-        private final boolean multiValued;
-
-        protected ScriptFactory(String name, SearchScript script, boolean multiVAlued) {
-            super(name);
-            this.script = script;
-            this.multiValued = multiVAlued;
-        }
-
-        @Override
-        public final A create(SearchContext searchContext, Aggregator parent) {
-            return create(new GeoPointValuesSource.Script(script, multiValued), searchContext, parent);
-        }
-
-        protected abstract A create(GeoPointValuesSource source, SearchContext searchContext, Aggregator parent);
+        protected abstract A create(GeoPointValuesSource source, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent);
     }
 
     protected abstract static class ContextBasedFactory<A extends GeoPointBucketAggregator> extends CompoundFactory<A> {

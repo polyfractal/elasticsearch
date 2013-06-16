@@ -19,11 +19,6 @@
 
 package org.elasticsearch.search.aggregations.context;
 
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.search.Scorer;
-import org.elasticsearch.common.Nullable;
-import org.elasticsearch.index.fielddata.AtomicFieldData;
-import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.script.SearchScript;
 
 import java.io.IOException;
@@ -35,68 +30,41 @@ public interface ValuesSource {
 
     String key();
 
-    void setNextScorer(Scorer scorer);
-
-    void setNextReader(AtomicReaderContext reader);
-
     public abstract static class FieldData<Values> implements ValuesSource {
 
-        protected final String field;
-        protected final IndexFieldData indexFieldData;
-        protected final SearchScript valueScript;
+        private final FieldDataSource<Values> source;
+        protected final ValueScriptValues<Values> scriptValues;
 
-        protected AtomicFieldData fieldData;
-        protected Values values;
-        protected boolean loaded;
-
-        public FieldData(String field, IndexFieldData indexFieldData, @Nullable SearchScript valueScript) {
-            this.field = field;
-            this.indexFieldData = indexFieldData;
-            this.valueScript = valueScript;
+        public FieldData(FieldDataSource<Values> source, SearchScript script) {
+            this.source = source;
+            scriptValues = script == null ? null : createScriptValues(script);
         }
 
         @Override
         public String key() {
-            return field;
-        }
-
-        @Override
-        public void setNextScorer(Scorer scorer) {
-            if (valueScript != null) {
-                valueScript.setScorer(scorer);
-            }
-        }
-
-        @Override
-        public void setNextReader(AtomicReaderContext reader) {
-            fieldData = indexFieldData != null ? indexFieldData.load(reader) : null;
-            if (valueScript != null) {
-                valueScript.setNextReader(reader);
-            }
-            values = null;
-            loaded = false;
+            return source.field();
         }
 
         public Values values() throws IOException {
-            if (!loaded) {
-                values = loadValues();
-                loaded = true;
+            if (scriptValues != null) {
+                scriptValues.reset(source.values());
+                return (Values) scriptValues;
             }
-            return values;
+            return source.values();
         }
 
-        protected abstract Values loadValues() throws IOException;
+        protected abstract ValueScriptValues<Values> createScriptValues(SearchScript script);
+
     }
 
     public abstract static class Script<Values extends ScriptValues> implements ValuesSource {
 
         protected final SearchScript script;
-        private final boolean multiValue;
-        protected Values values;
+        protected final Values values;
 
         public Script(SearchScript script, boolean multiValue) {
             this.script = script;
-            this.multiValue = multiValue;
+            this.values = createValues(script, multiValue);
         }
 
         @Override
@@ -104,27 +72,11 @@ public interface ValuesSource {
             return script.toString();
         }
 
-        @Override
-        public void setNextScorer(Scorer scorer) {
-            script.setScorer(scorer);
-        }
-
-        @Override
-        public void setNextReader(AtomicReaderContext reader) {
-            script.setNextReader(reader);
-            if (values != null) {
-                values.clearCache();
-            }
-        }
-
         public Values values() throws IOException {
-            if (values == null) {
-                values = createValues(script, multiValue);
-            }
             return values;
         }
 
-        protected abstract Values createValues(SearchScript script, boolean multiValue) throws IOException;
+        protected abstract Values createValues(SearchScript script, boolean multiValue);
 
     }
 }

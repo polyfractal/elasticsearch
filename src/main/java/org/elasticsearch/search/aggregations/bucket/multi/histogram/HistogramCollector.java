@@ -88,27 +88,12 @@ class HistogramCollector implements Aggregator.Collector {
     }
 
     @Override
-    public void setScorer(Scorer scorer) throws IOException {
-        this.scorer = scorer;
-        if (valuesSource != null) {
-            valuesSource.setNextScorer(scorer);
-        }
-        for (Object collector : bucketCollectors.internalValues()) {
-            if (collector != null) {
-                ((BucketCollector) collector).setScorer(scorer);
-            }
-        }
-    }
-
-    @Override
-    public void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException {
-        this.reader = reader;
+    public void setNextContext(AggregationContext context) throws IOException {
         this.context = context;
-        valuesSource.setNextReader(reader);
         values = valuesSource.longValues();
         for (Object collector : bucketCollectors.internalValues()) {
             if (collector != null) {
-                ((BucketCollector) collector).setNextReader(reader, context);
+                ((BucketCollector) collector).setNextContext(context);
             }
         }
     }

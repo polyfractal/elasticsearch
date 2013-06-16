@@ -27,6 +27,7 @@ import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.bucket.LongBucketAggregator;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.elasticsearch.search.aggregations.context.numeric.longs.LongValuesSource;
@@ -57,9 +58,10 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
                                @Nullable NumericValuesSource valuesSource,
                                InternalHistogram.Factory histogramFactory,
                                SearchContext searchContext,
+                               ValuesSourceFactory valuesSourceFactory,
                                Aggregator parent) {
 
-        super(name, valuesSource, searchContext, parent);
+        super(name, valuesSource, searchContext, valuesSourceFactory, parent);
         this.factories = factories;
         this.rounding = rounding;
         this.order = order;
@@ -121,8 +123,8 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
         }
 
         @Override
-        protected HistogramAggregator create(NumericValuesSource source, SearchContext searchContext, Aggregator parent) {
-            return new HistogramAggregator(name, factories, rounding, order, keyed, source, histogramFactory, searchContext, parent);
+        protected HistogramAggregator create(NumericValuesSource source, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            return new HistogramAggregator(name, factories, rounding, order, keyed, source, histogramFactory, searchContext, valuesSourceFactory, parent);
         }
 
     }
@@ -150,9 +152,10 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
             this.histogramFactory = histogramFactory;
         }
 
+
         @Override
-        protected HistogramAggregator create(LongValuesSource source, SearchContext searchContext, Aggregator parent) {
-            return new HistogramAggregator(name, factories, rounding, order, keyed, source, histogramFactory, searchContext, parent);
+        protected HistogramAggregator create(LongValuesSource source, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            return new HistogramAggregator(name, factories, rounding, order, keyed, source, histogramFactory, searchContext, valuesSourceFactory, parent);
         }
 
     }
@@ -173,8 +176,8 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
         }
 
         @Override
-        public HistogramAggregator create(SearchContext searchContext, Aggregator parent) {
-            return new HistogramAggregator(name, factories, rounding, order, keyed, null, histogramFactory, searchContext, parent);
+        public HistogramAggregator create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+            return new HistogramAggregator(name, factories, rounding, order, keyed, null, histogramFactory, searchContext, valuesSourceFactory, parent);
         }
     }
 }

@@ -22,6 +22,7 @@ package org.elasticsearch.search.aggregations;
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -38,11 +39,13 @@ public abstract class Aggregator<A extends InternalAggregation> {
     protected final String name;
     protected final Aggregator parent;
     protected final SearchContext searchContext;
+    protected final ValuesSourceFactory valuesSourceFactory;
 
-    protected Aggregator(String name, SearchContext searchContext, Aggregator parent) {
+    protected Aggregator(String name, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
         this.name = name;
         this.parent = parent;
         this.searchContext = searchContext;
+        this.valuesSourceFactory = valuesSourceFactory;
     }
 
     /**
@@ -69,6 +72,10 @@ public abstract class Aggregator<A extends InternalAggregation> {
         return searchContext;
     }
 
+    public ValuesSourceFactory valuesSourceFactory() {
+        return valuesSourceFactory;
+    }
+
     /**
      * @return  The collector what is responsible for the aggregation.
      */
@@ -85,11 +92,10 @@ public abstract class Aggregator<A extends InternalAggregation> {
      */
     public static interface Collector {
 
-        void setScorer(Scorer scorer) throws IOException;
-
         void collect(int doc) throws IOException;
 
-        void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException;
+        //TODO do we need to throw ioexception here???
+        void setNextContext(AggregationContext context) throws IOException;
 
         void postCollection();
 
@@ -108,7 +114,7 @@ public abstract class Aggregator<A extends InternalAggregation> {
             this.name = name;
         }
 
-        public abstract A create(SearchContext searchContext, Aggregator parent);
+        public abstract A create(SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent);
     }
 
     /**

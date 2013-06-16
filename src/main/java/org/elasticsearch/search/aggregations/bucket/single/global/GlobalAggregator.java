@@ -19,12 +19,12 @@
 
 package org.elasticsearch.search.aggregations.bucket.single.global;
 
-import org.apache.lucene.index.AtomicReaderContext;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -37,8 +37,8 @@ public class GlobalAggregator extends SingleBucketAggregator {
 
     long docCount;
 
-    public GlobalAggregator(String name, List<Aggregator.Factory> factories, SearchContext searchContext) {
-        super(name, factories, searchContext, null);
+    public GlobalAggregator(String name, List<Aggregator.Factory> factories, ValuesSourceFactory valuesSourceFactory, SearchContext searchContext) {
+        super(name, factories, searchContext, valuesSourceFactory, null);
     }
 
     @Override
@@ -60,7 +60,7 @@ public class GlobalAggregator extends SingleBucketAggregator {
         }
 
         @Override
-        protected AggregationContext setReaderAngGetContext(AtomicReaderContext reader, AggregationContext context) throws IOException {
+        protected AggregationContext setAndGetContext(AggregationContext context) throws IOException {
             return context;
         }
 
@@ -83,12 +83,12 @@ public class GlobalAggregator extends SingleBucketAggregator {
         }
 
         @Override
-        public GlobalAggregator create(SearchContext searchContext, Aggregator parent) {
+        public GlobalAggregator create(SearchContext searchContext, ValuesSourceFactory factory, Aggregator parent) {
             if (parent != null) {
                 throw new AggregationExecutionException("Aggregation [" + parent.name() + "] cannot have a global " +
                         "sub-aggregation [" + name + "].Global aggregations can only be defined as top level aggregations");
             }
-            return new GlobalAggregator(name, factories, searchContext);
+            return new GlobalAggregator(name, factories, factory, searchContext);
         }
 
     }

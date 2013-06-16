@@ -20,9 +20,10 @@
 package org.elasticsearch.search.aggregations;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.search.*;
+import org.apache.lucene.search.Filter;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.Scorer;
 import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.lucene.search.Queries;
@@ -33,6 +34,7 @@ import org.elasticsearch.search.SearchParseElement;
 import org.elasticsearch.search.SearchPhase;
 import org.elasticsearch.search.aggregations.bucket.single.global.GlobalAggregator;
 import org.elasticsearch.search.aggregations.context.DefaultAggregationContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceContext;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.search.query.QueryPhaseExecutionException;
 
@@ -68,18 +70,24 @@ public class AggregationPhase implements SearchPhase {
     @Override
     public void preProcess(SearchContext context) {
         if (context.aggregations() != null) {
+            ValuesSourceContext valuesSourceContext = new ValuesSourceContext();
+            context.aggregations().valuesSourceContext(valuesSourceContext);
+            List<Aggregator.Collector> collectors = new ArrayList<Aggregator.Collector>();
             List<Aggregator> aggregators = new ArrayList<Aggregator>(context.aggregations().factories().size());
             for (Aggregator.Factory factory : context.aggregations().factories()) {
-                Aggregator aggregator = factory.create(context, null);
+                Aggregator aggregator = factory.create(context, valuesSourceContext, null);
                 aggregators.add(aggregator);
                 if (!(aggregator instanceof GlobalAggregator)) {
                     Aggregator.Collector collector = aggregator.collector();
                     if (collector != null) {
-                        context.searcher().addMainQueryCollector(new AggregatorCollectorWrapper(collector));
+                        collectors.add(aggregator.collector());
                     }
                 }
             }
             context.aggregations().aggregators(aggregators);
+            if (!collectors.isEmpty()) {
+                context.searcher().addMainQueryCollector(new AggregationsCollector(collectors, valuesSourceContext));
+            }
         }
     }
 
@@ -94,44 +102,27 @@ public class AggregationPhase implements SearchPhase {
             return;
         }
 
-        Map<Filter, List<Collector>> filtersByCollector = null;
+        List<Aggregator.Collector> globals = new ArrayList<Aggregator.Collector>();
         for (Aggregator aggregator : context.aggregations().aggregators()) {
             if (aggregator instanceof GlobalAggregator) {
-                Filter filter = Queries.MATCH_ALL_FILTER;
-                Collector collector = new AggregatorCollectorWrapper(aggregator.collector());
-                if (filtersByCollector == null) {
-                    filtersByCollector = Maps.newHashMap();
-                }
-                List<Collector> list = filtersByCollector.get(filter);
-                if (list == null) {
-                    list = new ArrayList<Collector>();
-                    filtersByCollector.put(filter, list);
-                }
-                list.add(collector);
+                globals.add(aggregator.collector());
             }
         }
 
         // optimize the global collector based execution
-        if (filtersByCollector != null) {
-            // now, go and execute the filters->collector ones
-            for (Map.Entry<Filter, List<Collector>> entry : filtersByCollector.entrySet()) {
-                Filter filter = entry.getKey();
-                Query query = new XConstantScoreQuery(filter);
-                Filter searchFilter = context.searchFilter(context.types());
-                if (searchFilter != null) {
-                    query = new XFilteredQuery(query, searchFilter);
-                }
-                try {
-                    context.searcher().search(query, MultiCollector.wrap(entry.getValue().toArray(new Collector[entry.getValue().size()])));
-                } catch (Exception e) {
-                    throw new QueryPhaseExecutionException(context, "Failed to execute global aggregators", e);
-                }
-                for (Collector collector : entry.getValue()) {
-                    if (collector instanceof XCollector) {
-                        ((XCollector) collector).postCollection();
-                    }
-                }
+        if (!globals.isEmpty()) {
+            AggregationsCollector collector = new AggregationsCollector(globals, context.aggregations().valuesSourceContext());
+            Query query = new XConstantScoreQuery(Queries.MATCH_ALL_FILTER);
+            Filter searchFilter = context.searchFilter(context.types());
+            if (searchFilter != null) {
+                query = new XFilteredQuery(query, searchFilter);
             }
+            try {
+                context.searcher().search(query, collector);
+            } catch (Exception e) {
+                throw new QueryPhaseExecutionException(context, "Failed to execute global aggregators", e);
+            }
+            collector.postCollection();
         }
 
         List<InternalAggregation> aggregations = new ArrayList<InternalAggregation>(context.aggregations().aggregators().size());
@@ -143,27 +134,34 @@ public class AggregationPhase implements SearchPhase {
     }
 
 
-    static class AggregatorCollectorWrapper extends XCollector {
+    static class AggregationsCollector extends XCollector {
 
-        private final Aggregator.Collector collector;
+        private final ValuesSourceContext valuesSourceContext;
+        private final List<Aggregator.Collector> collectors;
 
-        AggregatorCollectorWrapper(Aggregator.Collector collector) {
-            this.collector = collector;
+        AggregationsCollector(List<Aggregator.Collector> collectors, ValuesSourceContext valuesSourceContext) {
+            this.collectors = collectors;
+            this.valuesSourceContext = valuesSourceContext;
         }
 
         @Override
         public void setScorer(Scorer scorer) throws IOException {
-            collector.setScorer(scorer);
+            valuesSourceContext.setScorer(scorer);
         }
 
         @Override
         public void collect(int doc) throws IOException {
-            collector.collect(doc);
+            for (int i = 0; i < collectors.size(); i++) {
+                collectors.get(i).collect(doc);
+            }
         }
 
         @Override
         public void setNextReader(AtomicReaderContext context) throws IOException {
-            collector.setNextReader(context, DefaultAggregationContext.INSTANCE);
+            valuesSourceContext.setNextReader(context);
+            for (int i = 0; i < collectors.size(); i++) {
+                collectors.get(i).setNextContext(DefaultAggregationContext.INSTANCE);
+            }
         }
 
         @Override
@@ -173,7 +171,9 @@ public class AggregationPhase implements SearchPhase {
 
         @Override
         public void postCollection() {
-            collector.postCollection();
+            for (int i = 0; i < collectors.size(); i++) {
+                collectors.get(i).postCollection();
+            }
         }
     }
 }

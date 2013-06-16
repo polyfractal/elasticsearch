@@ -20,13 +20,12 @@
 package org.elasticsearch.search.aggregations.bucket;
 
 import com.google.common.collect.Lists;
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.search.Scorer;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceFactory;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -37,15 +36,15 @@ import java.util.List;
  */
 public abstract class BucketAggregator extends Aggregator {
 
-    protected BucketAggregator(String name, SearchContext searchContext, Aggregator parent) {
-        super(name, searchContext, parent);
+    protected BucketAggregator(String name, SearchContext searchContext, ValuesSourceFactory valuesSourceFactory, Aggregator parent) {
+        super(name, searchContext, valuesSourceFactory, parent);
     }
 
     public static Aggregator[] createAggregators(List<Aggregator.Factory> factories, Aggregator aggregator) {
         int i = 0;
         Aggregator[] aggregators = new Aggregator[factories.size()];
         for (Aggregator.Factory factory : factories) {
-            aggregators[i++] = factory.create(aggregator.searchContext(), aggregator);
+            aggregators[i++] = factory.create(aggregator.searchContext(), aggregator.valuesSourceFactory(), aggregator);
         }
         return aggregators;
     }
@@ -73,23 +72,16 @@ public abstract class BucketAggregator extends Aggregator {
             }
         }
 
-        public BucketCollector(List<Aggregator.Factory> factories, AtomicReaderContext reader, Scorer scorer,
-                               AggregationContext context, Aggregator aggregator) {
-
+        public BucketCollector(List<Aggregator.Factory> factories, AggregationContext context, Aggregator aggregator) {
             this.aggregator = aggregator;
             this.subAggregators = new Aggregator[factories.size()];
             this.collectors = new Collector[subAggregators.length];
             int i = 0;
             for (Aggregator.Factory factory : factories) {
-                subAggregators[i] = factory.create(aggregator.searchContext(), aggregator);
+                subAggregators[i] = factory.create(aggregator.searchContext(), aggregator.valuesSourceFactory(), aggregator);
                 collectors[i] = subAggregators[i].collector();
                 try {
-                    if (reader != null) {
-                        collectors[i].setNextReader(reader, context);
-                    }
-                    if (scorer != null) {
-                        collectors[i].setScorer(scorer);
-                    }
+                    collectors[i].setNextContext(context);
                 } catch (IOException ioe) {
                     throw new AggregationExecutionException("Failed to aggregate [" + aggregator.name() + "]", ioe);
                 }
@@ -108,24 +100,14 @@ public abstract class BucketAggregator extends Aggregator {
         }
 
         @Override
-        public void setScorer(Scorer scorer) throws IOException {
+        public final void setNextContext(AggregationContext context) throws IOException {
+            context = setAndGetContext(context);
             for (int i = 0; i < collectors.length; i++) {
                 if (collectors[i] != null) {
-                    collectors[i].setScorer(scorer);
+                    collectors[i].setNextContext(context);
                 }
             }
         }
-
-        @Override
-        public final void setNextReader(AtomicReaderContext reader, AggregationContext context) throws IOException {
-            context = setReaderAngGetContext(reader, context);
-            for (int i = 0; i < collectors.length; i++) {
-                if (collectors[i] != null) {
-                    collectors[i].setNextReader(reader, context);
-                }
-            }
-        }
-
 
         @Override
         public final void collect(int doc) throws IOException {
@@ -155,7 +137,7 @@ public abstract class BucketAggregator extends Aggregator {
          * @param context   The parent context of this bucket
          * @return          The bucket context
          */
-        protected abstract AggregationContext setReaderAngGetContext(AtomicReaderContext reader, AggregationContext context) throws IOException;
+        protected abstract AggregationContext setAndGetContext(AggregationContext context) throws IOException;
 
         /**
          * Called when collection is finished

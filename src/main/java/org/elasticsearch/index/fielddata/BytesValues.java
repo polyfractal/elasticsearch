@@ -29,7 +29,7 @@ import org.elasticsearch.index.fielddata.ordinals.Ordinals.Docs;
 public abstract class BytesValues {
 
     public static final BytesValues EMPTY = new Empty();
-    private boolean multiValued;
+    protected boolean multiValued;
     protected final BytesRef scratch = new BytesRef();
 
     protected BytesValues(boolean multiValued) {

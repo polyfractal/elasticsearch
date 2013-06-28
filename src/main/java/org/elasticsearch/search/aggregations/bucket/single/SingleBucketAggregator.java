@@ -39,7 +39,7 @@ public abstract class SingleBucketAggregator extends BucketAggregator {
     protected SingleBucketAggregator(String name, List<Aggregator.Factory> factories,
                                      AggregationContext aggregationContext, Aggregator parent) {
         super(name, aggregationContext, parent);
-        subAggregators = createAggregators(factories, this);
+        subAggregators = createSubAggregators(factories, this);
     }
 
     @Override

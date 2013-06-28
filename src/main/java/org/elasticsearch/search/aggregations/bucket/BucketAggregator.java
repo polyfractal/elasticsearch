@@ -38,7 +38,7 @@ public abstract class BucketAggregator extends Aggregator {
         super(name, aggregationContext, parent);
     }
 
-    public static Aggregator[] createAggregators(List<Aggregator.Factory> factories, Aggregator aggregator) {
+    public static Aggregator[] createSubAggregators(List<Aggregator.Factory> factories, Aggregator aggregator) {
         int i = 0;
         Aggregator[] aggregators = new Aggregator[factories.size()];
         for (Aggregator.Factory factory : factories) {

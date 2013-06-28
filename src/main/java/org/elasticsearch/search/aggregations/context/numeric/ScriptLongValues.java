@@ -28,7 +28,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- *
+ * {@link LongValues} implementation which is based on a script
  */
 public class ScriptLongValues extends LongValues implements ScriptValues {
 

@@ -39,6 +39,9 @@ public interface ValueParser {
     double parseDouble(String value, SearchContext searchContext);
 
 
+    /**
+     * Knows how to parse datatime values based on date/time format
+     */
     static class DateTime implements ValueParser {
 
         private FormatDateTimeFormatter formatter;
@@ -62,6 +65,9 @@ public interface ValueParser {
         }
     }
 
+    /**
+     * Knows how to parse datatime values based on elasticsearch's date math expression
+     */
     static class DateMath implements ValueParser {
 
         private DateMathParser parser;
@@ -85,6 +91,9 @@ public interface ValueParser {
         }
     }
 
+    /**
+     * Knows how to parse IPv4 formats
+     */
     static class IPV4 implements ValueParser {
 
         private IPV4() {

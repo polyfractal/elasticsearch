@@ -19,6 +19,7 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
+import org.apache.lucene.util.CollectionUtil;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -37,7 +38,6 @@ import org.elasticsearch.search.aggregations.context.numeric.ValueFormatterStrea
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -185,7 +185,7 @@ public class InternalHistogram<B extends Histogram.Bucket> extends InternalAggre
             buckets.add(bucket);
         }
         CacheRecycler.pushLongObjectMap(bucketsByKey);
-        Collections.sort(buckets, order.comparator());
+        CollectionUtil.quickSort(buckets, order.comparator());
         reduced.buckets = buckets;
         return reduced;
     }

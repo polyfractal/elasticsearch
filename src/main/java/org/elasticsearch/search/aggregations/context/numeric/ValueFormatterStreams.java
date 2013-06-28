@@ -34,13 +34,10 @@ public class ValueFormatterStreams {
         byte id = in.readByte();
         ValueFormatter formatter = null;
         switch (id) {
-            case ValueFormatter.Null.ID: return ValueFormatter.NULL;
             case ValueFormatter.Raw.ID: return ValueFormatter.RAW;
             case ValueFormatter.IP4.ID: return ValueFormatter.IPv4;
             case ValueFormatter.DateTime.ID: formatter = new ValueFormatter.DateTime(); break;
             case ValueFormatter.Number.Pattern.ID: formatter = new ValueFormatter.Number.Pattern(); break;
-            case ValueFormatter.Number.Locale.ID: formatter = new ValueFormatter.Number.Locale(); break;
-            case ValueFormatter.Number.Currency.ID: formatter = new ValueFormatter.Number.Currency(); break;
             default: throw new ElasticSearchIllegalArgumentException("Unknown value formatter with id [" + id + "]");
         }
         formatter.readFrom(in);

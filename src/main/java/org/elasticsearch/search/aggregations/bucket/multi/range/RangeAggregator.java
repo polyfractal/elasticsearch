@@ -36,7 +36,7 @@ import java.io.IOException;
 import java.util.List;
 
 import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.buildAggregations;
-import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.createAggregators;
+import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.createSubAggregators;
 
 /**
  *
@@ -98,7 +98,7 @@ public class RangeAggregator extends DoubleBucketAggregator {
         int i = 0;
         for (Range range : ranges) {
             range.process(valuesSource.parser(), aggregationContext);
-            bucketCollectors[i++] = new BucketCollector(range, valuesSource, createAggregators(factories, this), this);
+            bucketCollectors[i++] = new BucketCollector(range, valuesSource, createSubAggregators(factories, this), this);
         }
     }
 

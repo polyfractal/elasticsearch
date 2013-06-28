@@ -113,7 +113,6 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
         return valuesSource;
     }
 
-    @Deprecated
     public NumericValuesSource longField(FieldContext fieldContext, SearchScript script, ValueFormatter formatter, ValueParser parser) {
         FieldDataSource.Numeric dataSource = (FieldDataSource.Numeric) fieldDataSources.get(fieldContext.field());
         if (dataSource == null) {
@@ -133,7 +132,7 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
     public NumericValuesSource numericField(FieldContext fieldContext, SearchScript script, ValueFormatter formatter, ValueParser parser) {
         FieldDataSource.Numeric dataSource = (FieldDataSource.Numeric) fieldDataSources.get(fieldContext.field());
         if (dataSource == null) {
-            dataSource = new FieldDataSource.Long(fieldContext.field(), fieldContext.indexFieldData());
+            dataSource = new FieldDataSource.Double(fieldContext.field(), fieldContext.indexFieldData());
             setReaderIfNeeded(dataSource);
             fieldDataSources.put(fieldContext.field(), dataSource);
         }

@@ -23,7 +23,7 @@ import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.index.fielddata.LongValues;
 
 /**
- *
+ * {@link LongValues} implementation which wraps a {@link DoubleValues} instance.
  */
 public class DoubleLongValues extends LongValues {
 

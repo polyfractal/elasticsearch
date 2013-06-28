@@ -28,17 +28,23 @@ import org.elasticsearch.index.mapper.ip.IpFieldMapper;
 
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
+import java.util.Locale;
 
 /**
  * A strategy for formatting time represented as millis long value to string
  */
 public interface ValueFormatter extends Streamable {
 
-    public final static ValueFormatter NULL = new Null();
     public final static ValueFormatter RAW = new Raw();
     public final static ValueFormatter IPv4 = new IP4();
 
+    /**
+     * Uniquely identifies this formatter (used for efficient serialization)
+     *
+     * @return  The id of this formatter
+     */
     byte id();
 
     /**
@@ -56,38 +62,6 @@ public interface ValueFormatter extends Streamable {
      */
     String format(double value);
 
-
-
-    /**
-     * A time formatter that doesn't do any formatting and returns {@code null} value instead.
-     */
-    static class Null implements ValueFormatter {
-
-        static final byte ID = 0;
-
-        @Override
-        public String format(long time) {
-            return null;
-        }
-
-        @Override
-        public String format(double value) {
-            return null;
-        }
-
-        @Override
-        public byte id() {
-            return ID;
-        }
-
-        @Override
-        public void readFrom(StreamInput in) throws IOException {
-        }
-
-        @Override
-        public void writeTo(StreamOutput out) throws IOException {
-        }
-    }
 
     static class Raw implements ValueFormatter {
 
@@ -181,37 +155,9 @@ public interface ValueFormatter extends Streamable {
             return format.format(value);
         }
 
-        public static class Locale extends Number {
-
-            static final byte ID = 3;
-
-            String locale;
-
-            Locale() {} // for serialization
-
-            public Locale(String locale) {
-                super(DecimalFormat.getInstance(java.util.Locale.forLanguageTag(locale)));
-                this.locale = locale;
-            }
-
-            @Override
-            public byte id() {
-                return ID;
-            }
-
-            @Override
-            public void readFrom(StreamInput in) throws IOException {
-                locale = in.readString();
-                format = DecimalFormat.getInstance(java.util.Locale.forLanguageTag(locale));
-            }
-
-            @Override
-            public void writeTo(StreamOutput out) throws IOException {
-                out.writeString(locale);
-            }
-        }
-
         public static class Pattern extends Number {
+
+            private static final DecimalFormatSymbols SYMBOLS = new DecimalFormatSymbols(Locale.ROOT);
 
             static final byte ID = 4;
 
@@ -220,7 +166,7 @@ public interface ValueFormatter extends Streamable {
             Pattern() {} // for serialization
 
             public Pattern(String pattern) {
-                super(new DecimalFormat(pattern));
+                super(new DecimalFormat(pattern, SYMBOLS));
                 this.pattern = pattern;
             }
 
@@ -232,42 +178,12 @@ public interface ValueFormatter extends Streamable {
             @Override
             public void readFrom(StreamInput in) throws IOException {
                 pattern = in.readString();
-                format = new DecimalFormat(pattern);
+                format = new DecimalFormat(pattern, SYMBOLS);
             }
 
             @Override
             public void writeTo(StreamOutput out) throws IOException {
                 out.writeString(pattern);
-            }
-        }
-
-        public static class Currency extends Number {
-
-            static final byte ID = 5;
-
-            String locale;
-
-            Currency() {} // for serialization
-
-            public Currency(String locale) {
-                super(DecimalFormat.getCurrencyInstance(java.util.Locale.forLanguageTag(locale)));
-                this.locale = locale;
-            }
-
-            @Override
-            public byte id() {
-                return ID;
-            }
-
-            @Override
-            public void readFrom(StreamInput in) throws IOException {
-                locale = in.readString();
-                format = DecimalFormat.getCurrencyInstance(java.util.Locale.forLanguageTag(locale));
-            }
-
-            @Override
-            public void writeTo(StreamOutput out) throws IOException {
-                out.writeString(locale);
             }
         }
     }

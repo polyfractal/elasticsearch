@@ -39,7 +39,7 @@ public abstract class SingleBytesBucketAggregator extends BytesBucketAggregator 
     public SingleBytesBucketAggregator(String name, List<Aggregator.Factory> factories, BytesValuesSource valuesSource,
                                        AggregationContext aggregationContext, Aggregator parent) {
         super(name, valuesSource, aggregationContext, parent);
-        subAggregators = BucketAggregator.createAggregators(factories, this);
+        subAggregators = BucketAggregator.createSubAggregators(factories, this);
     }
 
     @Override

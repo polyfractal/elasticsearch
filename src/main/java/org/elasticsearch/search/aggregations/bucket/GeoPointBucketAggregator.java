@@ -72,7 +72,16 @@ public abstract class GeoPointBucketAggregator extends ValuesSourceBucketAggrega
             return context;
         }
 
-        protected abstract boolean onDoc(int doc, GeoPointValues values, ValueSpace context) throws IOException;
+        /**
+         * Called for every doc in the current docset context.
+         *
+         * @param doc           The doc id
+         * @param values        The geo_point values
+         * @param valueSpace    The current aggregation value space
+         * @return              {@code true} if the given doc falls within this bucket, {@code false} otherwise.
+         * @throws IOException
+         */
+        protected abstract boolean onDoc(int doc, GeoPointValues values, ValueSpace valueSpace) throws IOException;
 
         @Override
         public boolean accept(Object valueSourceKey, double value) {

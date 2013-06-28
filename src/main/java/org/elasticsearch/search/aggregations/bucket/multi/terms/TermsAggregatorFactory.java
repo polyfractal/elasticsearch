@@ -50,14 +50,8 @@ public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregato
     private final boolean multiValued;
     private final String format;
 
-    public TermsAggregatorFactory(String name,
-                                  FieldContext fieldContext,
-                                  SearchScript script,
-                                  boolean multiValued,
-                                  Terms.Order order,
-                                  int requiredSize,
-                                  Terms.ValueType valueType,
-                                  String format) {
+    public TermsAggregatorFactory(String name, FieldContext fieldContext, SearchScript script, boolean multiValued, Terms.Order order,
+                                  int requiredSize, Terms.ValueType valueType, String format) {
         super(name);
         this.fieldContext = fieldContext;
         this.script = script;
@@ -95,14 +89,13 @@ public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregato
 
             if (script == null) {
                 // the user didn't specify a field or a script, so we need to fall back on a value source from the ancestors
-                ValuesSource valuesSource = ValuesSourceAggregator.resolveValuesSource(name, parent, null);
+                ValuesSource valuesSource = ValuesSourceAggregator.resolveValuesSourceFromAncestors(name, parent, null);
                 if (valuesSource instanceof NumericValuesSource) {
                     if (format != null) {
                         // the user defined a format that should be used with the inherited value source... so we wrap it with the new format
                         // but right now we only support configurable date formats
                         ValueFormatter formatter = new ValueFormatter.DateTime(format);
 
-                        //TODO move to the factory
                         return new NumericValuesSource.Delegate((NumericValuesSource) valuesSource, formatter);
                     }
                     return valuesSource;
@@ -111,10 +104,14 @@ public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregato
 
             // we have a script, so it's a script value source
             switch (valueType) {
-                case STRING:    return new BytesValuesSource.Script(script, multiValued);
-                case LONG:      return new NumericValuesSource.LongScript(script, multiValued, null);
-                case DOUBLE:    return new NumericValuesSource.DoubleScript(script, multiValued, null);
-                default:        throw new AggregationExecutionException("unknown field type [" + valueType.name() + "]");
+                case STRING:
+                    return new BytesValuesSource.Script(script, multiValued);
+                case LONG:
+                    return new NumericValuesSource.LongScript(script, multiValued, null);
+                case DOUBLE:
+                    return new NumericValuesSource.DoubleScript(script, multiValued, null);
+                default:
+                    throw new AggregationExecutionException("unknown field type [" + valueType.name() + "]");
             }
         }
 
@@ -135,7 +132,7 @@ public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregato
 
         if (fieldContext.indexFieldData() instanceof IndexNumericFieldData) {
             if (((IndexNumericFieldData) fieldContext.indexFieldData()).getNumericType().isFloatingPoint()) {
-                return aggregationContext.doubleField(fieldContext, script, null, null);
+                return aggregationContext.numericField(fieldContext, script, null, null);
             }
             return aggregationContext.longField(fieldContext, script, null, null);
         }

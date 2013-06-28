@@ -170,6 +170,9 @@ public interface NumericValuesSource extends ValuesSource {
 
     }
 
+    /**
+     * Wraps another numeric values source, and associates with it a different formatter and/or parser
+     */
     static class Delegate implements  NumericValuesSource {
 
         private final NumericValuesSource valuesSource;

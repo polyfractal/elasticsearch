@@ -40,7 +40,7 @@ public abstract class ValuesSourceAggregator<VS extends ValuesSource> extends Ag
         if (valuesSource != null) {
             this.valuesSource = valuesSource;
         } else {
-            this.valuesSource = resolveValuesSource(name, parent, requiredValuesSourceType);
+            this.valuesSource = resolveValuesSourceFromAncestors(name, parent, requiredValuesSourceType);
         }
     }
 
@@ -49,7 +49,7 @@ public abstract class ValuesSourceAggregator<VS extends ValuesSource> extends Ag
         return valuesSource;
     }
 
-    public static <VS extends ValuesSource> VS resolveValuesSource(String aggName, Aggregator parent, Class<VS> requiredValuesSourceType) {
+    public static <VS extends ValuesSource> VS resolveValuesSourceFromAncestors(String aggName, Aggregator parent, Class<VS> requiredValuesSourceType) {
         ValuesSource vs;
         while (parent != null) {
             if (parent instanceof ValuesSourceBased) {

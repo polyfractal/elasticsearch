@@ -28,7 +28,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- *
+ * {@link DoubleValues} implementation which is based on a script
  */
 public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
 

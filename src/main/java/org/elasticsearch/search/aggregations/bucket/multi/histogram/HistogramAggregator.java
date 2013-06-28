@@ -19,6 +19,7 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
+import org.apache.lucene.util.CollectionUtil;
 import org.elasticsearch.common.Rounding;
 import org.elasticsearch.common.inject.internal.Nullable;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
@@ -32,7 +33,6 @@ import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -85,7 +85,7 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
             }
             buckets.add(histogramFactory.createBucket(bucketCollector.key, bucketCollector.docCount, aggregations));
         }
-        Collections.sort(buckets, order.comparator());
+        CollectionUtil.quickSort(buckets, order.comparator());
         return histogramFactory.create(name, buckets, order, valuesSource.formatter(), keyed);
     }
 

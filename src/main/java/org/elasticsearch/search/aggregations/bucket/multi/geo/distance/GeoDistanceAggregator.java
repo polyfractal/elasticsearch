@@ -71,7 +71,7 @@ public class GeoDistanceAggregator extends GeoPointBucketAggregator {
         collectors = new BucketCollector[ranges.size()];
         int i = 0;
         for (DistanceRange range : ranges) {
-            collectors[i++] = new BucketCollector(range, valuesSource, BucketAggregator.createAggregators(factories, this), this);
+            collectors[i++] = new BucketCollector(range, valuesSource, BucketAggregator.createSubAggregators(factories, this), this);
         }
     }
 
@@ -118,8 +118,8 @@ public class GeoDistanceAggregator extends GeoPointBucketAggregator {
         }
 
         @Override
-        protected boolean onDoc(int doc, GeoPointValues values, ValueSpace context) throws IOException {
-            if (matches(doc, valuesSource.key(), values, context)) {
+        protected boolean onDoc(int doc, GeoPointValues values, ValueSpace valueSpace) throws IOException {
+            if (matches(doc, valuesSource.key(), values, valueSpace)) {
                 docCount++;
                 return true;
             }

@@ -58,7 +58,6 @@ public abstract class DoubleValues {
     }
 
     public Iter getIter(int docId) {
-        assert !isMultiValued();
         if (hasValue(docId)) {
             return iter.reset(getValue(docId));
         } else {

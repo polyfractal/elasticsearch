@@ -153,6 +153,7 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
 
         void reset(Object array) {
             this.array = array;
+            this.i = 0;
             this.arrayLength = Array.getLength(array);
             this.iterator = null;
         }
@@ -167,7 +168,7 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
             if (iterator != null) {
                 return iterator.hasNext();
             }
-            return i + 1 < arrayLength;
+            return i < arrayLength;
         }
 
         @Override
@@ -175,7 +176,7 @@ public class ScriptDoubleValues extends DoubleValues implements ScriptValues {
             if (iterator != null) {
                 return iterator.next().doubleValue();
             }
-            return ((Number) Array.get(array, ++i)).doubleValue();
+            return ((Number) Array.get(array, i++)).doubleValue();
         }
     }
 }

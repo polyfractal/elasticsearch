@@ -148,6 +148,7 @@ public class ScriptLongValues extends LongValues implements ScriptValues {
 
         void reset(Object array) {
             this.array = array;
+            this.i = 0;
             this.arrayLength = Array.getLength(array);
             this.iterator = null;
         }
@@ -162,7 +163,7 @@ public class ScriptLongValues extends LongValues implements ScriptValues {
             if (iterator != null) {
                 return iterator.hasNext();
             }
-            return i + 1 < arrayLength;
+            return i < arrayLength;
         }
 
         @Override
@@ -170,7 +171,7 @@ public class ScriptLongValues extends LongValues implements ScriptValues {
             if (iterator != null) {
                 return iterator.next().longValue();
             }
-            return ((Number) Array.get(array, ++i)).longValue();
+            return ((Number) Array.get(array, i++)).longValue();
         }
     }
 }

@@ -39,7 +39,7 @@ public class NestedParser implements AggregatorParser {
 
     @Override
     public Aggregator.Factory parse(String aggregationName, XContentParser parser, SearchContext context) throws IOException {
-        String field = null;
+        String path = null;
 
         XContentParser.Token token;
         String currentFieldName = null;
@@ -48,16 +48,16 @@ public class NestedParser implements AggregatorParser {
                 currentFieldName = parser.currentName();
             } else if (token == XContentParser.Token.VALUE_STRING) {
                 if ("path".equals(currentFieldName)) {
-                    field = parser.text();
+                    path = parser.text();
                 }
             }
         }
 
-        if (field == null) {
+        if (path == null) {
             // "field" doesn't exist, so we fall back to the context of the ancestors
             throw new SearchParseException(context, "Missing [path] field for nested aggregation [" + aggregationName + "]");
         }
 
-        return new NestedAggregator.Factory(aggregationName, field);
+        return new NestedAggregator.Factory(aggregationName, path);
     }
 }

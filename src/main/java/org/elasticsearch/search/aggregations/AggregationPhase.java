@@ -60,11 +60,14 @@ public class AggregationPhase implements SearchPhase {
 
     @Override
     public Map<String, ? extends SearchParseElement> parseElements() {
-        return ImmutableMap.of(
-                "aggregations", parseElement,
-                "aggs", parseElement,
-                "aggregations_binary", binaryParseElement,
-                "aggregationsBinary", binaryParseElement);
+        return ImmutableMap.<String, SearchParseElement>builder()
+                .put("aggregations", parseElement)
+                .put("aggs", parseElement)
+                .put("aggregations_binary", binaryParseElement)
+                .put("aggregationsBinary", binaryParseElement)
+                .put("aggs_binary", binaryParseElement)
+                .put("aggsBinary", binaryParseElement)
+                .build();
     }
 
     @Override

@@ -66,7 +66,7 @@ public class GeoDistanceParser implements AggregatorParser {
                     unit = DistanceUnit.fromString(parser.text());
                 } else if ("distance_type".equals(currentFieldName) || "distanceType".equals(currentFieldName)) {
                     distanceType = GeoDistance.fromString(parser.text());
-                } else if ("point".equals(currentFieldName) || "origin".equals(currentFieldName)) {
+                } else if ("point".equals(currentFieldName) || "origin".equals(currentFieldName) || "center".equals(currentFieldName)) {
                     origin = new GeoPoint();
                     origin.resetFromString(parser.text());
                 }
@@ -95,7 +95,7 @@ public class GeoDistanceParser implements AggregatorParser {
                         }
                         ranges.add(new GeoDistanceAggregator.DistanceRange(key, from, to));
                     }
-                } else if ("point".equals(currentFieldName) || "origin".equals(currentFieldName)) {
+                } else if ("point".equals(currentFieldName) || "origin".equals(currentFieldName) || "center".equals(currentFieldName)) {
                     double lat = Double.NaN;
                     double lon = Double.NaN;
                     while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
@@ -110,7 +110,7 @@ public class GeoDistanceParser implements AggregatorParser {
                     origin = new GeoPoint(lat, lon);
                 }
             } else if (token == XContentParser.Token.START_OBJECT) {
-                if ("point".equals(currentFieldName) || "origin".equals(currentFieldName)) {
+                if ("point".equals(currentFieldName) || "origin".equals(currentFieldName) || "center".equals(currentFieldName)) {
                     double lat = Double.NaN;
                     double lon = Double.NaN;
                     while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {

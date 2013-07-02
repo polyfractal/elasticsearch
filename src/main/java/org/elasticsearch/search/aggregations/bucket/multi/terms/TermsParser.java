@@ -79,7 +79,7 @@ public class TermsParser implements AggregatorParser {
                     requiredSize = parser.intValue();
                 }
             } else if (token == XContentParser.Token.VALUE_BOOLEAN) {
-                if ("mult_valued".equals(currentFieldName) || "multiValued".equals(currentFieldName)) {
+                if ("multi_valued".equals(currentFieldName) || "multiValued".equals(currentFieldName)) {
                     multiValued = parser.booleanValue();
                 }
             } else if (token == XContentParser.Token.START_OBJECT) {

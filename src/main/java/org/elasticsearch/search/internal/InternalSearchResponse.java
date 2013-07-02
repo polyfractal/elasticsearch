@@ -25,6 +25,7 @@ import org.elasticsearch.common.io.stream.Streamable;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.aggregations.Aggregations;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.facet.Facets;
 import org.elasticsearch.search.facet.InternalFacets;
@@ -72,6 +73,10 @@ public class InternalSearchResponse implements Streamable, ToXContent {
 
     public Facets facets() {
         return facets;
+    }
+
+    public Aggregations aggregations() {
+        return aggregations;
     }
 
     public Suggest suggest() {

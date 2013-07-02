@@ -20,9 +20,12 @@
 package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
 import org.elasticsearch.ElasticSearchIllegalArgumentException;
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.aggregations.Aggregated;
 import org.elasticsearch.search.aggregations.Aggregation;
 
+import java.io.IOException;
 import java.util.Comparator;
 
 /**
@@ -59,7 +62,7 @@ public interface Histogram<B extends Histogram.Bucket> extends Aggregation, Iter
     /**
      * A strategy defining the order in which the buckets in this histogram are ordered.
      */
-    static interface Order {
+    static interface Order extends ToXContent {
 
         /**
          * Defines standard ordering strategies for histogram buckets.
@@ -80,6 +83,11 @@ public interface Histogram<B extends Histogram.Bucket> extends Aggregation, Iter
                     }
                     return 0;
                 }
+            }, new ToXContent() {
+                @Override
+                public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+                    return builder.startObject().field("_key", "asc").endObject();
+                }
             }),
 
             /**
@@ -89,6 +97,11 @@ public interface Histogram<B extends Histogram.Bucket> extends Aggregation, Iter
                 @Override
                 public int compare(Bucket b1, Bucket b2) {
                     return -KEY_ASC.comparator().compare(b1, b2);
+                }
+            }, new ToXContent() {
+                @Override
+                public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+                    return builder.startObject().field("_key", "desc").endObject();
                 }
             }),
 
@@ -106,6 +119,11 @@ public interface Histogram<B extends Histogram.Bucket> extends Aggregation, Iter
                     }
                     return 0;
                 }
+            }, new ToXContent() {
+                @Override
+                public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+                    return builder.startObject().field("_count", "asc").endObject();
+                }
             }),
 
             /**
@@ -116,15 +134,22 @@ public interface Histogram<B extends Histogram.Bucket> extends Aggregation, Iter
                 public int compare(Bucket b1, Bucket b2) {
                     return -COUNT_ASC.comparator().compare(b1, b2);
                 }
+            }, new ToXContent() {
+                @Override
+                public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+                    return builder.startObject().field("_count", "desc").endObject();
+                }
             });
 
 
             private final byte id;
             private final Comparator<Bucket> comparator;
+            private final ToXContent toXContent;
 
-            private Standard(byte id, Comparator<Bucket> comparator) {
+            private Standard(byte id, Comparator<Bucket> comparator, ToXContent toXContent) {
                 this.id = id;
                 this.comparator = comparator;
+                this.toXContent = toXContent;
             }
 
             @Override
@@ -146,6 +171,12 @@ public interface Histogram<B extends Histogram.Bucket> extends Aggregation, Iter
             @Override
             public Comparator<Bucket> comparator() {
                 return comparator;
+            }
+
+
+            @Override
+            public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+                return toXContent.toXContent(builder, params);
             }
         }
 
@@ -229,6 +260,12 @@ public interface Histogram<B extends Histogram.Bucket> extends Aggregation, Iter
             @Override
             public Aggregated.Comparator<Bucket> comparator() {
                 return comparator;
+            }
+
+            @Override
+            public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+                String name = comparator.valueName() != null ? comparator.aggName() + "." + comparator.valueName() : comparator.aggName();
+                return builder.startObject().field(name, comparator.asc() ? "asc" : "desc").endObject();
             }
         }
 

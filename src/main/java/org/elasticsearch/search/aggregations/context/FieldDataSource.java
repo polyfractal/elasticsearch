@@ -89,7 +89,7 @@ public abstract class FieldDataSource<Values> implements ReaderContextAware {
         @Override
         public LongValues longValues() {
             longValues.reset(values);
-            return longValues();
+            return longValues;
         }
 
         @Override

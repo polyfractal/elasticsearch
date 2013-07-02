@@ -102,20 +102,14 @@ public class LongTermsAggregator extends LongBucketAggregator {
 
     class Collector implements Aggregator.Collector {
 
-        long time = 0;
-        long time2 = 0;
-
         @Override
         public void collect(int doc, ValueSpace valueSpace) throws IOException {
 
             LongValues values = valuesSource.longValues();
 
-
-
             if (!values.hasValue(doc)) {
                 return;
             }
-
 
             Object valuesSourceKey = valuesSource.key();
             if (!values.isMultiValued()) {
@@ -124,24 +118,13 @@ public class LongTermsAggregator extends LongBucketAggregator {
                     return;
                 }
 
-
-
-                long start = System.currentTimeMillis();
-
                 BucketCollector bucket = bucketCollectors.get(term);
                 if (bucket == null) {
                     bucket = new BucketCollector(term, LongTermsAggregator.this);
                     bucketCollectors.put(term, bucket);
                 }
 
-                time += System.currentTimeMillis() - start;
-
-                start = System.currentTimeMillis();
-
                 bucket.collect(doc, valueSpace);
-
-                time2 += System.currentTimeMillis() - start;
-
                 return;
             }
 
@@ -175,7 +158,6 @@ public class LongTermsAggregator extends LongBucketAggregator {
 
         @Override
         public void postCollection() {
-            System.out.println("agg: total collect - " + time + "\t\t" + time2);
             for (Object bucketCollector : bucketCollectors.internalValues()) {
                 if (bucketCollector != null) {
                     ((BucketCollector) bucketCollector).postCollection();

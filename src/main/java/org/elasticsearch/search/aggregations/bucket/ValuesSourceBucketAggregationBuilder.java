@@ -59,6 +59,7 @@ public abstract class ValuesSourceBucketAggregationBuilder<B extends ValuesSourc
 
     @Override
     protected final XContentBuilder internalXContent(XContentBuilder builder, Params params) throws IOException {
+        builder.startObject();
         if (field != null) {
             builder.field("field", field);
         }
@@ -75,7 +76,8 @@ public abstract class ValuesSourceBucketAggregationBuilder<B extends ValuesSourc
             builder.field("params").map(this.params);
         }
 
-        return doInternalXContent(builder, params);
+        doInternalXContent(builder, params);
+        return builder.endObject();
     }
 
     protected abstract XContentBuilder doInternalXContent(XContentBuilder builder, Params params) throws IOException;

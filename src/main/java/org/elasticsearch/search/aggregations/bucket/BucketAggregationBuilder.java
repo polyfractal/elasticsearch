@@ -82,9 +82,8 @@ public abstract class BucketAggregationBuilder<B extends BucketAggregationBuilde
     public final XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject(name);
 
-        builder.startObject(type);
+        builder.field(type);
         internalXContent(builder, params);
-        builder.endObject();
 
         if (aggregations != null || aggregationsBinary != null) {
             builder.startObject("aggregations");

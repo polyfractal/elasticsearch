@@ -65,43 +65,30 @@ public abstract class AbstractNumericTests extends AbstractSharedClusterTest {
 
     public abstract void testUnmapped() throws Exception;
 
-    @Test
     public abstract void testSingleValuedField() throws Exception;
 
-    @Test
     public abstract void testSingleValuedField_PartiallyUnmapped() throws Exception;
 
-    @Test
     public abstract void testSingleValuedField_WithValueScript() throws Exception;
 
-    @Test
     public abstract void testSingleValuedField_WithValueScript_WithParams() throws Exception;
 
-    @Test
     public abstract void testMultiValuedField() throws Exception;
 
-    @Test
     public abstract void testMultiValuedField_WithValueScript() throws Exception;
 
-    @Test
     public abstract void testMultiValuedField_WithValueScript_WithParams() throws Exception;
 
-    @Test
     public abstract void testScript_SingleValued() throws Exception;
 
-    @Test
     public abstract void testScript_SingleValued_WithParams() throws Exception;
 
-    @Test
     public abstract void testScript_ExplicitSingleValued_WithParams() throws Exception;
 
-    @Test
     public abstract void testScript_MultiValued() throws Exception;
 
-    @Test
     public abstract void testScript_ExplicitMultiValued() throws Exception;
 
-    @Test
     public abstract void testScript_MultiValued_WithParams() throws Exception;
 
 

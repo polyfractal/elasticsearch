@@ -20,6 +20,7 @@
 package org.elasticsearch.search.aggregations.bucket.single.global;
 
 import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.Aggregations;
 
 /**
  *
@@ -27,5 +28,7 @@ import org.elasticsearch.search.aggregations.Aggregation;
 public interface Global extends Aggregation {
 
     long getDocCount();
+
+    Aggregations getAggregations();
 
 }

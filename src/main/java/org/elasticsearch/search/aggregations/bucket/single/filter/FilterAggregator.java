@@ -77,7 +77,6 @@ public class FilterAggregator extends SingleBucketAggregator implements ReaderCo
 
     class Collector extends SingleBucketAggregator.BucketCollector {
 
-        private Bits bits;
         private long docCount;
 
         Collector(Aggregator[] subAggregators) {

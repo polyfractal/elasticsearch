@@ -16,6 +16,6 @@ public class GlobalBuilder extends BucketAggregationBuilder<GlobalBuilder> {
 
     @Override
     protected XContentBuilder internalXContent(XContentBuilder builder, Params params) throws IOException {
-        return builder;
+        return builder.startObject().endObject();
     }
 }

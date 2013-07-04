@@ -80,7 +80,7 @@ public class GlobalAggregator extends SingleBucketAggregator {
         public GlobalAggregator create(AggregationContext aggregationContext, Aggregator parent) {
             if (parent != null) {
                 throw new AggregationExecutionException("Aggregation [" + parent.name() + "] cannot have a global " +
-                        "sub-aggregation [" + name + "].Global aggregations can only be defined as top level aggregations");
+                        "sub-aggregation [" + name + "]. Global aggregations can only be defined as top level aggregations");
             }
             return new GlobalAggregator(name, factories, aggregationContext);
         }

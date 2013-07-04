@@ -24,10 +24,11 @@ public class NestedBuilder extends BucketAggregationBuilder<NestedBuilder> {
 
     @Override
     protected XContentBuilder internalXContent(XContentBuilder builder, Params params) throws IOException {
+        builder.startObject();
         if (path == null) {
             throw new SearchSourceBuilderException("nested path must be set on nested aggregation [" + name + "]");
         }
         builder.field("path", path);
-        return builder;
+        return builder.endObject();
     }
 }

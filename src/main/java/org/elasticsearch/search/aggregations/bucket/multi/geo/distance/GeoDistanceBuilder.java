@@ -131,6 +131,7 @@ public class GeoDistanceBuilder extends BucketAggregationBuilder<GeoDistanceBuil
 
     @Override
     protected XContentBuilder internalXContent(XContentBuilder builder, Params params) throws IOException {
+        builder.startObject();
         if (ranges.isEmpty()) {
             throw new SearchSourceBuilderException("at least one range must be defined for geo_distance aggregation [" + name + "]");
         }
@@ -161,7 +162,7 @@ public class GeoDistanceBuilder extends BucketAggregationBuilder<GeoDistanceBuil
         }
         builder.endArray();
 
-        return builder;
+        return builder.endObject();
     }
 
 }

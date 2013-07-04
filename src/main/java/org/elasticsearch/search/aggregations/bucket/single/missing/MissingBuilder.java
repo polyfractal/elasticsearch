@@ -23,9 +23,10 @@ public class MissingBuilder extends BucketAggregationBuilder<MissingBuilder> {
 
     @Override
     protected XContentBuilder internalXContent(XContentBuilder builder, Params params) throws IOException {
+        builder.startObject();
         if (field != null) {
             builder.field("field", field);
         }
-        return builder;
+        return builder.endObject();
     }
 }

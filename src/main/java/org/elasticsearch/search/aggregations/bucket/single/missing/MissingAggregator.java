@@ -104,6 +104,7 @@ public class MissingAggregator extends SingleBytesBucketAggregator {
             return new MissingAggregator(name, factories, valuesSource, aggregationContext, parent);
         }
     }
+
 }
 
 

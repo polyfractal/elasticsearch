@@ -56,7 +56,7 @@ public class MissingParser implements AggregatorParser {
         }
 
         if (field == null) {
-            // "field" doesn't exist, so we fall back to the context of the ancestors
+            // "field" doesn't exist, so we'll inherit it from the ancestors
             return new MissingAggregator.Factory(aggregationName, null);
         }
 

@@ -22,7 +22,6 @@ package org.elasticsearch.test.integration.search.aggregations.calc;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.test.integration.AbstractSharedClusterTest;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 

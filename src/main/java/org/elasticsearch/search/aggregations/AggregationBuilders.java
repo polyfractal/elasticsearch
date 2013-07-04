@@ -1,5 +1,12 @@
 package org.elasticsearch.search.aggregations;
 
+import org.elasticsearch.search.aggregations.bucket.multi.geo.distance.GeoDistanceBuilder;
+import org.elasticsearch.search.aggregations.bucket.multi.histogram.HistogramBuilder;
+import org.elasticsearch.search.aggregations.bucket.multi.histogram.date.DateHistogramBuilder;
+import org.elasticsearch.search.aggregations.bucket.multi.range.RangeBuilder;
+import org.elasticsearch.search.aggregations.bucket.multi.range.date.DateRangeBuilder;
+import org.elasticsearch.search.aggregations.bucket.multi.range.ip4v.IPv4RangeBuilder;
+import org.elasticsearch.search.aggregations.bucket.multi.terms.TermsBuilder;
 import org.elasticsearch.search.aggregations.bucket.single.filter.FilterAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.single.global.GlobalBuilder;
 import org.elasticsearch.search.aggregations.bucket.single.missing.MissingBuilder;
@@ -64,4 +71,31 @@ public class AggregationBuilders {
         return new NestedBuilder(name);
     }
 
+    public static GeoDistanceBuilder geoDistance(String name) {
+        return new GeoDistanceBuilder(name);
+    }
+
+    public static HistogramBuilder histogram(String name) {
+        return new HistogramBuilder(name);
+    }
+
+    public static DateHistogramBuilder dateHistogram(String name) {
+        return new DateHistogramBuilder(name);
+    }
+
+    public static RangeBuilder range(String name) {
+        return new RangeBuilder(name);
+    }
+
+    public static DateRangeBuilder dateRange(String name) {
+        return new DateRangeBuilder(name);
+    }
+
+    public static IPv4RangeBuilder ipRange(String name) {
+        return new IPv4RangeBuilder(name);
+    }
+
+    public static TermsBuilder terms(String name) {
+        return new TermsBuilder(name);
+    }
 }

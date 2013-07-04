@@ -74,7 +74,7 @@ public class GeoDistanceParser implements AggregatorParser {
                 if ("ranges".equals(currentFieldName)) {
                     ranges = new ArrayList<GeoDistanceAggregator.DistanceRange>();
                     while ((token = parser.nextToken()) != XContentParser.Token.END_ARRAY) {
-                        double from = Double.NEGATIVE_INFINITY;
+                        double from = 0.0;
                         double to = Double.POSITIVE_INFINITY;
                         String key = null;
                         String toOrFromOrKey = null;

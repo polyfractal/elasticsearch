@@ -52,14 +52,25 @@ public class GeoDistanceAggregator extends GeoPointBucketAggregator {
         org.elasticsearch.common.geo.GeoDistance distanceType;
 
         DistanceRange(String key, double from, double to) {
-            this.key = key;
             this.from = from;
             this.to = to;
+            this.key = key(key, from, to);
         }
 
         boolean matches(GeoPoint target) {
             double distance = distanceType.calculate(origin.getLat(), origin.getLon(), target.getLat(), target.getLon(), unit);
             return distance >= from && distance < to;
+        }
+
+        private static String key(String key, double from, double to) {
+            if (key != null) {
+                return key;
+            }
+            StringBuilder sb = new StringBuilder();
+            sb.append(from == 0 ? "*" : from);
+            sb.append("-");
+            sb.append(Double.isInfinite(to) ? "*" : to);
+            return sb.toString();
         }
     }
 

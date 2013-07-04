@@ -186,6 +186,38 @@ public abstract class AbstractSharedClusterTest extends ElasticsearchTestCase {
         }
     }
 
+    public void createIndexMappedExtended(String name, String type, String... fields) throws IOException {
+        XContentBuilder builder = jsonBuilder().startObject().startObject(type).startObject("properties");
+        boolean inField = false;
+        for (int i = 0; i < fields.length; i++) {
+            if (!fields[i].contains(":")) {
+                if (inField) {
+                    builder.endObject();
+                }
+                builder.startObject(fields[i]);
+                inField = true;
+            } else {
+                if (!inField) {
+                    throw new RuntimeException("Misused #createIndexFullMapped method as [" + fields[i] + "] is not defined in a context of a field mapping");
+                }
+                String attrName = fields[i].substring(0, fields[i].indexOf(":"));
+                String attrValue = fields[i].substring(fields[i].indexOf(":")+1, fields[i].length());
+                builder.field(attrName, attrValue);
+            }
+        }
+        if (inField) {
+            builder.endObject();
+        }
+        builder.endObject().endObject().endObject();
+        try {
+            prepareCreate(name).setSettings(getSettings()).addMapping(type, builder).execute().actionGet();
+            return;
+        } catch (IndexAlreadyExistsException ex) {
+            wipeIndex(name);
+        }
+        prepareCreate(name).setSettings(getSettings()).addMapping(type, builder).execute().actionGet();
+    }
+
     public void createIndexMapped(String name, String type, String... simpleMapping) throws IOException {
         XContentBuilder builder = jsonBuilder().startObject().startObject(type).startObject("properties");
         for (int i = 0; i < simpleMapping.length; i++) {

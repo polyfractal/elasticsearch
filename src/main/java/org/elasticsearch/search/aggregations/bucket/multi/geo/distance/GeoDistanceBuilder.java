@@ -73,6 +73,10 @@ public class GeoDistanceBuilder extends BucketAggregationBuilder<GeoDistanceBuil
         return this;
     }
 
+    public GeoDistanceBuilder point(String latLon) {
+        return point(GeoPoint.parseFromLatLon(latLon));
+    }
+
     public GeoDistanceBuilder point(GeoPoint point) {
         this.point = point;
         return this;

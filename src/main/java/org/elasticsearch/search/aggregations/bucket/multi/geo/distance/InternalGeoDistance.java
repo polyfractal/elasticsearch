@@ -33,9 +33,7 @@ import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 /**
  *
@@ -129,6 +127,7 @@ public class InternalGeoDistance extends InternalAggregation implements GeoDista
     }
 
     private List<GeoDistance.Bucket> buckets;
+    private Map<String, GeoDistance.Bucket> bucketMap;
 
     InternalGeoDistance() {} // for serialization
 
@@ -180,6 +179,22 @@ public class InternalGeoDistance extends InternalAggregation implements GeoDista
     }
 
     @Override
+    public List<GeoDistance.Bucket> buckets() {
+        return buckets;
+    }
+
+    @Override
+    public GeoDistance.Bucket getByKey(String key) {
+        if (bucketMap == null) {
+            bucketMap = new HashMap<String, GeoDistance.Bucket>(buckets.size());
+            for (GeoDistance.Bucket bucket : buckets) {
+                bucketMap.put(bucket.getKey(), bucket);
+            }
+        }
+        return bucketMap.get(key);
+    }
+
+    @Override
     public void readFrom(StreamInput in) throws IOException {
         name = in.readString();
         int size = in.readVInt();
@@ -187,6 +202,7 @@ public class InternalGeoDistance extends InternalAggregation implements GeoDista
         for (int i = 0; i < size; i++) {
             buckets.add(new Bucket(in.readOptionalString(), DistanceUnit.readDistanceUnit(in), in.readDouble(), in.readDouble(), in.readVLong(), InternalAggregations.readAggregations(in)));
         }
+        this.bucketMap = null;
         this.buckets = buckets;
     }
 

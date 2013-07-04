@@ -23,6 +23,8 @@ import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.search.aggregations.Aggregated;
 import org.elasticsearch.search.aggregations.Aggregation;
 
+import java.util.List;
+
 /**
  *
  */
@@ -42,4 +44,7 @@ public interface GeoDistance extends Aggregation, Iterable<GeoDistance.Bucket> {
 
     }
 
+    List<Bucket> buckets();
+
+    Bucket getByKey(String key);
 }

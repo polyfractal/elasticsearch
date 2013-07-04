@@ -22,7 +22,7 @@ package org.elasticsearch.search.aggregations.calc.count;
 import org.elasticsearch.search.aggregations.Aggregation;
 
 /**
- * An aggregation that holds the number of <strong>values</strong> that the current document set has for a specific
+ * An get that holds the number of <strong>values</strong> that the current document set has for a specific
  * field.
  */
 public interface Count extends Aggregation {

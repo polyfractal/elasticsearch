@@ -44,7 +44,7 @@ public class AvgTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(0l));
 
-        Avg avg = searchResponse.getAggregations().aggregation("avg");
+        Avg avg = searchResponse.getAggregations().get("avg");
         assertThat(avg, notNullValue());
         assertThat(avg.getName(), equalTo("avg"));
         assertThat(avg.getValue(), equalTo(Double.NaN));
@@ -59,7 +59,7 @@ public class AvgTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Avg avg = searchResponse.getAggregations().aggregation("avg");
+        Avg avg = searchResponse.getAggregations().get("avg");
         assertThat(avg, notNullValue());
         assertThat(avg.getName(), equalTo("avg"));
         assertThat(avg.getValue(), equalTo((double) (1+2+3+4+5+6+7+8+9+10) / 10));
@@ -74,7 +74,7 @@ public class AvgTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Avg avg = searchResponse.getAggregations().aggregation("avg");
+        Avg avg = searchResponse.getAggregations().get("avg");
         assertThat(avg, notNullValue());
         assertThat(avg.getName(), equalTo("avg"));
         assertThat(avg.getValue(), equalTo((double) (1+2+3+4+5+6+7+8+9+10) / 10));
@@ -89,7 +89,7 @@ public class AvgTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Avg avg = searchResponse.getAggregations().aggregation("avg");
+        Avg avg = searchResponse.getAggregations().get("avg");
         assertThat(avg, notNullValue());
         assertThat(avg.getName(), equalTo("avg"));
         assertThat(avg.getValue(), equalTo((double) (2+3+4+5+6+7+8+9+10+11) / 10));
@@ -104,7 +104,7 @@ public class AvgTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Avg avg = searchResponse.getAggregations().aggregation("avg");
+        Avg avg = searchResponse.getAggregations().get("avg");
         assertThat(avg, notNullValue());
         assertThat(avg.getName(), equalTo("avg"));
         assertThat(avg.getValue(), equalTo((double) (2+3+4+5+6+7+8+9+10+11) / 10));
@@ -120,7 +120,7 @@ public class AvgTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Avg avg = searchResponse.getAggregations().aggregation("avg");
+        Avg avg = searchResponse.getAggregations().get("avg");
         assertThat(avg, notNullValue());
         assertThat(avg.getName(), equalTo("avg"));
         assertThat(avg.getValue(), equalTo((double) (2+3+3+4+4+5+5+6+6+7+7+8+8+9+9+10+10+11+11+12) / 20));
@@ -135,7 +135,7 @@ public class AvgTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Avg avg = searchResponse.getAggregations().aggregation("avg");
+        Avg avg = searchResponse.getAggregations().get("avg");
         assertThat(avg, notNullValue());
         assertThat(avg.getName(), equalTo("avg"));
         assertThat(avg.getValue(), equalTo((double) (3+4+4+5+5+6+6+7+7+8+8+9+9+10+10+11+11+12+12+13) / 20));
@@ -150,7 +150,7 @@ public class AvgTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Avg avg = searchResponse.getAggregations().aggregation("avg");
+        Avg avg = searchResponse.getAggregations().get("avg");
         assertThat(avg, notNullValue());
         assertThat(avg.getName(), equalTo("avg"));
         assertThat(avg.getValue(), equalTo((double) (3+4+4+5+5+6+6+7+7+8+8+9+9+10+10+11+11+12+12+13) / 20));
@@ -165,7 +165,7 @@ public class AvgTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Avg avg = searchResponse.getAggregations().aggregation("avg");
+        Avg avg = searchResponse.getAggregations().get("avg");
         assertThat(avg, notNullValue());
         assertThat(avg.getName(), equalTo("avg"));
         assertThat(avg.getValue(), equalTo((double) (1+2+3+4+5+6+7+8+9+10) / 10));
@@ -180,7 +180,7 @@ public class AvgTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Avg avg = searchResponse.getAggregations().aggregation("avg");
+        Avg avg = searchResponse.getAggregations().get("avg");
         assertThat(avg, notNullValue());
         assertThat(avg.getName(), equalTo("avg"));
         assertThat(avg.getValue(), equalTo((double) (2+3+4+5+6+7+8+9+10+11) / 10));
@@ -195,7 +195,7 @@ public class AvgTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Avg avg = searchResponse.getAggregations().aggregation("avg");
+        Avg avg = searchResponse.getAggregations().get("avg");
         assertThat(avg, notNullValue());
         assertThat(avg.getName(), equalTo("avg"));
         assertThat(avg.getValue(), equalTo((double) (2+3+4+5+6+7+8+9+10+11) / 10));
@@ -210,7 +210,7 @@ public class AvgTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Avg avg = searchResponse.getAggregations().aggregation("avg");
+        Avg avg = searchResponse.getAggregations().get("avg");
         assertThat(avg, notNullValue());
         assertThat(avg.getName(), equalTo("avg"));
         assertThat(avg.getValue(), equalTo((double) (1+2+2+3+3+4+4+5+5+6+6+7+7+8+8+9+9+10+10+11) / 20));
@@ -225,7 +225,7 @@ public class AvgTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Avg avg = searchResponse.getAggregations().aggregation("avg");
+        Avg avg = searchResponse.getAggregations().get("avg");
         assertThat(avg, notNullValue());
         assertThat(avg.getName(), equalTo("avg"));
         assertThat(avg.getValue(), equalTo((double) (1+2+2+3+3+4+4+5+5+6+6+7+7+8+8+9+9+10+10+11) / 20));
@@ -252,7 +252,7 @@ public class AvgTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Avg avg = searchResponse.getAggregations().aggregation("avg");
+        Avg avg = searchResponse.getAggregations().get("avg");
         assertThat(avg, notNullValue());
         assertThat(avg.getName(), equalTo("avg"));
         assertThat(avg.getValue(), equalTo((double) (1+2+2+3+3+4+4+5+5+6+6+7+7+8+8+9+9+10+10+11) / 20));

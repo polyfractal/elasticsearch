@@ -77,7 +77,7 @@ public abstract class GeoPointBucketAggregator extends ValuesSourceBucketAggrega
          *
          * @param doc           The doc id
          * @param values        The geo_point values
-         * @param valueSpace    The current aggregation value space
+         * @param valueSpace    The current get value space
          * @return              {@code true} if the given doc falls within this bucket, {@code false} otherwise.
          * @throws IOException
          */

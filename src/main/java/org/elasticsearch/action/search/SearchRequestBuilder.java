@@ -568,7 +568,7 @@ public class SearchRequestBuilder extends ActionRequestBuilder<SearchRequest, Se
     }
 
     /**
-     * Adds an aggregation to the search operation.
+     * Adds an get to the search operation.
      */
     public SearchRequestBuilder addAggregation(AggregationBuilder aggregation) {
         sourceBuilder().aggregation(aggregation);
@@ -576,7 +576,7 @@ public class SearchRequestBuilder extends ActionRequestBuilder<SearchRequest, Se
     }
 
     /**
-     * Sets a raw (xcontent) binary representation of aggregations to use.
+     * Sets a raw (xcontent) binary representation of addAggregation to use.
      */
     public SearchRequestBuilder setAggregations(BytesReference aggregations) {
         sourceBuilder().aggregations(aggregations);
@@ -584,7 +584,7 @@ public class SearchRequestBuilder extends ActionRequestBuilder<SearchRequest, Se
     }
 
     /**
-     * Sets a raw (xcontent) binary representation of aggregations to use.
+     * Sets a raw (xcontent) binary representation of addAggregation to use.
      */
     public SearchRequestBuilder setAggregations(byte[] aggregations) {
         sourceBuilder().aggregations(aggregations);
@@ -592,7 +592,7 @@ public class SearchRequestBuilder extends ActionRequestBuilder<SearchRequest, Se
     }
 
     /**
-     * Sets a raw (xcontent) binary representation of aggregations to use.
+     * Sets a raw (xcontent) binary representation of addAggregation to use.
      */
     public SearchRequestBuilder setAggregations(byte[] aggregations, int aggregationsOffset, int aggregationsLength) {
         sourceBuilder().facets(aggregations, aggregationsOffset, aggregationsLength);
@@ -600,7 +600,7 @@ public class SearchRequestBuilder extends ActionRequestBuilder<SearchRequest, Se
     }
 
     /**
-     * Sets a raw (xcontent) binary representation of aggregations to use.
+     * Sets a raw (xcontent) binary representation of addAggregation to use.
      */
     public SearchRequestBuilder setAggregations(XContentBuilder aggregations) {
         sourceBuilder().aggregations(aggregations);
@@ -608,7 +608,7 @@ public class SearchRequestBuilder extends ActionRequestBuilder<SearchRequest, Se
     }
 
     /**
-     * Sets a raw (xcontent) binary representation of aggregations to use.
+     * Sets a raw (xcontent) binary representation of addAggregation to use.
      */
     public SearchRequestBuilder setAggregations(Map aggregations) {
         sourceBuilder().aggregations(aggregations);

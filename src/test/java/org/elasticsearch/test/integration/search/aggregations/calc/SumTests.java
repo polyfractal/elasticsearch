@@ -44,7 +44,7 @@ public class SumTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(0l));
 
-        Sum sum = searchResponse.getAggregations().aggregation("sum");
+        Sum sum = searchResponse.getAggregations().get("sum");
         assertThat(sum, notNullValue());
         assertThat(sum.getName(), equalTo("sum"));
         assertThat(sum.getValue(), equalTo(0.0));
@@ -59,7 +59,7 @@ public class SumTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Sum sum = searchResponse.getAggregations().aggregation("sum");
+        Sum sum = searchResponse.getAggregations().get("sum");
         assertThat(sum, notNullValue());
         assertThat(sum.getName(), equalTo("sum"));
         assertThat(sum.getValue(), equalTo((double) 1+2+3+4+5+6+7+8+9+10));
@@ -74,7 +74,7 @@ public class SumTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Sum sum = searchResponse.getAggregations().aggregation("sum");
+        Sum sum = searchResponse.getAggregations().get("sum");
         assertThat(sum, notNullValue());
         assertThat(sum.getName(), equalTo("sum"));
         assertThat(sum.getValue(), equalTo((double) 1+2+3+4+5+6+7+8+9+10));
@@ -89,7 +89,7 @@ public class SumTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Sum sum = searchResponse.getAggregations().aggregation("sum");
+        Sum sum = searchResponse.getAggregations().get("sum");
         assertThat(sum, notNullValue());
         assertThat(sum.getName(), equalTo("sum"));
         assertThat(sum.getValue(), equalTo((double) 2+3+4+5+6+7+8+9+10+11));
@@ -104,7 +104,7 @@ public class SumTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Sum sum = searchResponse.getAggregations().aggregation("sum");
+        Sum sum = searchResponse.getAggregations().get("sum");
         assertThat(sum, notNullValue());
         assertThat(sum.getName(), equalTo("sum"));
         assertThat(sum.getValue(), equalTo((double) 2+3+4+5+6+7+8+9+10+11));
@@ -119,7 +119,7 @@ public class SumTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Sum sum = searchResponse.getAggregations().aggregation("sum");
+        Sum sum = searchResponse.getAggregations().get("sum");
         assertThat(sum, notNullValue());
         assertThat(sum.getName(), equalTo("sum"));
         assertThat(sum.getValue(), equalTo((double) 1+2+3+4+5+6+7+8+9+10));
@@ -134,7 +134,7 @@ public class SumTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Sum sum = searchResponse.getAggregations().aggregation("sum");
+        Sum sum = searchResponse.getAggregations().get("sum");
         assertThat(sum, notNullValue());
         assertThat(sum.getName(), equalTo("sum"));
         assertThat(sum.getValue(), equalTo((double) 2+3+4+5+6+7+8+9+10+11));
@@ -149,7 +149,7 @@ public class SumTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Sum sum = searchResponse.getAggregations().aggregation("sum");
+        Sum sum = searchResponse.getAggregations().get("sum");
         assertThat(sum, notNullValue());
         assertThat(sum.getName(), equalTo("sum"));
         assertThat(sum.getValue(), equalTo((double) 2+3+4+5+6+7+8+9+10+11));
@@ -165,7 +165,7 @@ public class SumTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Sum sum = searchResponse.getAggregations().aggregation("sum");
+        Sum sum = searchResponse.getAggregations().get("sum");
         assertThat(sum, notNullValue());
         assertThat(sum.getName(), equalTo("sum"));
         assertThat(sum.getValue(), equalTo((double) 1+2+2+3+3+4+4+5+5+6+6+7+7+8+8+9+9+10+10+11));
@@ -180,7 +180,7 @@ public class SumTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Sum sum = searchResponse.getAggregations().aggregation("sum");
+        Sum sum = searchResponse.getAggregations().get("sum");
         assertThat(sum, notNullValue());
         assertThat(sum.getName(), equalTo("sum"));
         assertThat(sum.getValue(), equalTo((double) 1+2+2+3+3+4+4+5+5+6+6+7+7+8+8+9+9+10+10+11));
@@ -208,7 +208,7 @@ public class SumTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Sum sum = searchResponse.getAggregations().aggregation("sum");
+        Sum sum = searchResponse.getAggregations().get("sum");
         assertThat(sum, notNullValue());
         assertThat(sum.getName(), equalTo("sum"));
         assertThat(sum.getValue(), equalTo((double) 1+2+2+3+3+4+4+5+5+6+6+7+7+8+8+9+9+10+10+11));
@@ -224,7 +224,7 @@ public class SumTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Sum sum = searchResponse.getAggregations().aggregation("sum");
+        Sum sum = searchResponse.getAggregations().get("sum");
         assertThat(sum, notNullValue());
         assertThat(sum.getName(), equalTo("sum"));
         assertThat(sum.getValue(), equalTo((double) 2+3+3+4+4+5+5+6+6+7+7+8+8+9+9+10+10+11+11+12));
@@ -240,7 +240,7 @@ public class SumTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Sum sum = searchResponse.getAggregations().aggregation("sum");
+        Sum sum = searchResponse.getAggregations().get("sum");
         assertThat(sum, notNullValue());
         assertThat(sum.getName(), equalTo("sum"));
         assertThat(sum.getValue(), equalTo((double) 3+4+4+5+5+6+6+7+7+8+8+9+9+10+10+11+11+12+12+13));
@@ -256,7 +256,7 @@ public class SumTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Sum sum = searchResponse.getAggregations().aggregation("sum");
+        Sum sum = searchResponse.getAggregations().get("sum");
         assertThat(sum, notNullValue());
         assertThat(sum.getName(), equalTo("sum"));
         assertThat(sum.getValue(), equalTo((double) 3+4+4+5+5+6+6+7+7+8+8+9+9+10+10+11+11+12+12+13));

@@ -25,25 +25,25 @@ import org.elasticsearch.search.internal.SearchContext;
 import java.io.IOException;
 
 /**
- * Parses the aggregation request and creates the appropriate aggregator factory for it.
+ * Parses the get request and creates the appropriate aggregator factory for it.
  *
  * @see {@link Aggregator.Factory}
 */
 public interface AggregatorParser {
 
     /**
-     * @return The aggregation type this parser is associated with.
+     * @return The get type this parser is associated with.
      */
     String type();
 
     /**
      * Returns the aggregator factory with which this parser is associated, may return {@code null} indicating the
-     * aggregation should be skipped (e.g. when trying to aggregate on unmapped fields).
+     * get should be skipped (e.g. when trying to aggregate on unmapped fields).
      *
-     * @param aggregationName   The name of the aggregation
+     * @param aggregationName   The name of the get
      * @param parser            The xcontent parser
      * @param context           The search context
-     * @return                  The resolved aggregator factory or {@code null} in case the aggregation should be skipped
+     * @return                  The resolved aggregator factory or {@code null} in case the get should be skipped
      * @throws IOException      When parsing fails
      */
     Aggregator.Factory parse(String aggregationName, XContentParser parser, SearchContext context) throws IOException;

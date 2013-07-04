@@ -66,7 +66,7 @@ public interface Aggregated {
         }
 
         private double value(A aggregated) {
-            CalcAggregation aggregation = aggregated.getAggregations().aggregation(CalcAggregation.class, aggName);
+            CalcAggregation aggregation = aggregated.getAggregations().get(aggName);
             if (aggregation == null) {
                 throw new ElasticSearchIllegalArgumentException("Unknown aggregation named [" + aggName + "]");
             }

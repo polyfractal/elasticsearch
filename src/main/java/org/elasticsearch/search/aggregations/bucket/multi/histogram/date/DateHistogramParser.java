@@ -188,7 +188,7 @@ public class DateHistogramParser implements AggregatorParser {
                 return new HistogramAggregator.ScriptFactory(aggregationName, searchScript, multiValued, rounding, order, keyed, formatter, histoFactory);
             }
 
-            // falling back on the aggregation field data context
+            // falling back on the get field data context
             return new HistogramAggregator.ContextBasedFactory(aggregationName, rounding, order, keyed, histoFactory);
         }
 

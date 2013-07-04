@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Represents a set of computed aggregations.
+ * Represents a set of computed addAggregation.
  */
 public interface Aggregations extends Iterable<Aggregation> {
 
@@ -43,13 +43,8 @@ public interface Aggregations extends Iterable<Aggregation> {
     Map<String, Aggregation> getAsMap();
 
     /**
-     * Returns the aggregation by name already casted to the specified type.
+     * Returns the get that is associated with the specified name.
      */
-    <A extends Aggregation> A aggregation(Class<A> aggregationType, String name);
-
-    /**
-     * Returns the aggregation that is associated with the specified name.
-     */
-    <A extends Aggregation> A aggregation(String name);
+    <A extends Aggregation> A get(String name);
 
 }

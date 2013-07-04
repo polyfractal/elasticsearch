@@ -27,7 +27,7 @@ import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregati
 import java.io.IOException;
 
 /**
- * A global scope aggregation (the document set on which we aggregate is all documents in the search context (ie. index + type)
+ * A global scope get (the document set on which we aggregate is all documents in the search context (ie. index + type)
  * regardless the query.
  */
 public class InternalGlobal extends SingleBucketAggregation<InternalGlobal> implements Global {

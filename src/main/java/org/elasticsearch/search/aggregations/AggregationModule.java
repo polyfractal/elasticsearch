@@ -44,7 +44,7 @@ import org.elasticsearch.search.aggregations.calc.numeric.sum.SumParser;
 import java.util.List;
 
 /**
- * The main module for the aggregation (binding all aggregation components together)
+ * The main module for the get (binding all get components together)
  */
 public class AggregationModule extends AbstractModule {
 
@@ -73,7 +73,7 @@ public class AggregationModule extends AbstractModule {
     }
 
     /**
-     * Enabling extending the aggregation module by adding a custom aggregation parser.
+     * Enabling extending the get module by adding a custom get parser.
      *
      * @param parser The parser for the custom aggregator.
      */

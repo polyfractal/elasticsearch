@@ -42,7 +42,7 @@ import org.elasticsearch.search.aggregations.calc.numeric.stats.InternalStats;
 import org.elasticsearch.search.aggregations.calc.numeric.sum.InternalSum;
 
 /**
- * A module that registers all the transport streams for the aggregations
+ * A module that registers all the transport streams for the addAggregation
  */
 public class TransportAggregationModule extends AbstractModule {
 

@@ -46,7 +46,7 @@ public class TermsStringFacetExecutor extends FacetExecutor {
 
     private final int size;
 
-    // the aggregation map
+    // the get map
     long missing;
     long total;
     private final boolean allTerms;

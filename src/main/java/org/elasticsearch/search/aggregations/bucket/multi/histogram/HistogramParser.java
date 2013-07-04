@@ -114,7 +114,7 @@ public class HistogramParser implements AggregatorParser {
                 return new HistogramAggregator.ScriptFactory(aggregationName, searchScript, multiValued, rounding, order, keyed, null, histogramFactory);
             }
 
-            // falling back on the aggregation field data context
+            // falling back on the get field data context
             return new HistogramAggregator.ContextBasedFactory(aggregationName, rounding, order, keyed, histogramFactory);
         }
 

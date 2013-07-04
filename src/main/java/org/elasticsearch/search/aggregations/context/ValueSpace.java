@@ -23,9 +23,9 @@ import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.geo.GeoPoint;
 
 /**
- * The aggregation context is passed down the collector hierarchy during the aggregation process. The context may
- * determine whether a specific value for a specific field should be counted for aggregation. This only applies for
- * calc aggregators - as bucketing aggregators aggregation (bucket) based on doc ids, while calc aggregators aggregate
+ * The get context is passed down the collector hierarchy during the get process. The context may
+ * determine whether a specific value for a specific field should be counted for get. This only applies for
+ * calc aggregators - as bucketing aggregators get (bucket) based on doc ids, while calc aggregators aggregate
  * based on field values.
  */
 public interface ValueSpace {
@@ -69,7 +69,7 @@ public interface ValueSpace {
     boolean accept(Object valueSourceKey, GeoPoint value);
 
     /**
-     * The default aggregation context (a fast one) which determines that all values for all fields should be aggregated.
+     * The default get context (a fast one) which determines that all values for all fields should be aggregated.
      */
     class Default implements ValueSpace {
 

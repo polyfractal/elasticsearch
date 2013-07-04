@@ -59,7 +59,7 @@ public class ExtendedStatsTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(0l));
 
-        ExtendedStats stats = searchResponse.getAggregations().aggregation("stats");
+        ExtendedStats stats = searchResponse.getAggregations().get("stats");
         assertThat(stats, notNullValue());
         assertThat(stats.getName(), equalTo("stats"));
         assertThat(stats.getAvg(), equalTo(Double.NaN));
@@ -81,7 +81,7 @@ public class ExtendedStatsTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        ExtendedStats stats = searchResponse.getAggregations().aggregation("stats");
+        ExtendedStats stats = searchResponse.getAggregations().get("stats");
         assertThat(stats, notNullValue());
         assertThat(stats.getName(), equalTo("stats"));
         assertThat(stats.getAvg(), equalTo((double) (1+2+3+4+5+6+7+8+9+10) / 10));
@@ -103,7 +103,7 @@ public class ExtendedStatsTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        ExtendedStats stats = searchResponse.getAggregations().aggregation("stats");
+        ExtendedStats stats = searchResponse.getAggregations().get("stats");
         assertThat(stats, notNullValue());
         assertThat(stats.getName(), equalTo("stats"));
         assertThat(stats.getAvg(), equalTo((double) (1+2+3+4+5+6+7+8+9+10) / 10));
@@ -125,7 +125,7 @@ public class ExtendedStatsTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        ExtendedStats stats = searchResponse.getAggregations().aggregation("stats");
+        ExtendedStats stats = searchResponse.getAggregations().get("stats");
         assertThat(stats, notNullValue());
         assertThat(stats.getName(), equalTo("stats"));
         assertThat(stats.getAvg(), equalTo((double) (2+3+4+5+6+7+8+9+10+11) / 10));
@@ -147,7 +147,7 @@ public class ExtendedStatsTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        ExtendedStats stats = searchResponse.getAggregations().aggregation("stats");
+        ExtendedStats stats = searchResponse.getAggregations().get("stats");
         assertThat(stats, notNullValue());
         assertThat(stats.getName(), equalTo("stats"));
         assertThat(stats.getAvg(), equalTo((double) (2+3+4+5+6+7+8+9+10+11) / 10));
@@ -169,7 +169,7 @@ public class ExtendedStatsTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        ExtendedStats stats = searchResponse.getAggregations().aggregation("stats");
+        ExtendedStats stats = searchResponse.getAggregations().get("stats");
         assertThat(stats, notNullValue());
         assertThat(stats.getName(), equalTo("stats"));
         assertThat(stats.getAvg(), equalTo((double) (2+3+4+5+6+7+8+9+10+11+3+4+5+6+7+8+9+10+11+12) / 20));
@@ -191,7 +191,7 @@ public class ExtendedStatsTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        ExtendedStats stats = searchResponse.getAggregations().aggregation("stats");
+        ExtendedStats stats = searchResponse.getAggregations().get("stats");
         assertThat(stats, notNullValue());
         assertThat(stats.getName(), equalTo("stats"));
         assertThat(stats.getAvg(), equalTo((double) (1+2+3+4+5+6+7+8+9+10+2+3+4+5+6+7+8+9+10+11) / 20));
@@ -213,7 +213,7 @@ public class ExtendedStatsTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        ExtendedStats stats = searchResponse.getAggregations().aggregation("stats");
+        ExtendedStats stats = searchResponse.getAggregations().get("stats");
         assertThat(stats, notNullValue());
         assertThat(stats.getName(), equalTo("stats"));
         assertThat(stats.getAvg(), equalTo((double) (1+2+3+4+5+6+7+8+9+10+2+3+4+5+6+7+8+9+10+11) / 20));
@@ -235,7 +235,7 @@ public class ExtendedStatsTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        ExtendedStats stats = searchResponse.getAggregations().aggregation("stats");
+        ExtendedStats stats = searchResponse.getAggregations().get("stats");
         assertThat(stats, notNullValue());
         assertThat(stats.getName(), equalTo("stats"));
         assertThat(stats.getAvg(), equalTo((double) (1+2+3+4+5+6+7+8+9+10) / 10));
@@ -257,7 +257,7 @@ public class ExtendedStatsTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        ExtendedStats stats = searchResponse.getAggregations().aggregation("stats");
+        ExtendedStats stats = searchResponse.getAggregations().get("stats");
         assertThat(stats, notNullValue());
         assertThat(stats.getName(), equalTo("stats"));
         assertThat(stats.getAvg(), equalTo((double) (2+3+4+5+6+7+8+9+10+11) / 10));
@@ -279,7 +279,7 @@ public class ExtendedStatsTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        ExtendedStats stats = searchResponse.getAggregations().aggregation("stats");
+        ExtendedStats stats = searchResponse.getAggregations().get("stats");
         assertThat(stats, notNullValue());
         assertThat(stats.getName(), equalTo("stats"));
         assertThat(stats.getAvg(), equalTo((double) (2+3+4+5+6+7+8+9+10+11) / 10));
@@ -301,7 +301,7 @@ public class ExtendedStatsTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        ExtendedStats stats = searchResponse.getAggregations().aggregation("stats");
+        ExtendedStats stats = searchResponse.getAggregations().get("stats");
         assertThat(stats, notNullValue());
         assertThat(stats.getName(), equalTo("stats"));
         assertThat(stats.getAvg(), equalTo((double) (2+3+4+5+6+7+8+9+10+11+3+4+5+6+7+8+9+10+11+12) / 20));
@@ -323,7 +323,7 @@ public class ExtendedStatsTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        ExtendedStats stats = searchResponse.getAggregations().aggregation("stats");
+        ExtendedStats stats = searchResponse.getAggregations().get("stats");
         assertThat(stats, notNullValue());
         assertThat(stats.getName(), equalTo("stats"));
         assertThat(stats.getAvg(), equalTo((double) (2+3+4+5+6+7+8+9+10+11+3+4+5+6+7+8+9+10+11+12) / 20));
@@ -358,7 +358,7 @@ public class ExtendedStatsTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        ExtendedStats stats = searchResponse.getAggregations().aggregation("stats");
+        ExtendedStats stats = searchResponse.getAggregations().get("stats");
         assertThat(stats, notNullValue());
         assertThat(stats.getName(), equalTo("stats"));
         assertThat(stats.getAvg(), equalTo((double) (1+2+3+4+5+6+7+8+9+10+0+1+2+3+4+5+6+7+8+9) / 20));

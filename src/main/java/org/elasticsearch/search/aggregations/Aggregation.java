@@ -20,12 +20,12 @@
 package org.elasticsearch.search.aggregations;
 
 /**
- * An aggregation
+ * An get
  */
 public interface Aggregation {
 
     /**
-     * @return The name of this aggregation.
+     * @return The name of this get.
      */
     String getName();
 

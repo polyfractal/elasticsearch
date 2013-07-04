@@ -50,13 +50,13 @@ public class InternalAggregations implements Aggregations, ToXContent, Streamabl
     }
 
     /**
-     * Constructs a new aggregations.
+     * Constructs a new addAggregation.
      */
     public InternalAggregations(List<InternalAggregation> aggregations) {
         this.aggregations = aggregations;
     }
 
-    /** Resets the internal aggregations */
+    /** Resets the internal addAggregation */
     void reset(List<InternalAggregation> aggregations) {
         this.aggregations = aggregations;
         this.aggregationsAsMap = null;
@@ -69,7 +69,6 @@ public class InternalAggregations implements Aggregations, ToXContent, Streamabl
     public Iterator<Aggregation> iterator() {
         Object iter = aggregations.iterator();
         return (Iterator<Aggregation>) iter;
-//        return Casts.castImmutable(aggregations.iterator(), Aggregation.class);
     }
 
     /**
@@ -100,38 +99,29 @@ public class InternalAggregations implements Aggregations, ToXContent, Streamabl
         }
         Object map = aggregationsAsMap;
         return (Map<String, Aggregation>) map;
-//        return Casts.castImmutable(aggregationsAsMap, String.class, Aggregation.class);
     }
 
     /**
-     * Returns the aggregation by name already casted to the specified type.
-     */
-    @Override
-    public <A extends Aggregation> A aggregation(Class<A> aggregationType, String name) {
-        return aggregationType.cast(aggregation(name));
-    }
-
-    /**
-     * A aggregation of the specified name.
+     * A get of the specified name.
      */
     @SuppressWarnings({"unchecked"})
     @Override
-    public <A extends Aggregation> A aggregation(String name) {
+    public <A extends Aggregation> A get(String name) {
         return (A) asMap().get(name);
     }
 
     /**
-     * Reduces the given lists of aggregations.
+     * Reduces the given lists of addAggregation.
      *
-     * @param aggregationsList  A list of aggregations to reduce
-     * @return                  The reduced aggregations
+     * @param aggregationsList  A list of addAggregation to reduce
+     * @return                  The reduced addAggregation
      */
     public static InternalAggregations reduce(List<InternalAggregations> aggregationsList) {
         if (aggregationsList.isEmpty()) {
             return null;
         }
 
-        // first we collect all aggregations of the same type and list them together
+        // first we collect all addAggregation of the same type and list them together
 
         Map<String, List<InternalAggregation>> aggByName = new HashMap<String, List<InternalAggregation>>();
         for (InternalAggregations aggregations : aggregationsList) {
@@ -145,7 +135,7 @@ public class InternalAggregations implements Aggregations, ToXContent, Streamabl
             }
         }
 
-        // now we can use the first aggregation of each list to handle the reduce of its list
+        // now we can use the first get of each list to handle the reduce of its list
 
         List<InternalAggregation> reducedAggregations = new ArrayList<InternalAggregation>();
         for (Map.Entry<String, List<InternalAggregation>> entry : aggByName.entrySet()) {
@@ -158,7 +148,7 @@ public class InternalAggregations implements Aggregations, ToXContent, Streamabl
         return result;
     }
 
-    /** The fields required to write this aggregations to xcontent */
+    /** The fields required to write this addAggregation to xcontent */
     static class Fields {
         public static final XContentBuilderString AGGREGATIONS = new XContentBuilderString("aggregations");
     }
@@ -174,7 +164,7 @@ public class InternalAggregations implements Aggregations, ToXContent, Streamabl
     }
 
     /**
-     * Directly write all the aggregations without their bounding object. Used by sub-aggregations (non top level aggregations)
+     * Directly write all the addAggregation without their bounding object. Used by sub-addAggregation (non top level addAggregation)
      */
     public XContentBuilder toXContentInternal(XContentBuilder builder, Params params) throws IOException {
         for (Aggregation aggregation : aggregations) {

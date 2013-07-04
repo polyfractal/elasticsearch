@@ -416,7 +416,7 @@ public class SearchPhaseController extends AbstractComponent {
             suggest = hasSuggestions ? new Suggest(Suggest.Fields.SUGGEST, Suggest.reduce(groupedSuggestions)) : null;
         }
 
-        // merge aggregations
+        // merge addAggregation
         InternalAggregations aggregations = null;
         if (!queryResults.asList().isEmpty()) {
             if (querySearchResult.aggregations() != null && querySearchResult.aggregations().asList() != null) {

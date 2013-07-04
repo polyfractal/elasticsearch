@@ -80,7 +80,7 @@ public class CountTests extends AbstractSharedClusterTest {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(0l));
 
-        Count count = searchResponse.getAggregations().aggregation("count");
+        Count count = searchResponse.getAggregations().get("count");
         assertThat(count, notNullValue());
         assertThat(count.getName(), equalTo("count"));
         assertThat(count.getValue(), equalTo(0l));
@@ -96,7 +96,7 @@ public class CountTests extends AbstractSharedClusterTest {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Count count = searchResponse.getAggregations().aggregation("count");
+        Count count = searchResponse.getAggregations().get("count");
         assertThat(count, notNullValue());
         assertThat(count.getName(), equalTo("count"));
         assertThat(count.getValue(), equalTo(10l));
@@ -111,7 +111,7 @@ public class CountTests extends AbstractSharedClusterTest {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Count count = searchResponse.getAggregations().aggregation("count");
+        Count count = searchResponse.getAggregations().get("count");
         assertThat(count, notNullValue());
         assertThat(count.getName(), equalTo("count"));
         assertThat(count.getValue(), equalTo(10l));
@@ -127,7 +127,7 @@ public class CountTests extends AbstractSharedClusterTest {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Count count = searchResponse.getAggregations().aggregation("count");
+        Count count = searchResponse.getAggregations().get("count");
         assertThat(count, notNullValue());
         assertThat(count.getName(), equalTo("count"));
         assertThat(count.getValue(), equalTo(20l));

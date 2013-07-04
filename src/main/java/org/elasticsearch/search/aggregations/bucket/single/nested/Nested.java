@@ -20,9 +20,15 @@
 package org.elasticsearch.search.aggregations.bucket.single.nested;
 
 import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.Aggregations;
 
 /**
  *
  */
 public interface Nested extends Aggregation {
+
+    long getDocCount();
+
+    Aggregations getAggregations();
+
 }

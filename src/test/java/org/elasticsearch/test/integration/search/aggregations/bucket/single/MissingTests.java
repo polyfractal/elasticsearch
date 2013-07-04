@@ -19,10 +19,8 @@
 
 package org.elasticsearch.test.integration.search.aggregations.bucket.single;
 
-import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.search.aggregations.bucket.single.filter.Filter;
 import org.elasticsearch.search.aggregations.bucket.single.missing.Missing;
 import org.elasticsearch.search.aggregations.calc.numeric.avg.Avg;
 import org.elasticsearch.test.integration.AbstractSharedClusterTest;
@@ -32,7 +30,6 @@ import org.testng.annotations.Test;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.index.query.FilterBuilders.termFilter;
 import static org.elasticsearch.search.aggregations.AggregationBuilders.avg;
-import static org.elasticsearch.search.aggregations.AggregationBuilders.filter;
 import static org.elasticsearch.search.aggregations.AggregationBuilders.missing;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -97,7 +94,7 @@ public class MissingTests extends AbstractSharedClusterTest {
                 .addAggregation(missing("missing_tag").field("tag"))
                 .execute().actionGet();
 
-        Missing missing = response.getAggregations().aggregation("missing_tag");
+        Missing missing = response.getAggregations().get("missing_tag");
         assertThat(missing, notNullValue());
         assertThat(missing.getName(), equalTo("missing_tag"));
         assertThat(missing.getDocCount(), equalTo(3l));
@@ -109,7 +106,7 @@ public class MissingTests extends AbstractSharedClusterTest {
                 .addAggregation(missing("missing_tag").field("tag"))
                 .execute().actionGet();
 
-        Missing missing = response.getAggregations().aggregation("missing_tag");
+        Missing missing = response.getAggregations().get("missing_tag");
         assertThat(missing, notNullValue());
         assertThat(missing.getName(), equalTo("missing_tag"));
         assertThat(missing.getDocCount(), equalTo(8l));
@@ -121,7 +118,7 @@ public class MissingTests extends AbstractSharedClusterTest {
                 .addAggregation(missing("missing_tag").field("tag"))
                 .execute().actionGet();
 
-        Missing missing = response.getAggregations().aggregation("missing_tag");
+        Missing missing = response.getAggregations().get("missing_tag");
         assertThat(missing, notNullValue());
         assertThat(missing.getName(), equalTo("missing_tag"));
         assertThat(missing.getDocCount(), equalTo(5l));
@@ -131,16 +128,16 @@ public class MissingTests extends AbstractSharedClusterTest {
     public void testMissing_WithSubAggregation() throws Exception {
         SearchResponse response = client().prepareSearch("idx", "unmapped_idx")
                 .addAggregation(missing("missing_tag").field("tag")
-                        .aggregation(avg("avg_value").field("value")))
+                        .subAggregation(avg("avg_value").field("value")))
                 .execute().actionGet();
 
-        Missing missing = response.getAggregations().aggregation("missing_tag");
+        Missing missing = response.getAggregations().get("missing_tag");
         assertThat(missing, notNullValue());
         assertThat(missing.getName(), equalTo("missing_tag"));
         assertThat(missing.getDocCount(), equalTo(8l));
         assertThat(missing.getAggregations().asList().isEmpty(), is(false));
 
-        Avg avgValue = missing.getAggregations().aggregation("avg_value");
+        Avg avgValue = missing.getAggregations().get("avg_value");
         assertThat(avgValue, notNullValue());
         assertThat(avgValue.getName(), equalTo("avg_value"));
         assertThat(avgValue.getValue(), equalTo((double) (0+1+2+3+4+5+6+7) / 8));
@@ -151,16 +148,16 @@ public class MissingTests extends AbstractSharedClusterTest {
 
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(missing("top_missing").field("tag")
-                        .aggregation(missing("sub_missing")))
+                        .subAggregation(missing("sub_missing")))
                 .execute().actionGet();
 
-        Missing topMissing = response.getAggregations().aggregation("top_missing");
+        Missing topMissing = response.getAggregations().get("top_missing");
         assertThat(topMissing, notNullValue());
         assertThat(topMissing.getName(), equalTo("top_missing"));
         assertThat(topMissing.getDocCount(), equalTo(5l));
         assertThat(topMissing.getAggregations().asList().isEmpty(), is(false));
 
-        Missing subMissing = topMissing.getAggregations().aggregation("sub_missing");
+        Missing subMissing = topMissing.getAggregations().get("sub_missing");
         assertThat(subMissing, notNullValue());
         assertThat(subMissing.getName(), equalTo("sub_missing"));
         assertThat(subMissing.getDocCount(), equalTo(5l));

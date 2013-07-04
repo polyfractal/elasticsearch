@@ -111,7 +111,7 @@ public class TermsParser implements AggregatorParser {
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
         if (mapper == null) {
-            return null; // skipping aggregation on unmapped fields
+            return null; // skipping get on unmapped fields
         }
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
         FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);

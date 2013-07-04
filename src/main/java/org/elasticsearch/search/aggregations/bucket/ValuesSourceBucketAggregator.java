@@ -71,8 +71,8 @@ public abstract class ValuesSourceBucketAggregator<VS extends ValuesSource> exte
         /**
          * Creates a new bucket level collector that works on the given values source and has the given aggregator factories. This ctor
          * will be used in bucket aggregators that are more dynamic in nature, that is, where the buckets are created dynamically during
-         * the aggregation process (e.g. histogram). The reason for having this ctor is that when a bucket is created during the aggregation
-         * process, there's already a context that the collectors of the aggregators need to be initialize in (ie. reader, scorer & aggregation
+         * the get process (e.g. histogram). The reason for having this ctor is that when a bucket is created during the get
+         * process, there's already a context that the collectors of the aggregators need to be initialize in (ie. reader, scorer & get
          * context) - this ctor takes care of this initialization.
          *
          * @param valuesSource  The value source this collector works with

@@ -44,7 +44,7 @@ public class MinTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(0l));
 
-        Min min = searchResponse.getAggregations().aggregation("min");
+        Min min = searchResponse.getAggregations().get("min");
         assertThat(min, notNullValue());
         assertThat(min.getName(), equalTo("min"));
         assertThat(min.getValue(), equalTo(Double.POSITIVE_INFINITY));
@@ -59,7 +59,7 @@ public class MinTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Min min = searchResponse.getAggregations().aggregation("min");
+        Min min = searchResponse.getAggregations().get("min");
         assertThat(min, notNullValue());
         assertThat(min.getName(), equalTo("min"));
         assertThat(min.getValue(), equalTo(1.0));
@@ -74,7 +74,7 @@ public class MinTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Min min = searchResponse.getAggregations().aggregation("min");
+        Min min = searchResponse.getAggregations().get("min");
         assertThat(min, notNullValue());
         assertThat(min.getName(), equalTo("min"));
         assertThat(min.getValue(), equalTo(1.0));
@@ -89,7 +89,7 @@ public class MinTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Min min = searchResponse.getAggregations().aggregation("min");
+        Min min = searchResponse.getAggregations().get("min");
         assertThat(min, notNullValue());
         assertThat(min.getName(), equalTo("min"));
         assertThat(min.getValue(), equalTo(0.0));
@@ -104,7 +104,7 @@ public class MinTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Min min = searchResponse.getAggregations().aggregation("min");
+        Min min = searchResponse.getAggregations().get("min");
         assertThat(min, notNullValue());
         assertThat(min.getName(), equalTo("min"));
         assertThat(min.getValue(), equalTo(0.0));
@@ -119,7 +119,7 @@ public class MinTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Min min = searchResponse.getAggregations().aggregation("min");
+        Min min = searchResponse.getAggregations().get("min");
         assertThat(min, notNullValue());
         assertThat(min.getName(), equalTo("min"));
         assertThat(min.getValue(), equalTo(2.0));
@@ -134,7 +134,7 @@ public class MinTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Min min = searchResponse.getAggregations().aggregation("min");
+        Min min = searchResponse.getAggregations().get("min");
         assertThat(min, notNullValue());
         assertThat(min.getName(), equalTo("min"));
         assertThat(min.getValue(), equalTo(1.0));
@@ -149,7 +149,7 @@ public class MinTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Min min = searchResponse.getAggregations().aggregation("min");
+        Min min = searchResponse.getAggregations().get("min");
         assertThat(min, notNullValue());
         assertThat(min.getName(), equalTo("min"));
         assertThat(min.getValue(), equalTo(1.0));
@@ -164,7 +164,7 @@ public class MinTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Min min = searchResponse.getAggregations().aggregation("min");
+        Min min = searchResponse.getAggregations().get("min");
         assertThat(min, notNullValue());
         assertThat(min.getName(), equalTo("min"));
         assertThat(min.getValue(), equalTo(1.0));
@@ -179,7 +179,7 @@ public class MinTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Min min = searchResponse.getAggregations().aggregation("min");
+        Min min = searchResponse.getAggregations().get("min");
         assertThat(min, notNullValue());
         assertThat(min.getName(), equalTo("min"));
         assertThat(min.getValue(), equalTo(0.0));
@@ -194,7 +194,7 @@ public class MinTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Min min = searchResponse.getAggregations().aggregation("min");
+        Min min = searchResponse.getAggregations().get("min");
         assertThat(min, notNullValue());
         assertThat(min.getName(), equalTo("min"));
         assertThat(min.getValue(), equalTo(0.0));
@@ -209,7 +209,7 @@ public class MinTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Min min = searchResponse.getAggregations().aggregation("min");
+        Min min = searchResponse.getAggregations().get("min");
         assertThat(min, notNullValue());
         assertThat(min.getName(), equalTo("min"));
         assertThat(min.getValue(), equalTo(2.0));
@@ -224,7 +224,7 @@ public class MinTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Min min = searchResponse.getAggregations().aggregation("min");
+        Min min = searchResponse.getAggregations().get("min");
         assertThat(min, notNullValue());
         assertThat(min.getName(), equalTo("min"));
         assertThat(min.getValue(), equalTo(2.0));
@@ -251,7 +251,7 @@ public class MinTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Min min = searchResponse.getAggregations().aggregation("min");
+        Min min = searchResponse.getAggregations().get("min");
         assertThat(min, notNullValue());
         assertThat(min.getName(), equalTo("min"));
         assertThat(min.getValue(), equalTo(1.0));

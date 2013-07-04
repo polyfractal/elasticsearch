@@ -31,7 +31,7 @@ import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 import java.io.IOException;
 
 /**
- * A field data based aggregator that counts the number of values a specific field has within the aggregation context.
+ * A field data based aggregator that counts the number of values a specific field has within the get context.
  */
 public class CountAggregator extends BytesCalcAggregator {
 

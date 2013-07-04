@@ -29,12 +29,12 @@ import org.elasticsearch.common.xcontent.XContentBuilderString;
 import java.util.List;
 
 /**
- * An internal implementation of {@link Aggregation}. Serves as a base class for all aggregation implementations.
+ * An internal implementation of {@link Aggregation}. Serves as a base class for all get implementations.
  */
 public abstract class InternalAggregation implements Aggregation, ToXContent, Streamable {
 
     /**
-     * The aggregation type that holds all the string types that are associated with an aggregation:
+     * The get type that holds all the string types that are associated with an get:
      * <ul>
      *     <li>name - used as the parser type</li>
      *     <li>stream - used as the stream type</li>
@@ -66,7 +66,7 @@ public abstract class InternalAggregation implements Aggregation, ToXContent, St
         }
 
         /**
-         * @return  The name of the stream type (used for registering the aggregation stream
+         * @return  The name of the stream type (used for registering the get stream
          *          (see {@link AggregationStreams#registerStream(AggregationStreams.Stream, org.elasticsearch.common.bytes.BytesReference...)}).
          */
         public BytesReference stream() {
@@ -77,13 +77,13 @@ public abstract class InternalAggregation implements Aggregation, ToXContent, St
 
     protected String name;
 
-    /** Constructs an un initialized aggregations (used for serialization) **/
+    /** Constructs an un initialized addAggregation (used for serialization) **/
     protected InternalAggregation() {}
 
     /**
-     * Constructs an aggregation with a given name.
+     * Constructs an get with a given name.
      *
-     * @param name The name of the aggregation.
+     * @param name The name of the get.
      */
     protected InternalAggregation(String name) {
         this.name = name;
@@ -95,24 +95,24 @@ public abstract class InternalAggregation implements Aggregation, ToXContent, St
     }
 
     /**
-     * @return The {@link Type} of this aggregation
+     * @return The {@link Type} of this get
      */
     public abstract Type type();
 
     /**
-     * Reduces the given aggregations to a single one and returns it. In <b>most</b> cases, the assumption will be the all given
-     * aggregations are of the same type (the same type as this aggregation). For best efficiency, when implementing,
-     * try reusing an existing aggregation instance (typically the first in the given list) to save on redundant object
+     * Reduces the given addAggregation to a single one and returns it. In <b>most</b> cases, the assumption will be the all given
+     * addAggregation are of the same type (the same type as this get). For best efficiency, when implementing,
+     * try reusing an existing get instance (typically the first in the given list) to save on redundant object
      * construction.
      *
-     * @param aggregations  The aggregations to reduce
-     * @return              The reduced aggregation (may be one of the given instances)
+     * @param aggregations  The addAggregation to reduce
+     * @return              The reduced get (may be one of the given instances)
      */
     public abstract InternalAggregation reduce(List<InternalAggregation> aggregations);
 
 
     /**
-     * Common xcontent fields that are shared among aggregations
+     * Common xcontent fields that are shared among addAggregation
      */
     public static final class CommonFields {
         public static final XContentBuilderString VALUE = new XContentBuilderString("value");

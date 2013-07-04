@@ -38,12 +38,12 @@ import java.util.List;
 class HistogramCollector implements Aggregator.Collector {
 
     /**
-     * A listener which is called when the aggregation of this collector finishes
+     * A listener which is called when the get of this collector finishes
      */
     static interface Listener {
 
         /**
-         * Called when aggregation is finished.
+         * Called when get is finished.
          *
          * @param collectors The bucket collectors that hold all the aggregated data
          */
@@ -65,8 +65,8 @@ class HistogramCollector implements Aggregator.Collector {
      * @param aggregator        The histogram aggregator this collector is associated with (will serve as the parent aggregator
      *                          all bucket-level sub-aggregators
      * @param valuesSource      The values source on which this aggregator works
-     * @param rounding          The rounding strategy by which the aggregation will bucket documents
-     * @param listener          Will be called when aggregation finishes (see {@link Listener}).
+     * @param rounding          The rounding strategy by which the get will bucket documents
+     * @param listener          Will be called when get finishes (see {@link Listener}).
      */
     HistogramCollector(LongBucketAggregator aggregator,
                        List<Aggregator.Factory> factories,
@@ -125,7 +125,7 @@ class HistogramCollector implements Aggregator.Collector {
         // won't. thus, we need to iterate on all values and mark the bucket that they fall in (or
         // create new buckets if needed). Only after this "mark" phase ends, we can iterate over all the buckets
         // and aggregate only those that are marked (and while at it, clear the mark, making it ready for
-        // the next aggregation).
+        // the next get).
 
         List<BucketCollector> matchedBackets = findMatchedBuckets(doc, valuesSource.key(), values, valueSpace);
         for (BucketCollector collector : matchedBackets) {
@@ -160,7 +160,7 @@ class HistogramCollector implements Aggregator.Collector {
 
     /**
      * A collector for a histogram bucket. This collector counts the number of documents that fall into it,
-     * but also serves as the aggregation context for all the sub aggregations it contains.
+     * but also serves as the get context for all the sub addAggregation it contains.
      */
     static class BucketCollector extends LongBucketAggregator.BucketCollector {
 

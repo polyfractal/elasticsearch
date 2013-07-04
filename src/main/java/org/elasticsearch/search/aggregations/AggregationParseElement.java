@@ -27,7 +27,7 @@ import org.elasticsearch.search.internal.SearchContext;
 import java.util.List;
 
 /**
- * The search parse element that is responsible for parsing the aggregation part of the request.
+ * The search parse element that is responsible for parsing the get part of the request.
  *
  * For example (in bold):
  * <pre>
@@ -35,13 +35,13 @@ import java.util.List;
  *          query: {
  *              match_all : {}
  *          },
- *          aggregations : {
+ *          addAggregation : {
  *              avg_price: {
  *                  avg : { field : price }
  *              },
  *              categories: {
  *                  terms : { field : category, size : 12 },
- *                  aggregations: {
+ *                  addAggregation: {
  *                      avg_price : { avg : { field : price }}
  *                  }
  *              }

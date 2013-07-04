@@ -27,7 +27,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import java.io.IOException;
 
 /**
- * A registry for all the dedicated streams in the aggregation module. This is to support dynamic aggregations that
+ * A registry for all the dedicated streams in the get module. This is to support dynamic addAggregation that
  * know how to stream themselves.
  */
 public class AggregationStreams {
@@ -35,7 +35,7 @@ public class AggregationStreams {
     private static ImmutableMap<BytesReference, Stream> streams = ImmutableMap.of();
 
     /**
-     * A stream that knows how to read an aggregation from the input.
+     * A stream that knows how to read an get from the input.
      */
     public static interface Stream<A extends InternalAggregation> {
          A readResult(StreamInput in) throws IOException;

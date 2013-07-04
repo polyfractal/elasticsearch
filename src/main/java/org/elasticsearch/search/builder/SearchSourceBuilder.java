@@ -399,7 +399,7 @@ public class SearchSourceBuilder implements ToXContent {
     }
 
     /**
-     * Add an aggregation to perform as part of the search.
+     * Add an get to perform as part of the search.
      */
     public SearchSourceBuilder aggregation(AggregationBuilder aggregation) {
         if (aggregations == null) {
@@ -410,21 +410,21 @@ public class SearchSourceBuilder implements ToXContent {
     }
 
     /**
-     * Sets a raw (xcontent / json) aggregations.
+     * Sets a raw (xcontent / json) addAggregation.
      */
     public SearchSourceBuilder aggregations(byte[] aggregationsBinary) {
         return aggregations(aggregationsBinary, 0, aggregationsBinary.length);
     }
 
     /**
-     * Sets a raw (xcontent / json) aggregations.
+     * Sets a raw (xcontent / json) addAggregation.
      */
     public SearchSourceBuilder aggregations(byte[] aggregationsBinary, int aggregationsBinaryOffset, int aggregationsBinaryLength) {
         return aggregations(new BytesArray(aggregationsBinary, aggregationsBinaryOffset, aggregationsBinaryLength));
     }
 
     /**
-     * Sets a raw (xcontent / json) aggregations.
+     * Sets a raw (xcontent / json) addAggregation.
      */
     public SearchSourceBuilder aggregations(BytesReference aggregationsBinary) {
         this.aggregationsBinary = aggregationsBinary;
@@ -432,14 +432,14 @@ public class SearchSourceBuilder implements ToXContent {
     }
 
     /**
-     * Sets a raw (xcontent / json) aggregations.
+     * Sets a raw (xcontent / json) addAggregation.
      */
     public SearchSourceBuilder aggregations(XContentBuilder facets) {
         return aggregations(facets.bytes());
     }
 
     /**
-     * Sets a raw (xcontent / json) aggregations.
+     * Sets a raw (xcontent / json) addAggregation.
      */
     public SearchSourceBuilder aggregations(Map aggregations) {
         try {

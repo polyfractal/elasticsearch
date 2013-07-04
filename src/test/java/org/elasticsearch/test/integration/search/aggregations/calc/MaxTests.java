@@ -44,7 +44,7 @@ public class MaxTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(0l));
 
-        Max max = searchResponse.getAggregations().aggregation("max");
+        Max max = searchResponse.getAggregations().get("max");
         assertThat(max, notNullValue());
         assertThat(max.getName(), equalTo("max"));
         assertThat(max.getValue(), equalTo(Double.NEGATIVE_INFINITY));
@@ -59,7 +59,7 @@ public class MaxTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Max max = searchResponse.getAggregations().aggregation("max");
+        Max max = searchResponse.getAggregations().get("max");
         assertThat(max, notNullValue());
         assertThat(max.getName(), equalTo("max"));
         assertThat(max.getValue(), equalTo(10.0));
@@ -75,7 +75,7 @@ public class MaxTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Max max = searchResponse.getAggregations().aggregation("max");
+        Max max = searchResponse.getAggregations().get("max");
         assertThat(max, notNullValue());
         assertThat(max.getName(), equalTo("max"));
         assertThat(max.getValue(), equalTo(10.0));
@@ -90,7 +90,7 @@ public class MaxTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Max max = searchResponse.getAggregations().aggregation("max");
+        Max max = searchResponse.getAggregations().get("max");
         assertThat(max, notNullValue());
         assertThat(max.getName(), equalTo("max"));
         assertThat(max.getValue(), equalTo(11.0));
@@ -105,7 +105,7 @@ public class MaxTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Max max = searchResponse.getAggregations().aggregation("max");
+        Max max = searchResponse.getAggregations().get("max");
         assertThat(max, notNullValue());
         assertThat(max.getName(), equalTo("max"));
         assertThat(max.getValue(), equalTo(11.0));
@@ -120,7 +120,7 @@ public class MaxTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Max max = searchResponse.getAggregations().aggregation("max");
+        Max max = searchResponse.getAggregations().get("max");
         assertThat(max, notNullValue());
         assertThat(max.getName(), equalTo("max"));
         assertThat(max.getValue(), equalTo(12.0));
@@ -135,7 +135,7 @@ public class MaxTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Max max = searchResponse.getAggregations().aggregation("max");
+        Max max = searchResponse.getAggregations().get("max");
         assertThat(max, notNullValue());
         assertThat(max.getName(), equalTo("max"));
         assertThat(max.getValue(), equalTo(13.0));
@@ -150,7 +150,7 @@ public class MaxTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Max max = searchResponse.getAggregations().aggregation("max");
+        Max max = searchResponse.getAggregations().get("max");
         assertThat(max, notNullValue());
         assertThat(max.getName(), equalTo("max"));
         assertThat(max.getValue(), equalTo(13.0));
@@ -165,7 +165,7 @@ public class MaxTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Max max = searchResponse.getAggregations().aggregation("max");
+        Max max = searchResponse.getAggregations().get("max");
         assertThat(max, notNullValue());
         assertThat(max.getName(), equalTo("max"));
         assertThat(max.getValue(), equalTo(10.0));
@@ -180,7 +180,7 @@ public class MaxTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Max max = searchResponse.getAggregations().aggregation("max");
+        Max max = searchResponse.getAggregations().get("max");
         assertThat(max, notNullValue());
         assertThat(max.getName(), equalTo("max"));
         assertThat(max.getValue(), equalTo(11.0));
@@ -195,7 +195,7 @@ public class MaxTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Max max = searchResponse.getAggregations().aggregation("max");
+        Max max = searchResponse.getAggregations().get("max");
         assertThat(max, notNullValue());
         assertThat(max.getName(), equalTo("max"));
         assertThat(max.getValue(), equalTo(11.0));
@@ -210,7 +210,7 @@ public class MaxTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Max max = searchResponse.getAggregations().aggregation("max");
+        Max max = searchResponse.getAggregations().get("max");
         assertThat(max, notNullValue());
         assertThat(max.getName(), equalTo("max"));
         assertThat(max.getValue(), equalTo(12.0));
@@ -225,7 +225,7 @@ public class MaxTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Max max = searchResponse.getAggregations().aggregation("max");
+        Max max = searchResponse.getAggregations().get("max");
         assertThat(max, notNullValue());
         assertThat(max.getName(), equalTo("max"));
         assertThat(max.getValue(), equalTo(12.0));
@@ -252,7 +252,7 @@ public class MaxTests extends AbstractNumericTests {
 
         assertThat(searchResponse.getHits().getTotalHits(), equalTo(10l));
 
-        Max max = searchResponse.getAggregations().aggregation("max");
+        Max max = searchResponse.getAggregations().get("max");
         assertThat(max, notNullValue());
         assertThat(max.getName(), equalTo("max"));
         assertThat(max.getValue(), equalTo(11.0));

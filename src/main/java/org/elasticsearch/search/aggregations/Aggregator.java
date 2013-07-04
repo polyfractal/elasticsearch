@@ -27,9 +27,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Instantiated per named aggregation in the request (every aggregation type has a dedicated aggregator). The aggregator
- * handles the aggregation by providing the appropriate collector (see {@link #collector()}), and when the aggregation finishes, it is also used
- * for generating the result aggregation (see {@link #buildAggregation()}).
+ * Instantiated per named get in the request (every get type has a dedicated aggregator). The aggregator
+ * handles the get by providing the appropriate collector (see {@link #collector()}), and when the get finishes, it is also used
+ * for generating the result get (see {@link #buildAggregation()}).
  */
 public abstract class Aggregator<A extends InternalAggregation> {
 
@@ -44,15 +44,15 @@ public abstract class Aggregator<A extends InternalAggregation> {
     }
 
     /**
-     * @return  The name of the aggregation.
+     * @return  The name of the get.
      */
     public String name() {
         return name;
     }
 
     /**
-     * @return  The parent aggregator of this aggregator. The aggregations are hierarchical in the sense that some can
-     *          be composed out of others (more specifically, bucket aggregations can define other aggregations that will
+     * @return  The parent aggregator of this aggregator. The addAggregation are hierarchical in the sense that some can
+     *          be composed out of others (more specifically, bucket addAggregation can define other addAggregation that will
      *          be aggregated per bucket). This method returns the direct parent aggregator that contains this aggregator, or
      *          {@code null} if there is none (meaning, this aggregator is a top level one)
      */
@@ -65,18 +65,18 @@ public abstract class Aggregator<A extends InternalAggregation> {
     }
 
     /**
-     * @return  The collector what is responsible for the aggregation.
+     * @return  The collector what is responsible for the get.
      */
     public abstract Collector collector();
 
     /**
-     * @return  The aggregated & built aggregation.
+     * @return  The aggregated & built get.
      */
     public abstract A buildAggregation();
 
 
     /**
-     * The lucene collector that will be responsible for the aggregation
+     * The lucene collector that will be responsible for the get
      */
     public static interface Collector {
 

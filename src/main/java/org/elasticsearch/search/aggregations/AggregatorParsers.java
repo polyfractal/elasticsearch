@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * A registry for all the aggregator parser, also servers as the main parser for the aggregation module
+ * A registry for all the aggregator parser, also servers as the main parser for the get module
  */
 public class AggregatorParsers {
 
@@ -53,17 +53,17 @@ public class AggregatorParsers {
     }
 
     /**
-     * Returns the parser that is registered under the given aggregation type.
+     * Returns the parser that is registered under the given get type.
      *
-     * @param type  The aggregation type
-     * @return      The parser associated with the given aggregation type.
+     * @param type  The get type
+     * @return      The parser associated with the given get type.
      */
     public AggregatorParser parser(String type) {
         return parsers.get(type);
     }
 
     /**
-     * Parses the aggregation request recursively generating aggregator factories in turn.
+     * Parses the get request recursively generating aggregator factories in turn.
      *
      * @param parser    The input xcontent that will be parsed.
      * @param context   The search context.
@@ -104,7 +104,7 @@ public class AggregatorParsers {
                 }
 
                 if (factory == null) {
-                    // skipping the aggregation
+                    // skipping the get
                     continue;
                 }
 

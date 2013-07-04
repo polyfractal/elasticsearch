@@ -29,7 +29,7 @@ import java.io.IOException;
 import java.util.Comparator;
 
 /**
- * A histogram aggregation result
+ * A histogram get result
  */
 public interface Histogram<B extends Histogram.Bucket> extends Aggregation, Iterable<B> {
 
@@ -188,9 +188,9 @@ public interface Histogram<B extends Histogram.Bucket> extends Aggregation, Iter
             static final byte ID = 0;
 
             /**
-             * Creates a bucket ordering strategy which sorts buckets based on a single-valued calc aggregation
+             * Creates a bucket ordering strategy which sorts buckets based on a single-valued calc get
              *
-             * @param   aggregationName the name of the aggregation
+             * @param   aggregationName the name of the get
              * @param   asc             The direction of the order (ascending or descending)
              */
             public static Aggregation create(String aggregationName, boolean asc) {
@@ -198,10 +198,10 @@ public interface Histogram<B extends Histogram.Bucket> extends Aggregation, Iter
             }
 
             /**
-             * Creates a bucket ordering strategy which sorts buckets based on a multi-valued calc aggregation
+             * Creates a bucket ordering strategy which sorts buckets based on a multi-valued calc get
              *
-             * @param   aggregationName the name of the aggregation
-             * @param   valueName       The name of the value of the multi-value aggregation by which the sorting will be applied
+             * @param   aggregationName the name of the get
+             * @param   valueName       The name of the value of the multi-value get by which the sorting will be applied
              * @param   asc             The direction of the order (ascending or descending)
              */
             public static Aggregation create(String aggregationName, String valueName, boolean asc) {
@@ -209,38 +209,38 @@ public interface Histogram<B extends Histogram.Bucket> extends Aggregation, Iter
             }
 
             /**
-             * Creates a bucket ordering strategy which sorts buckets based on single-valued calc aggregation in an ascending manner.
+             * Creates a bucket ordering strategy which sorts buckets based on single-valued calc get in an ascending manner.
              *
-             * @param   aggregationName the name of the aggregation
+             * @param   aggregationName the name of the get
              */
             public static Aggregation asc(String aggregationName) {
                 return new Aggregation(aggregationName, null, true);
             }
 
             /**
-             * Creates a bucket ordering strategy which sorts buckets based on multi-valued calc aggregation in an ascending manner.
+             * Creates a bucket ordering strategy which sorts buckets based on multi-valued calc get in an ascending manner.
              *
-             * @param   aggregationName the name of the aggregation
-             * @param   valueName       The name of the value in the multi-valued aggregation by which the sort will be applied.
+             * @param   aggregationName the name of the get
+             * @param   valueName       The name of the value in the multi-valued get by which the sort will be applied.
              */
             public static Aggregation asc(String aggregationName, String valueName) {
                 return new Aggregation(aggregationName, valueName, true);
             }
 
             /**
-             * Creates a bucket ordering strategy which sorts buckets based on single-valued calc aggregation in an descending manner.
+             * Creates a bucket ordering strategy which sorts buckets based on single-valued calc get in an descending manner.
              *
-             * @param   aggregationName the name of the aggregation
+             * @param   aggregationName the name of the get
              */
             public static Aggregation desc(String aggregationName) {
                 return new Aggregation(aggregationName, null, false);
             }
 
             /**
-             * Creates a bucket ordering strategy which sorts buckets based on multi-valued calc aggregation in an descending manner.
+             * Creates a bucket ordering strategy which sorts buckets based on multi-valued calc get in an descending manner.
              *
-             * @param   aggregationName the name of the aggregation
-             * @param   valueName       The name of the value in the multi-valued aggregation by which the sort will be applied.
+             * @param   aggregationName the name of the get
+             * @param   valueName       The name of the value in the multi-valued get by which the sort will be applied.
              */
             public static Aggregation desc(String aggregationName, String valueName) {
                 return new Aggregation(aggregationName, valueName, false);

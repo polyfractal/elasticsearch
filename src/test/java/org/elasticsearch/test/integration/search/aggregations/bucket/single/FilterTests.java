@@ -89,7 +89,7 @@ public class FilterTests extends AbstractSharedClusterTest {
                 .addAggregation(filter("tag1").filter(termFilter("tag", "tag1")))
                 .execute().actionGet();
 
-        Filter filter = response.getAggregations().aggregation("tag1");
+        Filter filter = response.getAggregations().get("tag1");
         assertThat(filter, notNullValue());
         assertThat(filter.getName(), equalTo("tag1"));
         assertThat(filter.getDocCount(), equalTo(5l));
@@ -100,16 +100,16 @@ public class FilterTests extends AbstractSharedClusterTest {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(filter("tag1")
                         .filter(termFilter("tag", "tag1"))
-                        .aggregation(avg("avg_value").field("value")))
+                        .subAggregation(avg("avg_value").field("value")))
                 .execute().actionGet();
 
-        Filter filter = response.getAggregations().aggregation("tag1");
+        Filter filter = response.getAggregations().get("tag1");
         assertThat(filter, notNullValue());
         assertThat(filter.getName(), equalTo("tag1"));
         assertThat(filter.getDocCount(), equalTo(5l));
 
         assertThat(filter.getAggregations().asList().isEmpty(), is(false));
-        Avg avgValue = filter.getAggregations().aggregation("avg_value");
+        Avg avgValue = filter.getAggregations().get("avg_value");
         assertThat(avgValue, notNullValue());
         assertThat(avgValue.getName(), equalTo("avg_value"));
         assertThat(avgValue.getValue(), equalTo((double) (1+2+3+4+5) / 5));
@@ -122,7 +122,7 @@ public class FilterTests extends AbstractSharedClusterTest {
             client().prepareSearch("idx")
                     .addAggregation(filter("tag1")
                             .filter(termFilter("tag", "tag1"))
-                            .aggregation(avg("avg_value")))
+                            .subAggregation(avg("avg_value")))
                     .execute().actionGet();
 
             assertThat("expected execution to fail - an attempt to have a context based numeric sub-aggregation, but there is not value source" +

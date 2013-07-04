@@ -26,9 +26,9 @@ public abstract class BucketAggregationBuilder<B extends BucketAggregationBuilde
     }
 
     /**
-     * Add a sub aggregation to this bucket aggregation.
+     * Add a sub get to this bucket get.
      */
-    public B aggregation(AggregationBuilder aggregation) {
+    public B subAggregation(AggregationBuilder aggregation) {
         if (aggregations == null) {
             aggregations = Lists.newArrayList();
         }
@@ -37,42 +37,42 @@ public abstract class BucketAggregationBuilder<B extends BucketAggregationBuilde
     }
 
     /**
-     * Sets a raw (xcontent / json) sub aggregations.
+     * Sets a raw (xcontent / json) sub addAggregation.
      */
-    public B aggregations(byte[] aggregationsBinary) {
-        return aggregations(aggregationsBinary, 0, aggregationsBinary.length);
+    public B subAggregation(byte[] aggregationsBinary) {
+        return subAggregation(aggregationsBinary, 0, aggregationsBinary.length);
     }
 
     /**
-     * Sets a raw (xcontent / json) sub aggregations.
+     * Sets a raw (xcontent / json) sub addAggregation.
      */
-    public B aggregations(byte[] aggregationsBinary, int aggregationsBinaryOffset, int aggregationsBinaryLength) {
-        return aggregations(new BytesArray(aggregationsBinary, aggregationsBinaryOffset, aggregationsBinaryLength));
+    public B subAggregation(byte[] aggregationsBinary, int aggregationsBinaryOffset, int aggregationsBinaryLength) {
+        return subAggregation(new BytesArray(aggregationsBinary, aggregationsBinaryOffset, aggregationsBinaryLength));
     }
 
     /**
-     * Sets a raw (xcontent / json) sub aggregations.
+     * Sets a raw (xcontent / json) sub addAggregation.
      */
-    public B aggregations(BytesReference aggregationsBinary) {
+    public B subAggregation(BytesReference aggregationsBinary) {
         this.aggregationsBinary = aggregationsBinary;
         return (B) this;
     }
 
     /**
-     * Sets a raw (xcontent / json) sub aggregations.
+     * Sets a raw (xcontent / json) sub addAggregation.
      */
-    public B aggregations(XContentBuilder facets) {
-        return aggregations(facets.bytes());
+    public B subAggregation(XContentBuilder facets) {
+        return subAggregation(facets.bytes());
     }
 
     /**
-     * Sets a raw (xcontent / json) sub aggregations.
+     * Sets a raw (xcontent / json) sub addAggregation.
      */
-    public B aggregations(Map facets) {
+    public B subAggregation(Map facets) {
         try {
             XContentBuilder builder = XContentFactory.contentBuilder(Requests.CONTENT_TYPE);
             builder.map(facets);
-            return aggregations(builder);
+            return subAggregation(builder);
         } catch (IOException e) {
             throw new ElasticSearchGenerationException("Failed to generate [" + facets + "]", e);
         }

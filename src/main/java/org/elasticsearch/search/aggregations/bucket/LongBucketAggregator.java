@@ -77,7 +77,13 @@ public abstract class LongBucketAggregator extends ValuesSourceBucketAggregator<
 
         @Override
         public boolean accept(Object valueSourceKey, double value) {
-            return parentContext.accept(valueSourceKey, value);
+            if (!parentContext.accept(valueSourceKey, value)) {
+                return false;
+            }
+            if (valuesSource.key().equals(valueSourceKey)) {
+                return accept((long) value);
+            }
+            return true;
         }
 
         @Override
@@ -101,7 +107,7 @@ public abstract class LongBucketAggregator extends ValuesSourceBucketAggregator<
             return parentContext.accept(valueSourceKey, value);
         }
 
-        public abstract boolean accept(double value);
+        public abstract boolean accept(long value);
     }
 
     protected abstract static class FieldDataFactory<A extends LongBucketAggregator> extends CompoundFactory<A> {

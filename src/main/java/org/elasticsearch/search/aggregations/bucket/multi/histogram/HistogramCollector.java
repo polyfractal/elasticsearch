@@ -19,9 +19,9 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
-import com.google.common.collect.Lists;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.Rounding;
+import org.elasticsearch.common.collect.ReusableGrowableArray;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.search.aggregations.Aggregator;
@@ -58,6 +58,9 @@ class HistogramCollector implements Aggregator.Collector {
     final Listener listener;
 
     NumericValuesSource valuesSource;
+
+    // a reusable list of matched buckets which is used when dealing with multi-valued fields. see #populateMatchedBuckets method
+    private final ReusableGrowableArray<BucketCollector> matchedBuckets = new ReusableGrowableArray<BucketCollector>();
 
     /**
      * Constructs a new histogram collector.
@@ -127,8 +130,10 @@ class HistogramCollector implements Aggregator.Collector {
         // and aggregate only those that are marked (and while at it, clear the mark, making it ready for
         // the next get).
 
-        List<BucketCollector> matchedBackets = findMatchedBuckets(doc, valuesSource.key(), values, valueSpace);
-        for (BucketCollector collector : matchedBackets) {
+        populateMatchedBuckets(doc, valuesSource.key(), values, valueSpace);
+        for (int i = 0; i < matchedBuckets.size(); i++) {
+            BucketCollector collector = matchedBuckets.get(i);
+            collector.matched = false;
             collector.collect(doc, valueSpace);
         }
     }
@@ -138,8 +143,8 @@ class HistogramCollector implements Aggregator.Collector {
     // collect the matched ones. We need to do this to avoid situations where multiple values in a single field
     // or multiple values across the aggregated fields match the bucket and then the bucket will collect the same
     // document multiple times.
-    private List<BucketCollector> findMatchedBuckets(int doc, Object valuesSourceKey, LongValues values, ValueSpace context) {
-        List<BucketCollector> matchedBuckets = Lists.newArrayListWithCapacity(4);
+    private void populateMatchedBuckets(int doc, Object valuesSourceKey, LongValues values, ValueSpace context) {
+        matchedBuckets.reset();
         for (LongValues.Iter iter = values.getIter(doc); iter.hasNext();) {
             long value = iter.next();
             if (!context.accept(valuesSourceKey, value)) {
@@ -151,9 +156,11 @@ class HistogramCollector implements Aggregator.Collector {
                 bucket = new BucketCollector(key, rounding, valuesSource, factories, aggregator);
                 bucketCollectors.put(key, bucket);
             }
-            matchedBuckets.add(bucket);
+            if (!bucket.matched) {
+                matchedBuckets.add(bucket);
+                bucket.matched = true;
+            }
         }
-        return matchedBuckets;
     }
 
 
@@ -164,13 +171,18 @@ class HistogramCollector implements Aggregator.Collector {
      */
     static class BucketCollector extends LongBucketAggregator.BucketCollector {
 
+        // hacky, but needed for performance. We use this in the #findMatchedBuckets method, to keep track of the buckets
+        // we already matched (we don't want to pick up the same bucket twice). An alternative for this hack would have
+        // been to use a set in that method instead of a list, but that come with extra performance costs (every time
+        // a bucket is added to the set it's being hashed and compared to other buckets)
+        boolean matched = false;
+
         final long key;
         final Rounding rounding;
 
         long docCount;
 
         BucketCollector(long key, Rounding rounding, NumericValuesSource valuesSource, List<Aggregator.Factory> factories, Aggregator parent) {
-
             super(valuesSource, factories, parent);
             this.key = key;
             this.rounding = rounding;
@@ -187,8 +199,8 @@ class HistogramCollector implements Aggregator.Collector {
         }
 
         @Override
-        public boolean accept(double value) {
-            return this.key == rounding.round((long) value);
+        public boolean accept(long value) {
+            return this.key == rounding.round(value);
         }
 
     }

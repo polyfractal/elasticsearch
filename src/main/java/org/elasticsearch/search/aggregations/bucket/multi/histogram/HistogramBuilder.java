@@ -12,7 +12,7 @@ import java.io.IOException;
 public class HistogramBuilder extends ValuesSourceBucketAggregationBuilder<HistogramBuilder> {
 
     private Long interval;
-    private Histogram.Order order;
+    private HistogramBase.Order order;
 
     public HistogramBuilder(String name) {
         super(name, InternalHistogram.TYPE.name());

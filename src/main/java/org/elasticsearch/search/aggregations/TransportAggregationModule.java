@@ -21,8 +21,8 @@ package org.elasticsearch.search.aggregations;
 
 import org.elasticsearch.common.inject.AbstractModule;
 import org.elasticsearch.search.aggregations.bucket.multi.geo.distance.InternalGeoDistance;
+import org.elasticsearch.search.aggregations.bucket.multi.histogram.InternalDateHistogram;
 import org.elasticsearch.search.aggregations.bucket.multi.histogram.InternalHistogram;
-import org.elasticsearch.search.aggregations.bucket.multi.histogram.date.InternalDateHistogram;
 import org.elasticsearch.search.aggregations.bucket.multi.range.InternalRange;
 import org.elasticsearch.search.aggregations.bucket.multi.range.date.InternalDateRange;
 import org.elasticsearch.search.aggregations.bucket.multi.range.ip4v.InternalIPv4Range;

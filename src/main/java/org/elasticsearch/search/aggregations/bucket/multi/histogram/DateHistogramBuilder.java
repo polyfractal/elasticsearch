@@ -1,9 +1,7 @@
-package org.elasticsearch.search.aggregations.bucket.multi.histogram.date;
+package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.aggregations.bucket.ValuesSourceBucketAggregationBuilder;
-import org.elasticsearch.search.aggregations.bucket.multi.histogram.Histogram;
-import org.elasticsearch.search.aggregations.bucket.multi.histogram.InternalHistogram;
 import org.elasticsearch.search.builder.SearchSourceBuilderException;
 
 import java.io.IOException;
@@ -13,8 +11,8 @@ import java.io.IOException;
  */
 public class DateHistogramBuilder extends ValuesSourceBucketAggregationBuilder<DateHistogramBuilder> {
 
-    private Long interval;
-    private Histogram.Order order;
+    private Object interval;
+    private HistogramBase.Order order;
     private String preZone;
     private String postZone;
     private boolean preZoneAdjustLargeInterval;
@@ -23,7 +21,7 @@ public class DateHistogramBuilder extends ValuesSourceBucketAggregationBuilder<D
     float factor = 1.0f;
 
     public DateHistogramBuilder(String name) {
-        super(name, InternalHistogram.TYPE.name());
+        super(name, InternalDateHistogram.TYPE.name());
     }
 
     public DateHistogramBuilder interval(long interval) {
@@ -31,7 +29,12 @@ public class DateHistogramBuilder extends ValuesSourceBucketAggregationBuilder<D
         return this;
     }
 
-    public DateHistogramBuilder order(Histogram.Order order) {
+    public DateHistogramBuilder interval(DateHistogram.Interval interval) {
+        this.interval = interval;
+        return this;
+    }
+
+    public DateHistogramBuilder order(DateHistogram.Order order) {
         this.order = order;
         return this;
     }

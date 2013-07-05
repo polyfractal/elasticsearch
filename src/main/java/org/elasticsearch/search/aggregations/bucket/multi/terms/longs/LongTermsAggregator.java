@@ -20,9 +20,9 @@
 package org.elasticsearch.search.aggregations.bucket.multi.terms.longs;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.collect.BoundedTreeSet;
+import org.elasticsearch.common.collect.ReusableGrowableArray;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.search.aggregations.Aggregator;
@@ -81,11 +81,11 @@ public class LongTermsAggregator extends LongBucketAggregator {
                     ordered.insertWithOverflow(((BucketCollector) collectors[i]).buildBucket());
                 }
             }
+            CacheRecycler.pushLongObjectMap(bucketCollectors);
             InternalTerms.Bucket[] list = new InternalTerms.Bucket[ordered.size()];
             for (int i = ordered.size() - 1; i >= 0; i--) {
                 list[i] = (LongTerms.Bucket) ordered.pop();
             }
-            CacheRecycler.pushLongObjectMap(bucketCollectors);
             return new LongTerms(name, order, valuesSource.formatter(), requiredSize, Arrays.asList(list));
         } else {
             BoundedTreeSet<InternalTerms.Bucket> ordered = new BoundedTreeSet<InternalTerms.Bucket>(order.comparator(), requiredSize);
@@ -101,6 +101,8 @@ public class LongTermsAggregator extends LongBucketAggregator {
     }
 
     class Collector implements Aggregator.Collector {
+
+        private ReusableGrowableArray<BucketCollector> matchedBuckets;
 
         @Override
         public void collect(int doc, ValueSpace valueSpace) throws IOException {
@@ -128,19 +130,20 @@ public class LongTermsAggregator extends LongBucketAggregator {
                 return;
             }
 
-            List<BucketCollector> matchedBuckets = findMatchingBuckets(doc, valuesSourceKey, values, valueSpace);
-            if (matchedBuckets != null) {
-                for (int i = 0; i < matchedBuckets.size(); i++) {
-                    matchedBuckets.get(i).collect(doc, valueSpace);
-                }
+            if (matchedBuckets == null) {
+                matchedBuckets = new ReusableGrowableArray<BucketCollector>();
+            }
+            populateMatchingBuckets(doc, valuesSourceKey, values, valueSpace);
+            for (int i = 0; i < matchedBuckets.size(); i++) {
+                matchedBuckets.get(i).collect(doc, valueSpace);
             }
         }
 
-        private List<BucketCollector> findMatchingBuckets(int doc, Object valuesSourceKey, LongValues values, ValueSpace context) {
-            List<BucketCollector> matchedBuckets = null;
+        private void populateMatchingBuckets(int doc, Object valuesSourceKey, LongValues values, ValueSpace valueSpace) {
+            matchedBuckets.reset();
             for (LongValues.Iter iter = values.getIter(doc); iter.hasNext();) {
                 long term = iter.next();
-                if (!context.accept(valuesSourceKey, term)) {
+                if (!valueSpace.accept(valuesSourceKey, term)) {
                     continue;
                 }
                 BucketCollector bucket = bucketCollectors.get(term);
@@ -148,19 +151,16 @@ public class LongTermsAggregator extends LongBucketAggregator {
                     bucket = new BucketCollector(term, LongTermsAggregator.this);
                     bucketCollectors.put(term, bucket);
                 }
-                if (matchedBuckets == null) {
-                    matchedBuckets = Lists.newArrayListWithCapacity(4);
-                }
                 matchedBuckets.add(bucket);
             }
-            return matchedBuckets;
         }
 
         @Override
         public void postCollection() {
-            for (Object bucketCollector : bucketCollectors.internalValues()) {
-                if (bucketCollector != null) {
-                    ((BucketCollector) bucketCollector).postCollection();
+            Object[] collectors = bucketCollectors.internalValues();
+            for (int i = 0; i < collectors.length; i++) {
+                if (collectors[i] != null) {
+                    ((BucketCollector) collectors[i]).postCollection();
                 }
             }
         }
@@ -169,7 +169,6 @@ public class LongTermsAggregator extends LongBucketAggregator {
     static class BucketCollector extends BucketAggregator.BucketCollector {
 
         final long term;
-
         long docCount;
 
         BucketCollector(long term, LongTermsAggregator parent) {
@@ -178,9 +177,9 @@ public class LongTermsAggregator extends LongBucketAggregator {
         }
 
         @Override
-        protected ValueSpace onDoc(int doc, ValueSpace context) throws IOException {
+        protected ValueSpace onDoc(int doc, ValueSpace valueSpace) throws IOException {
             docCount++;
-            return context;
+            return valueSpace;
         }
 
         @Override

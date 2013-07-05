@@ -35,6 +35,18 @@ public interface Aggregated {
         private final String valueName;
         private final boolean asc;
 
+        public Comparator(String expression, boolean asc) {
+            this.asc = asc;
+            int i = expression.indexOf('.');
+            if (i < 0) {
+                this.aggName = expression;
+                this.valueName = null;
+            } else {
+                this.aggName = expression.substring(0, i);
+                this.valueName = expression.substring(i+1);
+            }
+        }
+
         public Comparator(String aggName, String valueName, boolean asc) {
             this.aggName = aggName;
             this.valueName = valueName;

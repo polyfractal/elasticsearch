@@ -17,14 +17,12 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.bucket.multi.histogram.date;
+package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.search.aggregations.AggregationStreams;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
-import org.elasticsearch.search.aggregations.bucket.multi.histogram.InternalHistogram;
-import org.elasticsearch.search.aggregations.bucket.multi.histogram.InternalOrder;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.joda.time.DateTime;
 
@@ -34,7 +32,7 @@ import java.util.List;
 /**
  *
  */
-public class InternalDateHistogram extends InternalHistogram<DateHistogram.Bucket> implements DateHistogram {
+public class InternalDateHistogram extends AbstractHistogramBase<DateHistogram.Bucket> implements DateHistogram {
 
     public final static Type TYPE = new Type("date_histogram", "dhisto");
 
@@ -51,7 +49,7 @@ public class InternalDateHistogram extends InternalHistogram<DateHistogram.Bucke
         AggregationStreams.registerStream(STREAM, TYPE.stream());
     }
 
-    static class Bucket extends InternalHistogram.Bucket implements DateHistogram.Bucket {
+    static class Bucket extends AbstractHistogramBase.Bucket implements DateHistogram.Bucket {
 
         Bucket(long key, long docCount, InternalAggregations aggregations) {
             super(key, docCount, aggregations);
@@ -67,15 +65,15 @@ public class InternalDateHistogram extends InternalHistogram<DateHistogram.Bucke
         }
     }
 
-    static class Factory extends InternalHistogram.Factory<DateHistogram.Bucket> {
+    static class Factory implements AbstractHistogramBase.Factory<DateHistogram.Bucket> {
 
         @Override
-        public InternalHistogram create(String name, List<DateHistogram.Bucket> buckets, InternalOrder order, ValueFormatter formatter, boolean keyed) {
+        public AbstractHistogramBase create(String name, List<DateHistogram.Bucket> buckets, InternalOrder order, ValueFormatter formatter, boolean keyed) {
             return new InternalDateHistogram(name, buckets, order, formatter, keyed);
         }
 
         @Override
-        public InternalHistogram.Bucket createBucket(long key, long docCount, List<InternalAggregation> aggregations) {
+        public AbstractHistogramBase.Bucket createBucket(long key, long docCount, List<InternalAggregation> aggregations) {
             return new Bucket(key, docCount, aggregations);
         }
     }
@@ -84,6 +82,11 @@ public class InternalDateHistogram extends InternalHistogram<DateHistogram.Bucke
 
     InternalDateHistogram(String name, List<DateHistogram.Bucket> buckets, InternalOrder order, ValueFormatter formatter, boolean keyed) {
         super(name, buckets, order, formatter, keyed);
+    }
+
+    @Override
+    public Type type() {
+        return TYPE;
     }
 
     @Override

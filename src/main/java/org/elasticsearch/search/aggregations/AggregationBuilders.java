@@ -2,7 +2,7 @@ package org.elasticsearch.search.aggregations;
 
 import org.elasticsearch.search.aggregations.bucket.multi.geo.distance.GeoDistanceBuilder;
 import org.elasticsearch.search.aggregations.bucket.multi.histogram.HistogramBuilder;
-import org.elasticsearch.search.aggregations.bucket.multi.histogram.date.DateHistogramBuilder;
+import org.elasticsearch.search.aggregations.bucket.multi.histogram.DateHistogramBuilder;
 import org.elasticsearch.search.aggregations.bucket.multi.range.RangeBuilder;
 import org.elasticsearch.search.aggregations.bucket.multi.range.date.DateRangeBuilder;
 import org.elasticsearch.search.aggregations.bucket.multi.range.ip4v.IPv4RangeBuilder;

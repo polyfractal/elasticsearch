@@ -51,7 +51,7 @@ public class HistogramParser implements AggregatorParser {
         String scriptLang = null;
         Map<String, Object> scriptParams = null;
         boolean keyed = false;
-        InternalOrder order = Histogram.Order.Standard.KEY_ASC;
+        InternalOrder order = HistogramBase.Order.KEY_ASC;
         long interval = -1;
         boolean multiValued = true;
 
@@ -131,15 +131,15 @@ public class HistogramParser implements AggregatorParser {
 
     static InternalOrder resolveOrder(String key, boolean asc) {
         if ("_key".equals(key)) {
-            return asc ? Histogram.Order.Standard.KEY_ASC : Histogram.Order.Standard.KEY_DESC;
+            return asc ? HistogramBase.Order.KEY_ASC : HistogramBase.Order.KEY_DESC;
         }
         if ("_count".equals(key)) {
-            return asc ? Histogram.Order.Standard.COUNT_ASC : Histogram.Order.Standard.COUNT_DESC;
+            return asc ? HistogramBase.Order.COUNT_ASC : HistogramBase.Order.COUNT_DESC;
         }
         int i = key.indexOf('.');
         if (i < 0) {
-            return Histogram.Order.Aggregation.create(key, asc);
+            return HistogramBase.Order.aggregation(key, asc);
         }
-        return Histogram.Order.Aggregation.create(key.substring(0, i), key.substring(i+1), asc);
+        return HistogramBase.Order.aggregation(key.substring(0, i), key.substring(i+1), asc);
     }
 }

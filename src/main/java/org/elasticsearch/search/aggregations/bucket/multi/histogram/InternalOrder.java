@@ -19,54 +19,68 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.search.aggregations.Aggregated;
 
 import java.io.IOException;
+import java.util.Comparator;
 
 /**
- * An internal {@link Histogram.Order} strategy which is identified by a unique id.
+ * An internal {@link HistogramBase.Order} strategy which is identified by a unique id.
  */
-public interface InternalOrder extends Histogram.Order {
+class InternalOrder extends HistogramBase.Order {
 
-    byte id();
+    final byte id;
+    final String key;
+    final boolean asc;
+    final Comparator<HistogramBase.Bucket> comparator;
 
-    static class Streams {
+    InternalOrder(byte id, String key, boolean asc, Comparator<HistogramBase.Bucket> comparator) {
+        this.id = id;
+        this.key = key;
+        this.asc = asc;
+        this.comparator = comparator;
+    }
 
-        /**
-         * Writes the given order to the given output (based on the id of the order).
-         */
-        public static void writeOrder(InternalOrder order, StreamOutput out) throws IOException {
-            out.writeByte(order.id());
-            if (order instanceof Histogram.Order.Aggregation) {
-                out.writeBoolean(((Histogram.Order.Aggregation) order).comparator().asc());
-                out.writeString(((Histogram.Order.Aggregation) order).comparator().aggName());
-                String valueName = ((Histogram.Order.Aggregation) order).comparator().valueName();
-                if (valueName == null) {
-                    out.writeBoolean(false);
-                } else {
-                    out.writeBoolean(true);
-                    out.writeString(valueName);
-                }
-            }
+    byte id() {
+        return id;
+    }
+
+    String key() {
+        return key;
+    }
+
+    boolean asc() {
+        return asc;
+    }
+
+    @Override
+    Comparator<HistogramBase.Bucket> comparator() {
+        return comparator;
+    }
+
+    @Override
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        return builder.startObject().field(key, asc ? "asc" : "desc").endObject();
+    }
+
+    static class Aggregation extends InternalOrder {
+
+        static final byte ID = 0;
+
+        Aggregation(String key, boolean asc) {
+            super(ID, key, asc, new Aggregated.Comparator<HistogramBase.Bucket>(key, asc));
         }
 
-        /**
-         * Reads an order from the given input (based on the id of the order).
-         *
-         * @see Streams#writeOrder(InternalOrder, org.elasticsearch.common.io.stream.StreamOutput)
-         */
-        public static InternalOrder readOrder(StreamInput in) throws IOException {
-            byte id = in.readByte();
-            if (id != Aggregation.ID) {
-                return Histogram.Order.Standard.resolveById(id);
-            }
-            boolean asc = in.readBoolean();
-            String aggName = in.readString();
-            String valueName = in.readBoolean() ? in.readString() : null;
-            return Histogram.Order.Aggregation.create(aggName, valueName, asc);
+        Aggregation(String aggName, String valueName, boolean asc) {
+            super(ID, key(aggName, valueName), asc, new Aggregated.Comparator<HistogramBase.Bucket>(aggName, valueName, asc));
+        }
+
+        private static String key(String aggName, String valueName) {
+            return (valueName == null) ? aggName : aggName + "." + valueName;
         }
 
     }
+
 
 }

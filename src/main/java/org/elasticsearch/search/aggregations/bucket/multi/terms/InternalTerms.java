@@ -112,6 +112,12 @@ public abstract class InternalTerms extends InternalAggregation implements Terms
     }
 
     @Override
+    public Collection<Terms.Bucket> buckets() {
+        Object o = buckets;
+        return (Collection<Terms.Bucket>) o;
+    }
+
+    @Override
     public InternalTerms reduce(List<InternalAggregation> aggregations) {
         if (aggregations.size() == 1) {
             return (InternalTerms) aggregations.get(0);

@@ -22,6 +22,7 @@ package org.elasticsearch.search.aggregations.bucket.multi.terms.string;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.collect.BoundedTreeSet;
 import org.elasticsearch.common.lucene.HashedBytesRef;
 import org.elasticsearch.common.trove.ExtTHashMap;
@@ -40,7 +41,6 @@ import org.elasticsearch.search.facet.terms.support.EntryPriorityQueue;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.buildAggregations;
 
@@ -62,6 +62,7 @@ public class StringTermsAggregator extends BytesBucketAggregator {
         this.factories = factories;
         this.order = order;
         this.requiredSize = requiredSize;
+        buckets = CacheRecycler.popHashMap();
     }
 
     @Override
@@ -78,9 +79,13 @@ public class StringTermsAggregator extends BytesBucketAggregator {
 
         if (requiredSize < EntryPriorityQueue.LIMIT) {
             BucketPriorityQueue ordered = new BucketPriorityQueue(requiredSize, order.comparator());
-            for (Map.Entry<HashedBytesRef, BucketCollector> entry : buckets.entrySet()) {
-                ordered.insertWithOverflow(entry.getValue().buildBucket());
+            Object[] collectors = buckets.internalValues();
+            for (int i = 0; i < collectors.length; i++) {
+                if (collectors[i] != null) {
+                    ordered.insertWithOverflow(((BucketCollector) collectors[i]).buildBucket());
+                }
             }
+            CacheRecycler.pushHashMap(buckets);
             InternalTerms.Bucket[] list = new InternalTerms.Bucket[ordered.size()];
             for (int i = ordered.size() - 1; i >= 0; i--) {
                 list[i] = (StringTerms.Bucket) ordered.pop();
@@ -88,16 +93,18 @@ public class StringTermsAggregator extends BytesBucketAggregator {
             return new StringTerms(name, order, requiredSize, Arrays.asList(list));
         } else {
             BoundedTreeSet<InternalTerms.Bucket> ordered = new BoundedTreeSet<InternalTerms.Bucket>(order.comparator(), requiredSize);
-            for (Map.Entry<HashedBytesRef, BucketCollector> entry : buckets.entrySet()) {
-                ordered.add(entry.getValue().buildBucket());
+            Object[] collectors = buckets.internalValues();
+            for (int i = 0; i < collectors.length; i++) {
+                if (collectors[i] != null) {
+                    ordered.add(((BucketCollector) collectors[i]).buildBucket());
+                }
             }
+            CacheRecycler.pushHashMap(buckets);
             return new StringTerms(name, order, requiredSize, ordered);
         }
     }
 
     class Collector implements Aggregator.Collector {
-
-        final ExtTHashMap<HashedBytesRef, BucketCollector> buckets = new ExtTHashMap<HashedBytesRef, BucketCollector>();
 
         @Override
         public void collect(int doc, ValueSpace valueSpace) throws IOException {

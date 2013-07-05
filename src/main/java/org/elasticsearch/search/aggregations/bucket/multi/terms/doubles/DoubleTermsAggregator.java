@@ -20,8 +20,9 @@
 package org.elasticsearch.search.aggregations.bucket.multi.terms.doubles;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
+import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.collect.BoundedTreeSet;
+import org.elasticsearch.common.collect.ReusableGrowableArray;
 import org.elasticsearch.common.trove.ExtTDoubleObjectHashMap;
 import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.search.aggregations.Aggregator;
@@ -58,6 +59,7 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
         this.factories = factories;
         this.order = order;
         this.requiredSize = requiredSize;
+        this.bucketCollectors = CacheRecycler.popDoubleObjectMap();
     }
 
     @Override
@@ -79,6 +81,7 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
                     ordered.insertWithOverflow(((BucketCollector) bucketCollector).buildBucket());
                 }
             }
+            CacheRecycler.pushDoubleObjectMap(bucketCollectors);
             InternalTerms.Bucket[] list = new InternalTerms.Bucket[ordered.size()];
             for (int i = ordered.size() - 1; i >= 0; i--) {
                 list[i] = (DoubleTerms.Bucket) ordered.pop();
@@ -86,18 +89,20 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
             return new DoubleTerms(name, order, requiredSize, Arrays.asList(list));
         } else {
             BoundedTreeSet<InternalTerms.Bucket> ordered = new BoundedTreeSet<InternalTerms.Bucket>(order.comparator(), requiredSize);
-            for (Object bucketCollector : bucketCollectors.internalValues()) {
-                if (bucketCollector != null) {
-                    ordered.add(((BucketCollector) bucketCollector).buildBucket());
+            Object[] collectors = bucketCollectors.internalValues();
+            for (int i = 0; i < collectors.length; i++) {
+                if (collectors[i] != null) {
+                    ordered.add(((BucketCollector) collectors[i]).buildBucket());
                 }
             }
+            CacheRecycler.pushDoubleObjectMap(bucketCollectors);
             return new DoubleTerms(name, order, requiredSize, ordered);
         }
     }
 
     class Collector implements Aggregator.Collector {
 
-        final ExtTDoubleObjectHashMap<BucketCollector> bucketCollectors = new ExtTDoubleObjectHashMap<BucketCollector>();
+        private ReusableGrowableArray<BucketCollector> matchedBuckets;
 
         @Override
         public void collect(int doc, ValueSpace valueSpace) throws IOException {
@@ -123,17 +128,18 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
                 return;
             }
 
-            List<BucketCollector> matchedBuckets = findMatchedBuckets(doc, valuesSourceKey, values, valueSpace);
-            if (matchedBuckets != null) {
-                for (int i = 0; i < matchedBuckets.size(); i++) {
-                    matchedBuckets.get(i).collect(doc, valueSpace);
-                }
+            if (matchedBuckets == null) {
+                matchedBuckets = new ReusableGrowableArray<BucketCollector>();
+            }
+            populateMatchedBuckets(doc, valuesSourceKey, values, valueSpace);
+            for (int i = 0; i < matchedBuckets.size(); i++) {
+                matchedBuckets.get(i).collect(doc, valueSpace);
             }
 
         }
 
-        private List<BucketCollector> findMatchedBuckets(int doc, Object valuesSourceKey, DoubleValues values, ValueSpace context) {
-            List<BucketCollector> matchedBuckets = null;
+        private void populateMatchedBuckets(int doc, Object valuesSourceKey, DoubleValues values, ValueSpace context) {
+            matchedBuckets.reset();
             for (DoubleValues.Iter iter = values.getIter(doc); iter.hasNext();) {
                 double term = iter.next();
                 if (!context.accept(valuesSourceKey, term)) {
@@ -144,12 +150,8 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
                     bucket = new BucketCollector(term, DoubleTermsAggregator.this);
                     bucketCollectors.put(term, bucket);
                 }
-                if (matchedBuckets == null) {
-                    matchedBuckets = Lists.newArrayListWithCapacity(4);
-                }
                 matchedBuckets.add(bucket);
             }
-            return matchedBuckets;
         }
 
         @Override
@@ -159,7 +161,6 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
                     ((BucketCollector) bucketCollector).postCollection();
                 }
             }
-            DoubleTermsAggregator.this.bucketCollectors = bucketCollectors;
         }
     }
 

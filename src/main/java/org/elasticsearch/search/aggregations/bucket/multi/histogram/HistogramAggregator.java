@@ -44,7 +44,7 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
     private final Rounding rounding;
     private final InternalOrder order;
     private final boolean keyed;
-    private final InternalHistogram.Factory histogramFactory;
+    private final AbstractHistogramBase.Factory histogramFactory;
 
     ExtTLongObjectHashMap<HistogramCollector.BucketCollector> collectors;
 
@@ -54,7 +54,7 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
                                InternalOrder order,
                                boolean keyed,
                                @Nullable NumericValuesSource valuesSource,
-                               InternalHistogram.Factory histogramFactory,
+                               AbstractHistogramBase.Factory histogramFactory,
                                AggregationContext aggregationContext,
                                Aggregator parent) {
 
@@ -73,7 +73,7 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
 
     @Override
     public InternalAggregation buildAggregation() {
-        List<Histogram.Bucket> buckets = new ArrayList<Histogram.Bucket>(collectors.size());
+        List<HistogramBase.Bucket> buckets = new ArrayList<HistogramBase.Bucket>(collectors.size());
         for (Object collector : collectors.internalValues()) {
             if (collector == null) {
                 continue;
@@ -100,7 +100,7 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
         private final InternalOrder order;
         private final boolean keyed;
         private final ValueFormatter formatter;
-        private final InternalHistogram.Factory histogramFactory;
+        private final AbstractHistogramBase.Factory histogramFactory;
 
         public FieldDataFactory(String name,
                                 FieldContext fieldContext,
@@ -109,7 +109,7 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
                                 InternalOrder order,
                                 boolean keyed,
                                 ValueFormatter formatter,
-                                InternalHistogram.Factory histogramFactory) {
+                                AbstractHistogramBase.Factory histogramFactory) {
 
             super(name, fieldContext, valueScript, formatter, null);
             this.rounding = rounding;
@@ -131,7 +131,7 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
         private final Rounding rounding;
         private final InternalOrder order;
         private final boolean keyed;
-        private final InternalHistogram.Factory histogramFactory;
+        private final AbstractHistogramBase.Factory histogramFactory;
 
         public ScriptFactory(String name,
                              SearchScript script,
@@ -140,7 +140,7 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
                              InternalOrder order,
                              boolean keyed,
                              ValueFormatter formatter,
-                             InternalHistogram.Factory histogramFactory) {
+                             AbstractHistogramBase.Factory histogramFactory) {
 
             super(name, script, multiValued, formatter);
             this.rounding = rounding;
@@ -162,9 +162,9 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
         private final Rounding rounding;
         private final InternalOrder order;
         private final boolean keyed;
-        private final InternalHistogram.Factory histogramFactory;
+        private final AbstractHistogramBase.Factory histogramFactory;
 
-        public ContextBasedFactory(String name, Rounding rounding, InternalOrder order, boolean keyed, InternalHistogram.Factory histogramFactory) {
+        public ContextBasedFactory(String name, Rounding rounding, InternalOrder order, boolean keyed, AbstractHistogramBase.Factory histogramFactory) {
             super(name);
             this.rounding = rounding;
             this.order = order;

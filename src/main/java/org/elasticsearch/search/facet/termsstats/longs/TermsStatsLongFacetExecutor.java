@@ -127,18 +127,13 @@ public class TermsStatsLongFacetExecutor extends FacetExecutor {
             }
         }
 
-//        long time = 0;
-
         @Override
         public void collect(int doc) throws IOException {
-//            long start = System.currentTimeMillis();
             aggregator.onDoc(doc, keyValues);
-//            time += System.currentTimeMillis() - start;
         }
 
         @Override
         public void postCollection() {
-            System.out.println("facet: total collect - " + aggregator.time + "\t\t" + aggregator.time2);
             TermsStatsLongFacetExecutor.this.missing = aggregator.missing();
         }
     }
@@ -153,27 +148,16 @@ public class TermsStatsLongFacetExecutor extends FacetExecutor {
             this.entries = entries;
         }
 
-        long time = 0;
-        long time2 = 0;
-
-
         @Override
         public void onValue(int docId, long value) {
-            long start = System.currentTimeMillis();
             InternalTermsStatsLongFacet.LongEntry longEntry = entries.get(value);
             if (longEntry == null) {
                 longEntry = new InternalTermsStatsLongFacet.LongEntry(value, 0, 0, 0, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY);
                 entries.put(value, longEntry);
             }
-            time += System.currentTimeMillis() - start;
-
-            start = System.currentTimeMillis();
-
             longEntry.count++;
             valueAggregator.longEntry = longEntry;
             valueAggregator.onDoc(docId, valueValues);
-
-            time2 += System.currentTimeMillis() - start;
         }
 
 

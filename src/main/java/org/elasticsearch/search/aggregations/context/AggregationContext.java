@@ -86,24 +86,6 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
         }
     }
 
-    @Deprecated
-    public NumericValuesSource doubleField(FieldContext fieldContext, SearchScript script, ValueFormatter formatter, ValueParser parser) {
-        FieldDataSource.Numeric dataSource = (FieldDataSource.Numeric) fieldDataSources.get(fieldContext.field());
-        if (dataSource == null) {
-            dataSource = new FieldDataSource.Double(fieldContext.field(), fieldContext.indexFieldData());
-            setReaderIfNeeded(dataSource);
-            fieldDataSources.put(fieldContext.field(), dataSource);
-        }
-        if (script != null) {
-            setScorerIfNeeded(script);
-            setReaderIfNeeded(script);
-            scorerAwares.add(script);
-            readerAwares.add(script);
-        }
-        return new NumericValuesSource.FieldData(dataSource, script, formatter, parser);
-
-    }
-
     public NumericValuesSource.DoubleScript doubleScript(SearchScript script, boolean multiValued, ValueFormatter formatter) {
         NumericValuesSource.DoubleScript valuesSource =  new NumericValuesSource.DoubleScript(script, multiValued, formatter);
         setScorerIfNeeded(script);
@@ -113,26 +95,10 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
         return valuesSource;
     }
 
-    public NumericValuesSource longField(FieldContext fieldContext, SearchScript script, ValueFormatter formatter, ValueParser parser) {
-        FieldDataSource.Numeric dataSource = (FieldDataSource.Numeric) fieldDataSources.get(fieldContext.field());
-        if (dataSource == null) {
-            dataSource = new FieldDataSource.Long(fieldContext.field(), fieldContext.indexFieldData());
-            setReaderIfNeeded(dataSource);
-            fieldDataSources.put(fieldContext.field(), dataSource);
-        }
-        if (script != null) {
-            setScorerIfNeeded(script);
-            setReaderIfNeeded(script);
-            scorerAwares.add(script);
-            readerAwares.add(script);
-        }
-        return new NumericValuesSource.FieldData(dataSource, script, formatter, parser);
-    }
-
     public NumericValuesSource numericField(FieldContext fieldContext, SearchScript script, ValueFormatter formatter, ValueParser parser) {
         FieldDataSource.Numeric dataSource = (FieldDataSource.Numeric) fieldDataSources.get(fieldContext.field());
         if (dataSource == null) {
-            dataSource = new FieldDataSource.Double(fieldContext.field(), fieldContext.indexFieldData());
+            dataSource = new FieldDataSource.Numeric(fieldContext.field(), fieldContext.indexFieldData());
             setReaderIfNeeded(dataSource);
             fieldDataSources.put(fieldContext.field(), dataSource);
         }

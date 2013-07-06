@@ -122,19 +122,16 @@ public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregato
                     new ValueFormatter.DateTime(mapper.dateTimeFormatter()) :
                     new ValueFormatter.DateTime(format);
             ValueParser parser = new ValueParser.DateMath(mapper.dateMathParser());
-            return aggregationContext.longField(fieldContext, script, formatter, parser);
+            return aggregationContext.numericField(fieldContext, script, formatter, parser);
         }
 
         // ip field
         if (fieldContext.mapper() instanceof IpFieldMapper) {
-            return aggregationContext.longField(fieldContext, script, ValueFormatter.IPv4, ValueParser.IPv4);
+            return aggregationContext.numericField(fieldContext, script, ValueFormatter.IPv4, ValueParser.IPv4);
         }
 
         if (fieldContext.indexFieldData() instanceof IndexNumericFieldData) {
-            if (((IndexNumericFieldData) fieldContext.indexFieldData()).getNumericType().isFloatingPoint()) {
-                return aggregationContext.numericField(fieldContext, script, null, null);
-            }
-            return aggregationContext.longField(fieldContext, script, null, null);
+            return aggregationContext.numericField(fieldContext, script, null, null);
         }
 
         return aggregationContext.bytesField(fieldContext, script);

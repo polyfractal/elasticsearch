@@ -41,7 +41,7 @@ public interface GeoPointValuesSource extends ValuesSource {
 
         @Override
         public GeoPointValues values() throws IOException {
-            return source.values();
+            return source.geoPointValues();
         }
     }
 

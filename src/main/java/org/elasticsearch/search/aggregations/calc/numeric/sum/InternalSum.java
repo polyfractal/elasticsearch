@@ -50,19 +50,12 @@ public class InternalSum extends NumericAggregation.SingleValue implements Sum {
         AggregationStreams.registerStream(STREAM, TYPE.stream());
     }
 
-
-    private boolean set;
     private double sum;
 
     InternalSum() {} // for serialization
 
     InternalSum(String name) {
-        this(name, true);
-    }
-
-    InternalSum(String name, boolean set) {
         super(name);
-        this.set = set;
     }
 
     @Override
@@ -91,12 +84,10 @@ public class InternalSum extends NumericAggregation.SingleValue implements Sum {
         }
         InternalSum reduced = null;
         for (InternalAggregation aggregation : aggregations) {
-            if (reduced == null && ((InternalSum) aggregation).set) {
+            if (reduced == null) {
                 reduced = (InternalSum) aggregation;
             } else {
-                if (((InternalSum) aggregation).set) {
-                    reduced.sum += ((InternalSum) aggregation).sum;
-                }
+                reduced.sum += ((InternalSum) aggregation).sum;
             }
         }
         if (reduced != null) {
@@ -109,27 +100,21 @@ public class InternalSum extends NumericAggregation.SingleValue implements Sum {
     public void readFrom(StreamInput in) throws IOException {
         name = in.readString();
         valueFormatter = ValueFormatterStreams.readOptional(in);
-        if (in.readBoolean()) {
-            sum = in.readDouble();
-            set = true;
-        }
+        sum = in.readDouble();
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeString(name);
         ValueFormatterStreams.writeOptional(valueFormatter, out);
-        out.writeBoolean(set);
-        if (set) {
-            out.writeDouble(sum);
-        }
+        out.writeDouble(sum);
     }
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject(name);
-        builder.field(CommonFields.VALUE, set ? sum : null);
-        if (set && valueFormatter != null) {
+        builder.field(CommonFields.VALUE, sum);
+        if (valueFormatter != null) {
             builder.field(CommonFields.VALUE_AS_STRING, valueFormatter.format(sum));
         }
         builder.endObject();
@@ -144,7 +129,7 @@ public class InternalSum extends NumericAggregation.SingleValue implements Sum {
 
         @Override
         public InternalSum createUnmapped(String name) {
-            return new InternalSum(name, false);
+            return new InternalSum(name);
         }
     }
 

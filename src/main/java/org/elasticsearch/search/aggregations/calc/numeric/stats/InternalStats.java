@@ -153,13 +153,11 @@ public class InternalStats extends NumericAggregation.MultiValue implements Stat
     public void readFrom(StreamInput in) throws IOException {
         name = in.readString();
         valueFormatter = ValueFormatterStreams.readOptional(in);
-        if (in.readBoolean()) {
-            count = in.readVLong();
-            min = in.readDouble();
-            max = in.readDouble();
-            sum = in.readDouble();
-            readOtherStatsFrom(in);
-        }
+        count = in.readVLong();
+        min = in.readDouble();
+        max = in.readDouble();
+        sum = in.readDouble();
+        readOtherStatsFrom(in);
     }
 
     public void readOtherStatsFrom(StreamInput in) throws IOException {
@@ -169,14 +167,11 @@ public class InternalStats extends NumericAggregation.MultiValue implements Stat
     public void writeTo(StreamOutput out) throws IOException {
         out.writeString(name);
         ValueFormatterStreams.writeOptional(valueFormatter, out);
-        out.writeBoolean(count != 0);
-        if (count != 0) {
-            out.writeVLong(count);
-            out.writeDouble(min);
-            out.writeDouble(max);
-            out.writeDouble(sum);
-            writeOtherStatsTo(out);
-        }
+        out.writeVLong(count);
+        out.writeDouble(min);
+        out.writeDouble(max);
+        out.writeDouble(sum);
+        writeOtherStatsTo(out);
     }
 
     protected void writeOtherStatsTo(StreamOutput out) throws IOException {

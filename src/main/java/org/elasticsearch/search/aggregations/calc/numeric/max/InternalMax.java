@@ -51,18 +51,12 @@ public class InternalMax extends NumericAggregation.SingleValue implements Max {
     }
 
     private double max;
-    private boolean set;
 
     InternalMax() {} // for serialization
 
     public InternalMax(String name) {
-        this(name, true);
-    }
-
-    public InternalMax(String name, boolean set) {
         super(name);
         this.max = Double.NEGATIVE_INFINITY;
-        this.set = set;
     }
 
     @Override
@@ -92,13 +86,9 @@ public class InternalMax extends NumericAggregation.SingleValue implements Max {
         InternalMax reduced = null;
         for (InternalAggregation aggregation : aggregations) {
             if (reduced == null) {
-                if (((InternalMax) aggregation).set) {
-                    reduced = (InternalMax) aggregation;
-                }
+                reduced = (InternalMax) aggregation;
             } else {
-                if (((InternalMax) aggregation).set) {
-                    reduced.max = Math.max(reduced.max, ((InternalMax) aggregation).max);
-                }
+                reduced.max = Math.max(reduced.max, ((InternalMax) aggregation).max);
             }
         }
         if (reduced != null) {
@@ -111,27 +101,22 @@ public class InternalMax extends NumericAggregation.SingleValue implements Max {
     public void readFrom(StreamInput in) throws IOException {
         name = in.readString();
         valueFormatter = ValueFormatterStreams.readOptional(in);
-        if (in.readBoolean()) {
-            max = in.readDouble();
-            set = true;
-        }
+        max = in.readDouble();
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeString(name);
         ValueFormatterStreams.writeOptional(valueFormatter, out);
-        out.writeBoolean(set);
-        if (set) {
-            out.writeDouble(max);
-        }
+        out.writeDouble(max);
     }
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject(name);
-        builder.field(CommonFields.VALUE, set ? max : null);
-        if (set && valueFormatter != null) {
+        boolean hasValue = !Double.isInfinite(max);
+        builder.field(CommonFields.VALUE, hasValue ? max : null);
+        if (hasValue && valueFormatter != null) {
             builder.field(CommonFields.VALUE_AS_STRING, valueFormatter.format(max));
         }
         builder.endObject();
@@ -146,8 +131,7 @@ public class InternalMax extends NumericAggregation.SingleValue implements Max {
 
         @Override
         public InternalMax createUnmapped(String name) {
-            return new InternalMax(name, false);
+            return new InternalMax(name);
         }
     }
-
 }

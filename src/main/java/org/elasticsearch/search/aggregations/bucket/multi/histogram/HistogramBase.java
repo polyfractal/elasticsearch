@@ -141,7 +141,7 @@ interface HistogramBase<B extends HistogramBase.Bucket> extends Aggregation, Ite
              */
             public static void writeOrder(InternalOrder order, StreamOutput out) throws IOException {
                 out.writeByte(order.id());
-                if (order instanceof Aggregation) {
+                if (order instanceof InternalOrder.Aggregation) {
                     out.writeBoolean(order.asc());
                     out.writeString(order.key());
                 }
@@ -159,10 +159,12 @@ interface HistogramBase<B extends HistogramBase.Bucket> extends Aggregation, Ite
                     case 2: return KEY_DESC;
                     case 3: return COUNT_ASC;
                     case 4: return COUNT_DESC;
-                    default:
+                    case 0:
                         boolean asc = in.readBoolean();
                         String key = in.readString();
                         return new InternalOrder.Aggregation(key, asc);
+                    default:
+                        throw new RuntimeException("unknown histogram order");
                 }
             }
 

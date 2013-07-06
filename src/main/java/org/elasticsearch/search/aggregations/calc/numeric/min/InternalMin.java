@@ -52,18 +52,12 @@ public class InternalMin extends NumericAggregation.SingleValue implements Min {
 
 
     private double min;
-    private boolean set;
 
     InternalMin() {} // for serialization
 
     public InternalMin(String name) {
-        this(name, true);
-    }
-
-    public InternalMin(String name, boolean set) {
         super(name);
         this.min = Double.POSITIVE_INFINITY;
-        this.set = set;
     }
 
     @Override
@@ -93,13 +87,9 @@ public class InternalMin extends NumericAggregation.SingleValue implements Min {
         InternalMin reduced = null;
         for (InternalAggregation aggregation : aggregations) {
             if (reduced == null) {
-                if (((InternalMin) aggregation).set) {
-                    reduced = (InternalMin) aggregation;
-                }
+                reduced = (InternalMin) aggregation;
             } else {
-                if (((InternalMin) aggregation).set) {
-                    reduced.min = Math.min(reduced.min, ((InternalMin) aggregation).min);
-                }
+                reduced.min = Math.min(reduced.min, ((InternalMin) aggregation).min);
             }
         }
         if (reduced != null) {
@@ -112,27 +102,22 @@ public class InternalMin extends NumericAggregation.SingleValue implements Min {
     public void readFrom(StreamInput in) throws IOException {
         name = in.readString();
         valueFormatter = ValueFormatterStreams.readOptional(in);
-        if (in.readBoolean()) {
-            min = in.readDouble();
-            set = true;
-        }
+        min = in.readDouble();
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeString(name);
         ValueFormatterStreams.writeOptional(valueFormatter, out);
-        out.writeBoolean(set);
-        if (set) {
-            out.writeDouble(min);
-        }
+        out.writeDouble(min);
     }
 
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject(name);
-        builder.field(CommonFields.VALUE, set ? min : null);
-        if (set && valueFormatter != null) {
+        boolean hasValue = !Double.isInfinite(min);
+        builder.field(CommonFields.VALUE, hasValue ? min : null);
+        if (hasValue && valueFormatter != null) {
             builder.field(CommonFields.VALUE_AS_STRING, valueFormatter.format(min));
         }
         builder.endObject();
@@ -147,7 +132,7 @@ public class InternalMin extends NumericAggregation.SingleValue implements Min {
 
         @Override
         public InternalMin createUnmapped(String name) {
-            return new InternalMin(name, false);
+            return new InternalMin(name);
         }
     }
 

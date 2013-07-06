@@ -28,6 +28,7 @@ import org.elasticsearch.search.aggregations.bucket.single.SingleBytesBucketAggr
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
+import org.elasticsearch.search.aggregations.context.ValuesSource;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 
 import java.io.IOException;
@@ -40,7 +41,7 @@ public class MissingAggregator extends SingleBytesBucketAggregator {
 
     long docCount;
 
-    public MissingAggregator(String name, List<Aggregator.Factory> factories, BytesValuesSource valuesSource,
+    public MissingAggregator(String name, List<Aggregator.Factory> factories, ValuesSource valuesSource,
                              AggregationContext aggregationContext, Aggregator parent) {
         super(name, factories, valuesSource, aggregationContext, parent);
     }
@@ -59,7 +60,7 @@ public class MissingAggregator extends SingleBytesBucketAggregator {
 
         private long docCount;
 
-        Collector(BytesValuesSource valuesSource, Aggregator[] subAggregators) {
+        Collector(ValuesSource valuesSource, Aggregator[] subAggregators) {
             super(valuesSource, subAggregators, MissingAggregator.this);
         }
 

@@ -33,7 +33,7 @@ import org.elasticsearch.search.aggregations.bucket.single.filter.InternalFilter
 import org.elasticsearch.search.aggregations.bucket.single.global.InternalGlobal;
 import org.elasticsearch.search.aggregations.bucket.single.missing.InternalMissing;
 import org.elasticsearch.search.aggregations.bucket.single.nested.InternalNested;
-import org.elasticsearch.search.aggregations.calc.count.InternalCount;
+import org.elasticsearch.search.aggregations.calc.bytes.count.InternalCount;
 import org.elasticsearch.search.aggregations.calc.numeric.avg.InternalAvg;
 import org.elasticsearch.search.aggregations.calc.numeric.max.InternalMax;
 import org.elasticsearch.search.aggregations.calc.numeric.min.InternalMin;

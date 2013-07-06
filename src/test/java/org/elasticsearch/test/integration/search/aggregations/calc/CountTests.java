@@ -21,7 +21,7 @@ package org.elasticsearch.test.integration.search.aggregations.calc;
 
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.search.aggregations.calc.count.Count;
+import org.elasticsearch.search.aggregations.calc.bytes.count.Count;
 import org.elasticsearch.test.integration.AbstractSharedClusterTest;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;

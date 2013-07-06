@@ -49,11 +49,11 @@ public class SearchContextAggregations {
         return aggregators;
     }
 
-    public AggregationContext valuesSourceContext() {
+    public AggregationContext aggregationContext() {
         return aggregationContext;
     }
 
-    public void valuesSourceContext(AggregationContext aggregationContext) {
+    public void aggregationContext(AggregationContext aggregationContext) {
         this.aggregationContext = aggregationContext;
     }
 

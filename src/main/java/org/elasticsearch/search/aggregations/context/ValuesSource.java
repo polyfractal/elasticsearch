@@ -19,10 +19,8 @@
 
 package org.elasticsearch.search.aggregations.context;
 
-import org.apache.lucene.index.AtomicReaderContext;
-import org.apache.lucene.search.Scorer;
-import org.elasticsearch.common.lucene.ReaderContextAware;
-import org.elasticsearch.common.lucene.ScorerAware;
+import org.elasticsearch.index.fielddata.BytesValues;
+import org.elasticsearch.script.SearchScript;
 
 /**
  *
@@ -30,6 +28,8 @@ import org.elasticsearch.common.lucene.ScorerAware;
 public interface ValuesSource {
 
     Object key();
+
+    BytesValues bytesValues();
 
     public abstract static class FieldData<FDS extends FieldDataSource> implements ValuesSource {
 
@@ -40,34 +40,29 @@ public interface ValuesSource {
         }
 
         @Override
+        public BytesValues bytesValues() {
+            return source.bytesValues();
+        }
+
+        @Override
         public Object key() {
             return source.field();
         }
 
     }
 
-    public abstract static class Script<Values extends ScriptValues> implements ValuesSource, ReaderContextAware, ScorerAware {
+    public abstract static class Script implements ValuesSource {
 
-        protected final Values values;
+        protected final SearchScript script;
 
-        public Script(Values values) {
-            this.values = values;
-        }
-
-        public void setNextReader(AtomicReaderContext reader){
-            values.script().setNextReader(reader);
-            values.clearCache();
-        }
-
-        @Override
-        public void setScorer(Scorer scorer) {
-            values.script().setScorer(scorer);
+        public Script(SearchScript script) {
+            this.script = script;
         }
 
         @Override
         public Object key() {
             //TODO is this right??? is toString the right thing to represent the key for the script values?
-            return values.script();
+            return script;
         }
 
     }

@@ -153,7 +153,7 @@ public abstract class LongBucketAggregator extends ValuesSourceBucketAggregator<
 
         @Override
         public A create(AggregationContext aggregationContext, Aggregator parent) {
-            return create(aggregationContext.longScript(script, multiValued, formatter), aggregationContext, parent);
+            return create(aggregationContext.numericScript(script, multiValued, formatter), aggregationContext, parent);
         }
 
         protected abstract A create(NumericValuesSource source, AggregationContext aggregationContext, Aggregator parent);

@@ -86,13 +86,12 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
         }
     }
 
-    public NumericValuesSource.DoubleScript doubleScript(SearchScript script, boolean multiValued, ValueFormatter formatter) {
-        NumericValuesSource.DoubleScript valuesSource =  new NumericValuesSource.DoubleScript(script, multiValued, formatter);
+    public NumericValuesSource.Script numericScript(SearchScript script, boolean multiValued, ValueFormatter formatter) {
         setScorerIfNeeded(script);
-        setReaderIfNeeded(valuesSource);
-        scorerAwares.add(valuesSource);
-        readerAwares.add(valuesSource);
-        return valuesSource;
+        setReaderIfNeeded(script);
+        scorerAwares.add(script);
+        readerAwares.add(script);
+        return new NumericValuesSource.Script(script, multiValued, formatter);
     }
 
     public NumericValuesSource numericField(FieldContext fieldContext, SearchScript script, ValueFormatter formatter, ValueParser parser) {
@@ -107,17 +106,9 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
             setReaderIfNeeded(script);
             scorerAwares.add(script);
             readerAwares.add(script);
+            dataSource = new FieldDataSource.Numeric.WithScript(dataSource, script);
         }
-        return new NumericValuesSource.FieldData(dataSource, script, formatter, parser);
-    }
-
-    public NumericValuesSource.LongScript longScript(SearchScript script, boolean multiValued, ValueFormatter formatter) {
-        NumericValuesSource.LongScript valuesSource = new NumericValuesSource.LongScript(script, multiValued, formatter);
-        setScorerIfNeeded(script);
-        setReaderIfNeeded(valuesSource);
-        scorerAwares.add(valuesSource);
-        readerAwares.add(valuesSource);
-        return valuesSource;
+        return new NumericValuesSource.FieldData(dataSource, formatter, parser);
     }
 
     public BytesValuesSource bytesField(FieldContext fieldContext, SearchScript script) {
@@ -132,17 +123,17 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
             setReaderIfNeeded(script);
             scorerAwares.add(script);
             readerAwares.add(script);
+            dataSource = new FieldDataSource.WithScript(dataSource, script);
         }
-        return new BytesValuesSource.FieldData(dataSource, script);
+        return new BytesValuesSource.FieldData(dataSource);
     }
 
     public BytesValuesSource bytesScript(SearchScript script, boolean multiValued) {
-        BytesValuesSource.Script valuesSource = new BytesValuesSource.Script(script, multiValued);
         setScorerIfNeeded(script);
-        setReaderIfNeeded(valuesSource);
-        scorerAwares.add(valuesSource);
-        readerAwares.add(valuesSource);
-        return valuesSource;
+        setReaderIfNeeded(script);
+        scorerAwares.add(script);
+        readerAwares.add(script);
+        return new BytesValuesSource.Script(script, multiValued);
     }
 
     public GeoPointValuesSource geoPointField(FieldContext fieldContext) {

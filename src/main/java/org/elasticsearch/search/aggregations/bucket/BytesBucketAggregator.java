@@ -27,6 +27,7 @@ import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
+import org.elasticsearch.search.aggregations.context.ValuesSource;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 
 import java.io.IOException;
@@ -35,21 +36,21 @@ import java.util.List;
 /**
  *
  */
-public abstract class BytesBucketAggregator extends ValuesSourceBucketAggregator<BytesValuesSource> {
+public abstract class BytesBucketAggregator extends ValuesSourceBucketAggregator<ValuesSource> {
 
     protected BytesBucketAggregator(String name,
-                                    BytesValuesSource valuesSource,
+                                    ValuesSource valuesSource,
                                     AggregationContext aggregationContext,
                                     Aggregator parent) {
 
-        super(name, valuesSource, BytesValuesSource.class, aggregationContext, parent);
+        super(name, valuesSource, ValuesSource.class, aggregationContext, parent);
     }
 
-    public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<BytesValuesSource> implements ValueSpace {
+    public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<ValuesSource> implements ValueSpace {
 
         private ValueSpace parentContext;
 
-        protected BucketCollector(BytesValuesSource valuesSource, Aggregator[] subAggregators, Aggregator aggregator) {
+        protected BucketCollector(ValuesSource valuesSource, Aggregator[] subAggregators, Aggregator aggregator) {
             super(valuesSource, subAggregators, aggregator);
         }
 
@@ -59,7 +60,7 @@ public abstract class BytesBucketAggregator extends ValuesSourceBucketAggregator
 
         @Override
         protected final ValueSpace onDoc(int doc, ValueSpace context) throws IOException {
-            BytesValues values = valuesSource.values();
+            BytesValues values = valuesSource.bytesValues();
             if (!onDoc(doc, values, context)) {
                 return null;
             }

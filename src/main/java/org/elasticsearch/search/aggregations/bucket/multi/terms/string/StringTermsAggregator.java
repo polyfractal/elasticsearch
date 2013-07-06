@@ -35,7 +35,7 @@ import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalTerms;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
-import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
+import org.elasticsearch.search.aggregations.context.ValuesSource;
 import org.elasticsearch.search.facet.terms.support.EntryPriorityQueue;
 
 import java.io.IOException;
@@ -55,7 +55,7 @@ public class StringTermsAggregator extends BytesBucketAggregator {
 
     ExtTHashMap<HashedBytesRef, BucketCollector> buckets;
 
-    public StringTermsAggregator(String name, List<Aggregator.Factory> factories, BytesValuesSource valuesSource,
+    public StringTermsAggregator(String name, List<Aggregator.Factory> factories, ValuesSource valuesSource,
                                  Terms.Order order, int requiredSize, AggregationContext aggregationContext, Aggregator parent) {
 
         super(name, valuesSource, aggregationContext, parent);
@@ -108,7 +108,7 @@ public class StringTermsAggregator extends BytesBucketAggregator {
 
         @Override
         public void collect(int doc, ValueSpace valueSpace) throws IOException {
-            BytesValues values = valuesSource.values();
+            BytesValues values = valuesSource.bytesValues();
 
             if (!values.hasValue(doc)) {
                 return;

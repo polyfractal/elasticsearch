@@ -105,11 +105,10 @@ public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregato
             // we have a script, so it's a script value source
             switch (valueType) {
                 case STRING:
-                    return new BytesValuesSource.Script(script, multiValued);
+                    return aggregationContext.bytesScript(script, multiValued);
                 case LONG:
-                    return new NumericValuesSource.LongScript(script, multiValued, null);
                 case DOUBLE:
-                    return new NumericValuesSource.DoubleScript(script, multiValued, null);
+                    return aggregationContext.numericScript(script, multiValued, null);
                 default:
                     throw new AggregationExecutionException("unknown field type [" + valueType.name() + "]");
             }

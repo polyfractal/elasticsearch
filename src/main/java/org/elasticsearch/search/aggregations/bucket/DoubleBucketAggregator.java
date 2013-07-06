@@ -147,7 +147,7 @@ public abstract class DoubleBucketAggregator extends ValuesSourceBucketAggregato
 
         @Override
         public A create(AggregationContext aggregationContext, Aggregator parent) {
-            return create(aggregationContext.doubleScript(script, multiValued, formatter), aggregationContext, parent);
+            return create(aggregationContext.numericScript(script, multiValued, formatter), aggregationContext, parent);
         }
 
         protected abstract A create(NumericValuesSource source, AggregationContext aggregationContext, Aggregator parent);

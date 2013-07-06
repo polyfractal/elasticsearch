@@ -25,6 +25,7 @@ import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
 import org.elasticsearch.search.aggregations.bucket.BytesBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
+import org.elasticsearch.search.aggregations.context.ValuesSource;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 
 import java.util.List;
@@ -36,7 +37,7 @@ public abstract class SingleBytesBucketAggregator extends BytesBucketAggregator 
 
     private final Aggregator[] subAggregators;
 
-    public SingleBytesBucketAggregator(String name, List<Aggregator.Factory> factories, BytesValuesSource valuesSource,
+    public SingleBytesBucketAggregator(String name, List<Aggregator.Factory> factories, ValuesSource valuesSource,
                                        AggregationContext aggregationContext, Aggregator parent) {
         super(name, valuesSource, aggregationContext, parent);
         subAggregators = BucketAggregator.createSubAggregators(factories, this);

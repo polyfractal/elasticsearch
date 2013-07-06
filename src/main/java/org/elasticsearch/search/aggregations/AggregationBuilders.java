@@ -11,7 +11,7 @@ import org.elasticsearch.search.aggregations.bucket.single.filter.FilterAggregat
 import org.elasticsearch.search.aggregations.bucket.single.global.GlobalBuilder;
 import org.elasticsearch.search.aggregations.bucket.single.missing.MissingBuilder;
 import org.elasticsearch.search.aggregations.bucket.single.nested.NestedBuilder;
-import org.elasticsearch.search.aggregations.calc.count.CountBuilder;
+import org.elasticsearch.search.aggregations.calc.bytes.count.CountBuilder;
 import org.elasticsearch.search.aggregations.calc.numeric.avg.AvgBuilder;
 import org.elasticsearch.search.aggregations.calc.numeric.max.MaxBuilder;
 import org.elasticsearch.search.aggregations.calc.numeric.min.MinBuilder;

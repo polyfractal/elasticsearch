@@ -147,7 +147,7 @@ public class NumericAggregator<A extends NumericAggregation> extends ValuesSourc
 
         @Override
         public NumericAggregator<A> create(AggregationContext aggregationContext, Aggregator parent) {
-            NumericValuesSource valuesSource = aggregationContext.doubleScript(script, multiValued, null);
+            NumericValuesSource valuesSource = aggregationContext.numericScript(script, multiValued, null);
             return new NumericAggregator<A>(name, valuesSource, aggregationFactory, aggregationContext, parent);
         }
     }

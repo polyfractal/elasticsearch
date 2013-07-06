@@ -74,7 +74,7 @@ public class AggregationPhase implements SearchPhase {
     public void preProcess(SearchContext context) {
         if (context.aggregations() != null) {
             AggregationContext aggregationContext = new AggregationContext(context);
-            context.aggregations().valuesSourceContext(aggregationContext);
+            context.aggregations().aggregationContext(aggregationContext);
             List<Aggregator.Collector> collectors = new ArrayList<Aggregator.Collector>();
             List<Aggregator> aggregators = new ArrayList<Aggregator>(context.aggregations().factories().size());
             for (Aggregator.Factory factory : context.aggregations().factories()) {
@@ -114,7 +114,7 @@ public class AggregationPhase implements SearchPhase {
 
         // optimize the global collector based execution
         if (!globals.isEmpty()) {
-            AggregationsCollector collector = new AggregationsCollector(globals, context.aggregations().valuesSourceContext());
+            AggregationsCollector collector = new AggregationsCollector(globals, context.aggregations().aggregationContext());
             Query query = new XConstantScoreQuery(Queries.MATCH_ALL_FILTER);
             Filter searchFilter = context.searchFilter(context.types());
             if (searchFilter != null) {

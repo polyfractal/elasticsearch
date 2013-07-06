@@ -17,11 +17,12 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.calc;
+package org.elasticsearch.search.aggregations.calc.bytes;
 
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
+import org.elasticsearch.search.aggregations.calc.ValuesSourceCalcAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
@@ -32,7 +33,7 @@ import java.io.IOException;
 /**
  *
  */
-public abstract class BytesCalcAggregator extends ValuesSourceCalcAggregator<BytesValuesSource>  {
+public abstract class BytesCalcAggregator extends ValuesSourceCalcAggregator<BytesValuesSource> {
 
     public BytesCalcAggregator(String name, BytesValuesSource valuesSource, AggregationContext aggregationContext, Aggregator parent) {
         super(name, valuesSource, BytesValuesSource.class, aggregationContext, parent);
@@ -46,7 +47,7 @@ public abstract class BytesCalcAggregator extends ValuesSourceCalcAggregator<Byt
 
         @Override
         public void collect(int doc, ValueSpace valueSpace) throws IOException {
-            collect(doc, valuesSource.values(), valueSpace);
+            collect(doc, valuesSource.bytesValues(), valueSpace);
         }
 
         protected abstract void collect(int doc, BytesValues values, ValueSpace context) throws IOException;

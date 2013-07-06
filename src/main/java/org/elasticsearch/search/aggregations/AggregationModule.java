@@ -33,7 +33,7 @@ import org.elasticsearch.search.aggregations.bucket.single.missing.MissingParser
 import org.elasticsearch.search.aggregations.bucket.multi.range.RangeParser;
 import org.elasticsearch.search.aggregations.bucket.multi.terms.TermsParser;
 import org.elasticsearch.search.aggregations.bucket.single.nested.NestedParser;
-import org.elasticsearch.search.aggregations.calc.count.CountParser;
+import org.elasticsearch.search.aggregations.calc.bytes.count.CountParser;
 import org.elasticsearch.search.aggregations.calc.numeric.avg.AvgParser;
 import org.elasticsearch.search.aggregations.calc.numeric.max.MaxParser;
 import org.elasticsearch.search.aggregations.calc.numeric.min.MinParser;

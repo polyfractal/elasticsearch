@@ -19,15 +19,15 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.range.date;
 
-import org.elasticsearch.search.aggregations.bucket.multi.range.Range;
+import org.elasticsearch.search.aggregations.bucket.multi.range.RangeBase;
 import org.joda.time.DateTime;
 
 /**
  *
  */
-public interface DateRange<B extends DateRange.Bucket> extends Range<B> {
+public interface DateRange extends RangeBase<DateRange.Bucket> {
 
-    static interface Bucket extends Range.Bucket {
+    static interface Bucket extends RangeBase.Bucket {
 
         DateTime getFromAsDate();
 

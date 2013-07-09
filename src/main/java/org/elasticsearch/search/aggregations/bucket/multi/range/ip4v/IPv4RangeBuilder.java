@@ -1,7 +1,6 @@
 package org.elasticsearch.search.aggregations.bucket.multi.range.ip4v;
 
 import org.elasticsearch.search.aggregations.bucket.multi.range.RangeBuilderBase;
-import org.elasticsearch.search.aggregations.bucket.multi.range.date.InternalDateRange;
 
 /**
  *

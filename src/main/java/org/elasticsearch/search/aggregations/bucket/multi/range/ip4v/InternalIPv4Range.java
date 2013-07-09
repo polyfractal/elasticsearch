@@ -23,7 +23,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.search.aggregations.AggregationStreams;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
-import org.elasticsearch.search.aggregations.bucket.multi.range.InternalRange;
+import org.elasticsearch.search.aggregations.bucket.multi.range.AbstractRangeBase;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 
 import java.io.IOException;
@@ -32,13 +32,13 @@ import java.util.List;
 /**
  *
  */
-public class InternalIPv4Range extends InternalRange<InternalIPv4Range.Bucket> implements IPv4Range<InternalIPv4Range.Bucket> {
+public class InternalIPv4Range extends AbstractRangeBase<IPv4Range.Bucket> implements IPv4Range {
 
     public final static Type TYPE = new Type("ip_range", "iprange");
 
-    private final static AggregationStreams.Stream STREAM = new AggregationStreams.Stream<InternalRange>() {
+    private final static AggregationStreams.Stream STREAM = new AggregationStreams.Stream<AbstractRangeBase>() {
         @Override
-        public InternalRange readResult(StreamInput in) throws IOException {
+        public AbstractRangeBase readResult(StreamInput in) throws IOException {
             InternalIPv4Range range = new InternalIPv4Range();
             range.readFrom(in);
             return range;
@@ -51,14 +51,14 @@ public class InternalIPv4Range extends InternalRange<InternalIPv4Range.Bucket> i
 
     public static final Factory FACTORY = new Factory();
 
-    public static class Bucket extends InternalRange.Bucket implements IPv4Range.Bucket {
+    public static class Bucket extends AbstractRangeBase.Bucket implements IPv4Range.Bucket {
 
-        public Bucket(String key, double from, double to, long docCount, List<InternalAggregation> aggregations) {
-            super(key, from, to, docCount, new InternalAggregations(aggregations));
+        public Bucket(String key, double from, double to, long docCount, List<InternalAggregation> aggregations, ValueFormatter formatter) {
+            super(key, from, to, docCount, new InternalAggregations(aggregations), formatter);
         }
 
-        public Bucket(String key, double from, double to, long docCount, InternalAggregations aggregations) {
-            super(key, from, to, docCount, aggregations);
+        public Bucket(String key, double from, double to, long docCount, InternalAggregations aggregations, ValueFormatter formatter) {
+            super(key, from, to, docCount, aggregations, formatter);
         }
 
         @Override
@@ -72,29 +72,29 @@ public class InternalIPv4Range extends InternalRange<InternalIPv4Range.Bucket> i
         }
     }
 
-    private static class Factory extends InternalRange.Factory<Bucket> {
+    private static class Factory implements AbstractRangeBase.Factory<IPv4Range.Bucket> {
 
         @Override
-        public InternalIPv4Range create(String name, List<Bucket> buckets, ValueFormatter formatter, boolean keyed) {
+        public AbstractRangeBase<IPv4Range.Bucket> create(String name, List<IPv4Range.Bucket> buckets, ValueFormatter formatter, boolean keyed) {
             return new InternalIPv4Range(name, buckets, formatter, keyed);
         }
 
         @Override
-        public Bucket createBucket(String key, double from, double to, long docCount, InternalAggregations aggregations) {
-            return new Bucket(key, from, to, docCount, aggregations);
+        public Bucket createBucket(String key, double from, double to, long docCount, InternalAggregations aggregations, ValueFormatter formatter) {
+            return new Bucket(key, from, to, docCount, aggregations, formatter);
         }
     }
 
     public InternalIPv4Range() {
     }
 
-    public InternalIPv4Range(String name, List<Bucket> ranges, ValueFormatter formatter, boolean keyed) {
+    public InternalIPv4Range(String name, List<IPv4Range.Bucket> ranges, ValueFormatter formatter, boolean keyed) {
         super(name, ranges, formatter, keyed);
     }
 
     @Override
-    protected Bucket createBucket(String key, double from, double to, long docCount, InternalAggregations aggregations) {
-        return new Bucket(key, from, to, docCount, aggregations);
+    protected Bucket createBucket(String key, double from, double to, long docCount, InternalAggregations aggregations, ValueFormatter formatter) {
+        return new Bucket(key, from, to, docCount, aggregations, formatter);
     }
 
     @Override

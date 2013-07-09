@@ -19,27 +19,11 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.range;
 
-import org.elasticsearch.search.aggregations.Aggregation;
-import org.elasticsearch.search.aggregations.Aggregations;
-
 /**
  *
  */
-public interface Range<B extends Range.Bucket> extends Aggregation, Iterable<B> {
+public interface Range extends RangeBase<Range.Bucket> {
 
-    public static interface Bucket {
-
-        String getKey();
-
-        double getFrom();
-
-        double getTo();
-
-        long getDocCount();
-
-        Aggregations getAggregations();
+    static interface Bucket extends RangeBase.Bucket {
     }
-
-    B getByKey(String key);
-
 }

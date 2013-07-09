@@ -28,7 +28,6 @@ import org.elasticsearch.search.SearchParseException;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
-import org.elasticsearch.search.aggregations.bucket.multi.range.InternalRange;
 import org.elasticsearch.search.aggregations.bucket.multi.range.RangeAggregator;
 import org.elasticsearch.search.aggregations.bucket.multi.range.UnmappedRangeAggregator;
 import org.elasticsearch.search.aggregations.context.FieldContext;

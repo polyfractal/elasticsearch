@@ -17,20 +17,33 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.bucket.multi.range.ip4v;
+package org.elasticsearch.search.aggregations.bucket.multi.range;
 
-import org.elasticsearch.search.aggregations.bucket.multi.range.RangeBase;
+import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.Aggregations;
+
+import java.util.List;
 
 /**
  *
  */
-public interface IPv4Range extends RangeBase<IPv4Range.Bucket> {
+public interface RangeBase<B extends RangeBase.Bucket> extends Aggregation, Iterable<B> {
 
-    static interface Bucket extends RangeBase.Bucket {
+    public static interface Bucket {
 
-        String getFromAsString();
+        String getKey();
 
-        String getToAsString();
+        double getFrom();
 
+        double getTo();
+
+        long getDocCount();
+
+        Aggregations getAggregations();
     }
+
+    List<B> buckets();
+
+    B getByKey(String key);
+
 }

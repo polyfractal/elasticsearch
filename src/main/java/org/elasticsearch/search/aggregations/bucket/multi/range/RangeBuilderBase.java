@@ -28,6 +28,7 @@ public abstract class RangeBuilderBase<B extends RangeBuilderBase<B>> extends Va
 
         @Override
         public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+            builder.startObject();
             if (key != null) {
                 builder.field("key", key);
             }
@@ -37,7 +38,7 @@ public abstract class RangeBuilderBase<B extends RangeBuilderBase<B>> extends Va
             if (to != null) {
                 builder.field("to", to);
             }
-            return builder;
+            return builder.endObject();
         }
     }
 

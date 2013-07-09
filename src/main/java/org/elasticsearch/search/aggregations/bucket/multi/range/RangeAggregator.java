@@ -79,13 +79,13 @@ public class RangeAggregator extends DoubleBucketAggregator {
     }
 
     private final boolean keyed;
-    private final InternalRange.Factory rangeFactory;
+    private final AbstractRangeBase.Factory rangeFactory;
     BucketCollector[] bucketCollectors;
 
     public RangeAggregator(String name,
                            List<Aggregator.Factory> factories,
                            NumericValuesSource valuesSource,
-                           InternalRange.Factory rangeFactory,
+                           AbstractRangeBase.Factory rangeFactory,
                            List<Range> ranges,
                            boolean keyed,
                            AggregationContext aggregationContext,
@@ -109,7 +109,7 @@ public class RangeAggregator extends DoubleBucketAggregator {
 
     @Override
     public InternalAggregation buildAggregation() {
-        List<InternalRange.Bucket> buckets = Lists.newArrayListWithCapacity(bucketCollectors.length);
+        List<RangeBase.Bucket> buckets = Lists.newArrayListWithCapacity(bucketCollectors.length);
         for (int i = 0; i < bucketCollectors.length; i++) {
             buckets.add(bucketCollectors[i].buildBucket(rangeFactory));
         }
@@ -182,15 +182,15 @@ public class RangeAggregator extends DoubleBucketAggregator {
             return range.matches(value);
         }
 
-        InternalRange.Bucket buildBucket(InternalRange.Factory factory) {
-            return factory.createBucket(range.key, range.from, range.to, docCount, buildAggregations(subAggregators));
+        RangeBase.Bucket buildBucket(AbstractRangeBase.Factory factory) {
+            return factory.createBucket(range.key, range.from, range.to, docCount, buildAggregations(subAggregators), valuesSource.formatter());
         }
 
     }
 
     public static class FieldDataFactory extends DoubleBucketAggregator.FieldDataFactory<RangeAggregator> {
 
-        private final InternalRange.Factory rangeFactory;
+        private final AbstractRangeBase.Factory rangeFactory;
         private final List<Range> ranges;
         private final boolean keyed;
 
@@ -199,7 +199,7 @@ public class RangeAggregator extends DoubleBucketAggregator {
                                 SearchScript valueScript,
                                 ValueFormatter formatter,
                                 ValueParser parser,
-                                InternalRange.Factory rangeFactory,
+                                AbstractRangeBase.Factory rangeFactory,
                                 List<Range> ranges,
                                 boolean keyed) {
 
@@ -218,7 +218,7 @@ public class RangeAggregator extends DoubleBucketAggregator {
 
     public static class ScriptFactory extends DoubleBucketAggregator.ScriptFactory<RangeAggregator> {
 
-        private final InternalRange.Factory rangeFactory;
+        private final AbstractRangeBase.Factory rangeFactory;
         private final List<Range> ranges;
         private final boolean keyed;
 
@@ -226,7 +226,7 @@ public class RangeAggregator extends DoubleBucketAggregator {
                              SearchScript script,
                              boolean multiValued,
                              ValueFormatter formatter,
-                             InternalRange.Factory rangeFactory,
+                             AbstractRangeBase.Factory rangeFactory,
                              List<Range> ranges,
                              boolean keyed) {
 
@@ -244,11 +244,11 @@ public class RangeAggregator extends DoubleBucketAggregator {
 
     public static class ContextBasedFactory extends DoubleBucketAggregator.ContextBasedFactory<RangeAggregator> {
 
-        private final InternalRange.Factory rangeFactory;
+        private final AbstractRangeBase.Factory rangeFactory;
         private final List<Range> ranges;
         private final boolean keyed;
 
-        public ContextBasedFactory(String name, InternalRange.Factory rangeFactory, List<Range> ranges, boolean keyed) {
+        public ContextBasedFactory(String name, AbstractRangeBase.Factory rangeFactory, List<Range> ranges, boolean keyed) {
             super(name);
             this.rangeFactory = rangeFactory;
             this.ranges = ranges;

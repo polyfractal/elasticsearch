@@ -46,10 +46,10 @@ public class UnmappedRangeAggregator extends Aggregator {
     }
 
     @Override
-    public InternalRange buildAggregation() {
-        List<InternalRange.Bucket> buckets = new ArrayList<InternalRange.Bucket>(ranges.size());
+    public AbstractRangeBase buildAggregation() {
+        List<Range.Bucket> buckets = new ArrayList<Range.Bucket>(ranges.size());
         for (RangeAggregator.Range range : ranges) {
-            buckets.add(new InternalRange.Bucket(range.key, range.from, range.to, 0, InternalAggregations.EMPTY));
+            buckets.add(new InternalRange.Bucket(range.key, range.from, range.to, 0, InternalAggregations.EMPTY, null));
         }
         return new InternalRange(name, buckets, null, keyed);
     }

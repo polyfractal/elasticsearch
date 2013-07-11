@@ -19,7 +19,7 @@
 
 package org.elasticsearch.test.unit.deps.joda;
 
-import org.elasticsearch.common.joda.TimeZoneRounding;
+import org.elasticsearch.common.rounding.TimeZoneRounding;
 import org.elasticsearch.common.unit.TimeValue;
 import org.joda.time.Chronology;
 import org.joda.time.DateTimeZone;

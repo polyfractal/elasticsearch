@@ -17,9 +17,8 @@
  * under the License.
  */
 
-package org.elasticsearch.common.joda;
+package org.elasticsearch.common.rounding;
 
-import org.elasticsearch.common.Rounding;
 import org.elasticsearch.common.unit.TimeValue;
 import org.joda.time.DateTimeConstants;
 import org.joda.time.DateTimeField;
@@ -145,6 +144,11 @@ public abstract class TimeZoneRounding implements Rounding {
             time = time + postTz.getOffset(time);
             return time;
         }
+
+        @Override
+        public long nextRoundingValue(long value) {
+            return value + field.getDurationField().getUnitMillis();
+        }
     }
 
     static class UTCTimeZoneRoundingFloor extends TimeZoneRounding {
@@ -158,6 +162,11 @@ public abstract class TimeZoneRounding implements Rounding {
         @Override
         public long round(long utcMillis) {
             return field.roundFloor(utcMillis);
+        }
+
+        @Override
+        public long nextRoundingValue(long value) {
+            return field.roundCeiling(value + 1);
         }
     }
 
@@ -181,6 +190,11 @@ public abstract class TimeZoneRounding implements Rounding {
             time = time + postTz.getOffset(time);
             return time;
         }
+
+        @Override
+        public long nextRoundingValue(long value) {
+            return field.roundCeiling(value + 1);
+        }
     }
 
     static class UTCIntervalTimeZoneRounding extends TimeZoneRounding {
@@ -194,6 +208,11 @@ public abstract class TimeZoneRounding implements Rounding {
         @Override
         public long round(long utcMillis) {
             return ((utcMillis / interval) * interval);
+        }
+
+        @Override
+        public long nextRoundingValue(long value) {
+            return value + interval;
         }
     }
 
@@ -220,6 +239,11 @@ public abstract class TimeZoneRounding implements Rounding {
             time = time + postTz.getOffset(time);
             return time;
         }
+
+        @Override
+        public long nextRoundingValue(long value) {
+            return value + interval;
+        }
     }
 
     static class DayIntervalTimeZoneRounding extends TimeZoneRounding {
@@ -243,6 +267,11 @@ public abstract class TimeZoneRounding implements Rounding {
             time = time + postTz.getOffset(time);
             return time;
         }
+
+        @Override
+        public long nextRoundingValue(long value) {
+            return value + interval;
+        }
     }
 
     static class FactorTimeZoneRounding extends TimeZoneRounding {
@@ -259,6 +288,11 @@ public abstract class TimeZoneRounding implements Rounding {
         @Override
         public long round(long utcMillis) {
             return timeZoneRounding.round((long) (factor * utcMillis));
+        }
+
+        @Override
+        public long nextRoundingValue(long value) {
+            return timeZoneRounding.nextRoundingValue(value);
         }
     }
 
@@ -278,6 +312,11 @@ public abstract class TimeZoneRounding implements Rounding {
         @Override
         public long round(long utcMillis) {
             return postOffset + timeZoneRounding.round(utcMillis + preOffset);
+        }
+
+        @Override
+        public long nextRoundingValue(long value) {
+            return postOffset + timeZoneRounding.nextRoundingValue(value - postOffset);
         }
     }
 }

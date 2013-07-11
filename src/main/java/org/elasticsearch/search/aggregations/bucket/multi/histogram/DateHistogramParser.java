@@ -22,7 +22,7 @@ package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 import com.google.common.collect.ImmutableMap;
 import org.elasticsearch.common.collect.MapBuilder;
 import org.elasticsearch.common.joda.Joda;
-import org.elasticsearch.common.joda.TimeZoneRounding;
+import org.elasticsearch.common.rounding.TimeZoneRounding;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexFieldData;
@@ -214,7 +214,7 @@ public class DateHistogramParser implements AggregatorParser {
         if (i < 0) {
             return HistogramBase.Order.aggregation(key, asc);
         }
-        return HistogramBase.Order.aggregation(key.substring(0, i), key.substring(i+1), asc);
+        return HistogramBase.Order.aggregation(key.substring(0, i), key.substring(i + 1), asc);
     }
 
     private long parseOffset(String offset) throws IOException {

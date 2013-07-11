@@ -72,7 +72,7 @@ abstract class AbstractHistogramBase<B extends HistogramBase.Bucket> extends Int
             return aggregations;
         }
 
-        Bucket redcue(List<Bucket> buckets) {
+        Bucket reduce(List<Bucket> buckets) {
             if (buckets.size() == 1) {
                 return buckets.get(0);
             }
@@ -162,7 +162,7 @@ abstract class AbstractHistogramBase<B extends HistogramBase.Bucket> extends Int
             if (value == null) {
                 continue;
             }
-            Bucket bucket = ((List<Bucket>) value).get(0).redcue((List<Bucket>) value);
+            Bucket bucket = ((List<Bucket>) value).get(0).reduce((List<Bucket>) value);
             buckets.add(bucket);
         }
         CacheRecycler.pushLongObjectMap(bucketsByKey);

@@ -59,7 +59,7 @@ public class GeoDistanceTests extends AbstractSharedClusterTest {
 
     @Override
     protected int numberOfNodes() {
-        return 1;
+        return 2;
     }
 
     private void indexCity(String name, String latLon) throws Exception {

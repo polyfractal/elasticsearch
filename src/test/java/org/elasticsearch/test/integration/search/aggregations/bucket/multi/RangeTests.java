@@ -55,7 +55,7 @@ public class RangeTests extends AbstractSharedClusterTest {
 
     @Override
     protected int numberOfNodes() {
-        return 1;
+        return 2;
     }
 
     @BeforeMethod

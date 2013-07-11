@@ -24,7 +24,7 @@ import org.elasticsearch.common.collect.MapBuilder;
 import org.elasticsearch.common.component.AbstractComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.joda.Joda;
-import org.elasticsearch.common.joda.TimeZoneRounding;
+import org.elasticsearch.common.rounding.TimeZoneRounding;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentParser;

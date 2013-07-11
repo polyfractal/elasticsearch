@@ -19,7 +19,7 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
-import org.elasticsearch.common.Rounding;
+import org.elasticsearch.common.rounding.Rounding;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
@@ -51,6 +51,7 @@ public class HistogramParser implements AggregatorParser {
         String scriptLang = null;
         Map<String, Object> scriptParams = null;
         boolean keyed = false;
+        boolean includeEmptyBuckets = false;
         InternalOrder order = HistogramBase.Order.KEY_ASC;
         long interval = -1;
         boolean multiValued = true;
@@ -77,6 +78,8 @@ public class HistogramParser implements AggregatorParser {
                     keyed = parser.booleanValue();
                 } else if ("multi_valued".equals(currentFieldName) || "multiValued".equals(currentFieldName)) {
                     multiValued = parser.booleanValue();
+                } else if ("include_empty_buckets".equals(currentFieldName) || "includeEmptyBuckets".equals(currentFieldName)) {
+                    includeEmptyBuckets = parser.booleanValue();
                 }
             } else if (token == XContentParser.Token.START_OBJECT) {
                 if ("params".equals(currentFieldName)) {
@@ -140,6 +143,6 @@ public class HistogramParser implements AggregatorParser {
         if (i < 0) {
             return HistogramBase.Order.aggregation(key, asc);
         }
-        return HistogramBase.Order.aggregation(key.substring(0, i), key.substring(i+1), asc);
+        return HistogramBase.Order.aggregation(key.substring(0, i), key.substring(i + 1), asc);
     }
 }

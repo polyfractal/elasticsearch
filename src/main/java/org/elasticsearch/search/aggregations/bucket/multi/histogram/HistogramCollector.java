@@ -20,7 +20,7 @@
 package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
 import org.elasticsearch.common.CacheRecycler;
-import org.elasticsearch.common.Rounding;
+import org.elasticsearch.common.rounding.Rounding;
 import org.elasticsearch.common.collect.ReusableGrowableArray;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.index.fielddata.LongValues;

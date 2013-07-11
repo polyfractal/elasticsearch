@@ -17,19 +17,20 @@
  * under the License.
  */
 
-package org.elasticsearch.test.integration.search.aggregations.calc;
+package org.elasticsearch.test.integration.search.aggregations.bucket.multi;
 
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.test.integration.AbstractSharedClusterTest;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 
 /**
  *
  */
-public abstract class AbstractNumericTests extends AbstractSharedClusterTest {
-    
+public class DateRangeTests extends AbstractSharedClusterTest {
+
     @Override
     public Settings getSettings() {
         return randomSettingsBuilder()
@@ -41,7 +42,7 @@ public abstract class AbstractNumericTests extends AbstractSharedClusterTest {
     protected int numberOfShards() {
         return 5;
     }
-    
+
     @Override
     protected int numberOfNodes() {
         return 2;
@@ -50,45 +51,72 @@ public abstract class AbstractNumericTests extends AbstractSharedClusterTest {
     @BeforeMethod
     public void init() throws Exception {
         createIndex("idx");
-        createIndex("idx2");
+
         for (int i = 0; i < 10; i++) {
-            client().prepareIndex("idx", "type", ""+i).setSource(jsonBuilder()
+            client().prepareIndex("idx", "type").setSource(jsonBuilder()
                     .startObject()
                     .field("value", i+1)
-                    .startArray("values").value(i+2).value(i+3).endArray()
+                    .startArray("values").value(i+1).value(i+2).endArray()
                     .endObject())
                     .execute().actionGet();
         }
+
+        createIndex("idx_unmapped");
+
         client().admin().indices().prepareFlush().setRefresh(true).execute().actionGet();
     }
 
-    public abstract void testUnmapped() throws Exception;
+    @Test
+    public void singleValueField() throws Exception {
+    }
 
-    public abstract void testSingleValuedField() throws Exception;
+    @Test
+    public void singleValueField_WithCustomKey() throws Exception {
+    }
 
-    public abstract void testSingleValuedField_PartiallyUnmapped() throws Exception;
+    @Test
+    public void singleValuedField_WithSubAggregation() throws Exception {
+    }
 
-    public abstract void testSingleValuedField_WithValueScript() throws Exception;
+    @Test
+    public void singleValuedField_WithSubAggregation_Inherited() throws Exception {
+    }
 
-    public abstract void testSingleValuedField_WithValueScript_WithParams() throws Exception;
+    @Test
+    public void multiValuedField() throws Exception {
+    }
 
-    public abstract void testMultiValuedField() throws Exception;
+    @Test
+    public void multiValuedField_WithValueScript() throws Exception {
+    }
 
-    public abstract void testMultiValuedField_WithValueScript() throws Exception;
+    @Test
+    public void multiValuedField_WithValueScript_WithInheritedSubAggregator() throws Exception {
+    }
 
-    public abstract void testMultiValuedField_WithValueScript_WithParams() throws Exception;
+    @Test
+    public void script_SingleValue() throws Exception {
+    }
 
-    public abstract void testScript_SingleValued() throws Exception;
+    @Test
+    public void script_SingleValue_WithSubAggregator_Inherited() throws Exception {
+    }
 
-    public abstract void testScript_SingleValued_WithParams() throws Exception;
+    @Test
+    public void script_MultiValued() throws Exception {
+    }
 
-    public abstract void testScript_ExplicitSingleValued_WithParams() throws Exception;
+    @Test
+    public void script_MultiValued_WithAggregatorInherited() throws Exception {
+    }
 
-    public abstract void testScript_MultiValued() throws Exception;
+    @Test
+    public void unmapped() throws Exception {
+    }
 
-    public abstract void testScript_ExplicitMultiValued() throws Exception;
-
-    public abstract void testScript_MultiValued_WithParams() throws Exception;
+    @Test
+    public void partiallyUnmapped() throws Exception {
+    }
 
 
 }

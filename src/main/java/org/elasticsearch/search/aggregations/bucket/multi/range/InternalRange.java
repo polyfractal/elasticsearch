@@ -68,7 +68,10 @@ public class InternalRange extends AbstractRangeBase<Range.Bucket> implements Ra
         public Range.Bucket createBucket(String key, double from, double to, long docCount, InternalAggregations aggregations, ValueFormatter formatter) {
             return new Bucket(key, from, to, docCount, aggregations, formatter);
         }
+    }
 
+    protected Range.Bucket createBucket(String key, double from, double to, long docCount, InternalAggregations aggregations, ValueFormatter formatter) {
+        return new Bucket(key, from, to, docCount, aggregations, formatter);
     }
 
     public InternalRange() {} // for serialization

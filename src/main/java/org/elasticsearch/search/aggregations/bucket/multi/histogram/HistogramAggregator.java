@@ -20,7 +20,7 @@
 package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
 import org.apache.lucene.util.CollectionUtil;
-import org.elasticsearch.common.Rounding;
+import org.elasticsearch.common.rounding.Rounding;
 import org.elasticsearch.common.inject.internal.Nullable;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.script.SearchScript;
@@ -33,6 +33,7 @@ import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -99,7 +100,6 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
         private final Rounding rounding;
         private final InternalOrder order;
         private final boolean keyed;
-        private final ValueFormatter formatter;
         private final AbstractHistogramBase.Factory histogramFactory;
 
         public FieldDataFactory(String name,
@@ -115,7 +115,6 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
             this.rounding = rounding;
             this.order = order;
             this.keyed = keyed;
-            this.formatter = formatter;
             this.histogramFactory = histogramFactory;
         }
 
@@ -164,7 +163,11 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
         private final boolean keyed;
         private final AbstractHistogramBase.Factory histogramFactory;
 
-        public ContextBasedFactory(String name, Rounding rounding, InternalOrder order, boolean keyed, AbstractHistogramBase.Factory histogramFactory) {
+        public ContextBasedFactory(String name,
+                                   Rounding rounding,
+                                   InternalOrder order,
+                                   boolean keyed,
+                                   AbstractHistogramBase.Factory histogramFactory) {
             super(name);
             this.rounding = rounding;
             this.order = order;

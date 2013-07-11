@@ -21,8 +21,8 @@ package org.elasticsearch.search.facet.datehistogram;
 
 import org.apache.lucene.index.AtomicReaderContext;
 import org.elasticsearch.cache.recycler.CacheRecycler;
-import org.elasticsearch.common.joda.TimeZoneRounding;
 import org.elasticsearch.common.recycler.Recycler;
+import org.elasticsearch.common.rounding.TimeZoneRounding;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.index.fielddata.IndexNumericFieldData;

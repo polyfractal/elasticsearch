@@ -21,7 +21,10 @@ package org.elasticsearch.test.integration.search.aggregations.bucket.multi;
 
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.index.query.FilterBuilders;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.aggregations.bucket.multi.histogram.DateHistogram;
+import org.elasticsearch.search.aggregations.bucket.single.filter.Filter;
 import org.elasticsearch.search.aggregations.calc.numeric.max.Max;
 import org.elasticsearch.search.aggregations.calc.numeric.sum.Sum;
 import org.elasticsearch.test.integration.AbstractSharedClusterTest;
@@ -31,6 +34,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
+import static org.elasticsearch.index.query.FilterBuilders.rangeFilter;
+import static org.elasticsearch.index.query.FilterBuilders.regexpFilter;
 import static org.elasticsearch.search.aggregations.AggregationBuilders.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -58,12 +63,16 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
         return 1;
     }
 
+    private DateTime date(int month, int day) {
+        return new DateTime(2012, month, day, 0, 0, DateTimeZone.UTC);
+    }
+
     private void indexDoc(int month, int day, int value) throws Exception {
         client().prepareIndex("idx", "type").setSource(jsonBuilder()
                 .startObject()
                 .field("value", value)
-                .field("date", new DateTime(2012, month, day, 0, 0, DateTimeZone.UTC))
-                .startArray("dates").value(new DateTime(2012, month, day, 0, 0, DateTimeZone.UTC)).value(new DateTime(2012, month+1, day+1, 0, 0, DateTimeZone.UTC)).endArray()
+                .field("date", date(month, day))
+                .startArray("dates").value(date(month, day)).value(date(month + 1, day + 1)).endArray()
                 .endObject())
                 .execute().actionGet();
     }

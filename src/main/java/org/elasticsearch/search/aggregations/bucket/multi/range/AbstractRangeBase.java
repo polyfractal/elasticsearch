@@ -37,7 +37,7 @@ import java.util.*;
  */
 public abstract class AbstractRangeBase<B extends RangeBase.Bucket> extends InternalAggregation implements RangeBase<B> {
 
-    public static class Bucket implements RangeBase.Bucket {
+    public abstract static class Bucket implements RangeBase.Bucket {
 
         private double from = Double.NEGATIVE_INFINITY;
         private double to = Double.POSITIVE_INFINITY;
@@ -214,9 +214,7 @@ public abstract class AbstractRangeBase<B extends RangeBase.Bucket> extends Inte
         return reduced;
     }
 
-    protected B createBucket(String key, double from, double to, long docCount, InternalAggregations aggregations, ValueFormatter formatter) {
-        return (B) new Bucket(key, from, to, docCount, aggregations, formatter);
-    }
+    protected abstract B createBucket(String key, double from, double to, long docCount, InternalAggregations aggregations, ValueFormatter formatter);
 
     @Override
     public void readFrom(StreamInput in) throws IOException {

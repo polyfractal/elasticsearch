@@ -76,7 +76,7 @@ public class InternalIPv4Range extends AbstractRangeBase<IPv4Range.Bucket> imple
 
         @Override
         public AbstractRangeBase<IPv4Range.Bucket> create(String name, List<IPv4Range.Bucket> buckets, ValueFormatter formatter, boolean keyed) {
-            return new InternalIPv4Range(name, buckets, formatter, keyed);
+            return new InternalIPv4Range(name, buckets, keyed);
         }
 
         @Override
@@ -88,8 +88,8 @@ public class InternalIPv4Range extends AbstractRangeBase<IPv4Range.Bucket> imple
     public InternalIPv4Range() {
     }
 
-    public InternalIPv4Range(String name, List<IPv4Range.Bucket> ranges, ValueFormatter formatter, boolean keyed) {
-        super(name, ranges, formatter, keyed);
+    public InternalIPv4Range(String name, List<IPv4Range.Bucket> ranges, boolean keyed) {
+        super(name, ranges, ValueFormatter.IPv4, keyed);
     }
 
     @Override

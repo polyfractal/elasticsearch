@@ -125,7 +125,7 @@ public class RangeParser implements AggregatorParser {
         if (field == null) {
 
             if (searchScript != null) {
-                return new RangeAggregator.ScriptFactory(aggregationName, searchScript, multiValued, null, InternalRange.FACTORY, ranges, keyed);
+                return new RangeAggregator.ScriptFactory(aggregationName, searchScript, multiValued, null, null, InternalRange.FACTORY, ranges, keyed);
             }
 
             // "field" doesn't exist, so we fall back to the context of the ancestors

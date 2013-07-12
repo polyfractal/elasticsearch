@@ -86,12 +86,12 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
         }
     }
 
-    public NumericValuesSource.Script numericScript(SearchScript script, boolean multiValued, ValueFormatter formatter) {
+    public NumericValuesSource.Script numericScript(SearchScript script, boolean multiValued, ValueFormatter formatter, ValueParser parser) {
         setScorerIfNeeded(script);
         setReaderIfNeeded(script);
         scorerAwares.add(script);
         readerAwares.add(script);
-        return new NumericValuesSource.Script(script, multiValued, formatter);
+        return new NumericValuesSource.Script(script, multiValued, formatter, parser);
     }
 
     public NumericValuesSource numericField(FieldContext fieldContext, SearchScript script, ValueFormatter formatter, ValueParser parser) {

@@ -114,7 +114,7 @@ public class HistogramParser implements AggregatorParser {
         if (field == null) {
 
             if (searchScript != null) {
-                return new HistogramAggregator.ScriptFactory(aggregationName, searchScript, multiValued, rounding, order, keyed, null, histogramFactory);
+                return new HistogramAggregator.ScriptFactory(aggregationName, searchScript, multiValued, rounding, order, keyed, null, null, histogramFactory);
             }
 
             // falling back on the get field data context

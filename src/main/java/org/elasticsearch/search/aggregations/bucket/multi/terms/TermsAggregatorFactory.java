@@ -108,7 +108,7 @@ public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregato
                     return aggregationContext.bytesScript(script, multiValued);
                 case LONG:
                 case DOUBLE:
-                    return aggregationContext.numericScript(script, multiValued, null);
+                    return aggregationContext.numericScript(script, multiValued, null, null);
                 default:
                     throw new AggregationExecutionException("unknown field type [" + valueType.name() + "]");
             }

@@ -20,8 +20,8 @@
 package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
 import org.apache.lucene.util.CollectionUtil;
-import org.elasticsearch.common.rounding.Rounding;
 import org.elasticsearch.common.inject.internal.Nullable;
+import org.elasticsearch.common.rounding.Rounding;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
@@ -31,9 +31,9 @@ import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
+import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -139,9 +139,10 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
                              InternalOrder order,
                              boolean keyed,
                              ValueFormatter formatter,
+                             ValueParser parser,
                              AbstractHistogramBase.Factory histogramFactory) {
 
-            super(name, script, multiValued, formatter);
+            super(name, script, multiValued, formatter, parser);
             this.rounding = rounding;
             this.order = order;
             this.keyed = keyed;

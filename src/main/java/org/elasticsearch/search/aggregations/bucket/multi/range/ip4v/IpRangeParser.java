@@ -29,7 +29,6 @@ import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
 import org.elasticsearch.search.aggregations.bucket.multi.range.RangeAggregator;
-import org.elasticsearch.search.aggregations.bucket.multi.range.UnmappedRangeAggregator;
 import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
@@ -131,7 +130,7 @@ public class IpRangeParser implements AggregatorParser {
         if (field == null) {
 
             if (searchScript != null) {
-                return new RangeAggregator.ScriptFactory(aggregationName, searchScript, multiValued, ValueFormatter.IPv4, InternalIPv4Range.FACTORY, ranges, keyed);
+                return new RangeAggregator.ScriptFactory(aggregationName, searchScript, multiValued, ValueFormatter.IPv4, ValueParser.IPv4, InternalIPv4Range.FACTORY, ranges, keyed);
             }
 
             // "field" doesn't exist, so we fall back to the context of the ancestors
@@ -141,7 +140,7 @@ public class IpRangeParser implements AggregatorParser {
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
         if (mapper == null) {
-            return new UnmappedRangeAggregator.Factory(aggregationName, ranges, keyed);
+            return new UnmappedIPv4RangeAggregator.Factory(aggregationName, ranges, keyed);
         }
 
         if (!(mapper instanceof IpFieldMapper)) {

@@ -26,6 +26,7 @@ import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.multi.range.AbstractRangeBase;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
 import java.util.List;
@@ -64,12 +65,12 @@ public class InternalDateRange extends AbstractRangeBase<DateRange.Bucket> imple
 
         @Override
         public DateTime getFromAsDate() {
-            return new DateTime(getFrom());
+            return Double.isInfinite(getFrom()) ? null : new DateTime((long) getFrom(), DateTimeZone.UTC);
         }
 
         @Override
         public DateTime getToAsDate() {
-            return new DateTime(getTo());
+            return Double.isInfinite(getTo()) ? null : new DateTime((long) getTo(), DateTimeZone.UTC);
         }
     }
 

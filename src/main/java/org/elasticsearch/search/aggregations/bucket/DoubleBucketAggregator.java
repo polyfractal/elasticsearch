@@ -137,17 +137,19 @@ public abstract class DoubleBucketAggregator extends ValuesSourceBucketAggregato
         private final SearchScript script;
         private final boolean multiValued;
         private final ValueFormatter formatter;
+        private final ValueParser parser;
 
-        protected ScriptFactory(String name, SearchScript script, boolean multiValued, @Nullable ValueFormatter formatter) {
+        protected ScriptFactory(String name, SearchScript script, boolean multiValued, @Nullable ValueFormatter formatter, @Nullable ValueParser parser) {
             super(name);
             this.script = script;
             this.multiValued = multiValued;
             this.formatter = formatter;
+            this.parser = parser;
         }
 
         @Override
         public A create(AggregationContext aggregationContext, Aggregator parent) {
-            return create(aggregationContext.numericScript(script, multiValued, formatter), aggregationContext, parent);
+            return create(aggregationContext.numericScript(script, multiValued, formatter, parser), aggregationContext, parent);
         }
 
         protected abstract A create(NumericValuesSource source, AggregationContext aggregationContext, Aggregator parent);

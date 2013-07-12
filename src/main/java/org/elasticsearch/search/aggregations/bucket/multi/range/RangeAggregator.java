@@ -45,10 +45,10 @@ public class RangeAggregator extends DoubleBucketAggregator {
 
     public static class Range {
 
-        final String key;
-        double from = Double.NEGATIVE_INFINITY;
+        public final String key;
+        public double from = Double.NEGATIVE_INFINITY;
         String fromAsStr;
-        double to = Double.POSITIVE_INFINITY;
+        public double to = Double.POSITIVE_INFINITY;
         String toAsStr;
 
         public Range(String key, double from, String fromAsStr, double to, String toAsStr) {
@@ -68,7 +68,7 @@ public class RangeAggregator extends DoubleBucketAggregator {
             return "(" + from + " to " + to + "]";
         }
 
-        void process(ValueParser parser, AggregationContext aggregationContext) {
+        public void process(ValueParser parser, AggregationContext aggregationContext) {
             if (fromAsStr != null) {
                 from = parser != null ? parser.parseDouble(fromAsStr, aggregationContext.searchContext()) : Double.valueOf(fromAsStr);
             }
@@ -226,11 +226,12 @@ public class RangeAggregator extends DoubleBucketAggregator {
                              SearchScript script,
                              boolean multiValued,
                              ValueFormatter formatter,
+                             ValueParser parser,
                              AbstractRangeBase.Factory rangeFactory,
                              List<Range> ranges,
                              boolean keyed) {
 
-            super(name, script, multiValued, formatter);
+            super(name, script, multiValued, formatter, parser);
             this.rangeFactory = rangeFactory;
             this.ranges = ranges;
             this.keyed = keyed;

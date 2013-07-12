@@ -17,11 +17,15 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.bucket.multi.range;
+package org.elasticsearch.search.aggregations.bucket.multi.range.ip4v;
 
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregations;
+import org.elasticsearch.search.aggregations.bucket.multi.range.AbstractRangeBase;
+import org.elasticsearch.search.aggregations.bucket.multi.range.RangeAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
+import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
+import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,12 +33,17 @@ import java.util.List;
 /**
  *
  */
-public class UnmappedRangeAggregator extends Aggregator {
+public class UnmappedIPv4RangeAggregator extends Aggregator {
 
     private final List<RangeAggregator.Range> ranges;
     private final boolean keyed;
 
-    public UnmappedRangeAggregator(String name, List<RangeAggregator.Range> ranges, boolean keyed, AggregationContext aggregationContext, Aggregator parent) {
+    public UnmappedIPv4RangeAggregator(String name,
+                                       List<RangeAggregator.Range> ranges,
+                                       boolean keyed,
+                                       AggregationContext aggregationContext,
+                                       Aggregator parent) {
+
         super(name, aggregationContext, parent);
         this.ranges = ranges;
         this.keyed = keyed;
@@ -47,15 +56,15 @@ public class UnmappedRangeAggregator extends Aggregator {
 
     @Override
     public AbstractRangeBase buildAggregation() {
-        List<Range.Bucket> buckets = new ArrayList<Range.Bucket>(ranges.size());
+        List<IPv4Range.Bucket> buckets = new ArrayList<IPv4Range.Bucket>(ranges.size());
         for (RangeAggregator.Range range : ranges) {
-            range.process(null, aggregationContext);
-            buckets.add(new InternalRange.Bucket(range.key, range.from, range.to, 0, InternalAggregations.EMPTY, null));
+            range.process(ValueParser.IPv4, aggregationContext) ;
+            buckets.add(new InternalIPv4Range.Bucket(range.key, range.from, range.to, 0, InternalAggregations.EMPTY, ValueFormatter.IPv4));
         }
-        return new InternalRange(name, buckets, null, keyed);
+        return new InternalIPv4Range(name, buckets, keyed);
     }
 
-    public static class Factory extends Aggregator.CompoundFactory<UnmappedRangeAggregator> {
+    public static class Factory extends CompoundFactory<UnmappedIPv4RangeAggregator> {
 
         private final List<RangeAggregator.Range> ranges;
         private final boolean keyed;
@@ -67,8 +76,8 @@ public class UnmappedRangeAggregator extends Aggregator {
         }
 
         @Override
-        public UnmappedRangeAggregator create(AggregationContext aggregationContext, Aggregator parent) {
-            return new UnmappedRangeAggregator(name, ranges, keyed, aggregationContext, parent);
+        public UnmappedIPv4RangeAggregator create(AggregationContext aggregationContext, Aggregator parent) {
+            return new UnmappedIPv4RangeAggregator(name, ranges, keyed, aggregationContext, parent);
         }
     }
 

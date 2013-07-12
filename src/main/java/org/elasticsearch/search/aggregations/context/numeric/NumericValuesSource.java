@@ -83,14 +83,16 @@ public interface NumericValuesSource extends ValuesSource {
 
         private final boolean multiValue;
         private final ValueFormatter formatter;
+        private final ValueParser parser;
         private ScriptDoubleValues doubleValues;
         private ScriptLongValues longValues;
         private ScriptBytesValues bytesValues;
 
-        public Script(SearchScript script, boolean multiValue, @Nullable ValueFormatter formatter) {
+        public Script(SearchScript script, boolean multiValue, @Nullable ValueFormatter formatter, @Nullable ValueParser parser) {
             super(script);
             this.multiValue = multiValue;
             this.formatter = formatter;
+            this.parser = parser;
         }
 
         @Override
@@ -130,7 +132,7 @@ public interface NumericValuesSource extends ValuesSource {
 
         @Override
         public ValueParser parser() {
-            return null;
+            return parser;
         }
 
     }

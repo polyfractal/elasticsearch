@@ -19,6 +19,7 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.range.date;
 
+import org.elasticsearch.common.joda.DateMathParser;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
@@ -29,7 +30,6 @@ import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
 import org.elasticsearch.search.aggregations.bucket.multi.range.RangeAggregator;
-import org.elasticsearch.search.aggregations.bucket.multi.range.UnmappedRangeAggregator;
 import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
@@ -44,6 +44,10 @@ import java.util.Map;
  *
  */
 public class DateRangeParser implements AggregatorParser {
+
+    private static final ValueParser DEFAULT_VALUE_PARSER = new ValueParser.DateMath(new DateMathParser(DateFieldMapper.Defaults.DATE_TIME_FORMATTER, DateFieldMapper.Defaults.TIME_UNIT));
+    private static final ValueFormatter DEFAULT_VALUE_FORMATTER = new ValueFormatter.DateTime(DateFieldMapper.Defaults.DATE_TIME_FORMATTER);
+
 
     @Override
     public String type() {
@@ -139,7 +143,10 @@ public class DateRangeParser implements AggregatorParser {
         if (field == null) {
 
             if (searchScript != null) {
-                return new RangeAggregator.ScriptFactory(aggregationName, searchScript, multiValued, formatter, InternalDateRange.FACTORY, ranges, keyed);
+                if (formatter == null) {
+                    formatter = DEFAULT_VALUE_FORMATTER;
+                }
+                return new RangeAggregator.ScriptFactory(aggregationName, searchScript, multiValued, formatter, DEFAULT_VALUE_PARSER, InternalDateRange.FACTORY, ranges, keyed);
             }
 
             // "field" doesn't exist, so we fall back to the context of the ancestors
@@ -149,7 +156,7 @@ public class DateRangeParser implements AggregatorParser {
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
         if (mapper == null) {
-            return new UnmappedRangeAggregator.Factory(aggregationName, ranges, keyed);
+            return new UnmappedDateRangeAggregator.Factory(aggregationName, ranges, keyed, DEFAULT_VALUE_FORMATTER, DEFAULT_VALUE_PARSER);
         }
 
         if (!(mapper instanceof DateFieldMapper)) {

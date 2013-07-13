@@ -20,9 +20,9 @@
 package org.elasticsearch.search.aggregations.bucket.multi.terms.string;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.collect.BoundedTreeSet;
+import org.elasticsearch.common.collect.ReusableGrowableArray;
 import org.elasticsearch.common.lucene.HashedBytesRef;
 import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.index.fielddata.BytesValues;
@@ -105,6 +105,8 @@ public class StringTermsAggregator extends BytesBucketAggregator {
 
     class Collector implements Aggregator.Collector {
 
+        private ReusableGrowableArray<BucketCollector> matchedBuckets;
+
         @Override
         public void collect(int doc, ValueSpace valueSpace) throws IOException {
             BytesValues values = valuesSource.bytesValues();
@@ -131,19 +133,21 @@ public class StringTermsAggregator extends BytesBucketAggregator {
                 return;
             }
 
-            // we'll first find all the buckets that match the values, and then propagate the document through them
-            // we need to do that to avoid counting the same document more than once.
-            List<BucketCollector> matchedBuckets = findMatchedBuckets(doc, valuesSourceKey, values, valueSpace);
-            if (matchedBuckets != null) {
-                for (int i = 0; i < matchedBuckets.size(); i++) {
-                    matchedBuckets.get(i).collect(doc, valueSpace);
-                }
+            if (matchedBuckets == null) {
+                matchedBuckets = new ReusableGrowableArray<BucketCollector>(BucketCollector.class);
             }
 
+            // we'll first find all the buckets that match the values, and then propagate the document through them
+            // we need to do that to avoid counting the same document more than once.
+            populateMatchingBuckets(doc, valuesSourceKey, values, valueSpace);
+            BucketCollector[] mBuckets = matchedBuckets.innerValues();
+            for (int i = 0; i < matchedBuckets.size(); i++) {
+                mBuckets[i].collect(doc, valueSpace);
+            }
         }
 
-        private List<BucketCollector> findMatchedBuckets(int doc, Object valuesSourceKey, BytesValues values, ValueSpace context) throws IOException {
-            List<BucketCollector> matchedBuckets = null;
+        private void populateMatchingBuckets(int doc, Object valuesSourceKey, BytesValues values, ValueSpace context) throws IOException {
+            matchedBuckets.reset();
             for (BytesValues.Iter iter = values.getIter(doc); iter.hasNext();) {
                 BytesRef value = iter.next();
                 int hash = iter.hash();
@@ -157,12 +161,8 @@ public class StringTermsAggregator extends BytesBucketAggregator {
                     bucket = new BucketCollector(term.bytes, factories, StringTermsAggregator.this);
                     buckets.put(term, bucket);
                 }
-                if (matchedBuckets == null) {
-                    matchedBuckets = Lists.newArrayListWithCapacity(4);
-                }
                 matchedBuckets.add(bucket);
             }
-            return matchedBuckets;
         }
 
 

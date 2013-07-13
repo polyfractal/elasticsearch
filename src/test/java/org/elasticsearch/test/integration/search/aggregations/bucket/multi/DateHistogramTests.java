@@ -21,10 +21,7 @@ package org.elasticsearch.test.integration.search.aggregations.bucket.multi;
 
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.index.query.FilterBuilders;
-import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.aggregations.bucket.multi.histogram.DateHistogram;
-import org.elasticsearch.search.aggregations.bucket.single.filter.Filter;
 import org.elasticsearch.search.aggregations.calc.numeric.max.Max;
 import org.elasticsearch.search.aggregations.calc.numeric.sum.Sum;
 import org.elasticsearch.test.integration.AbstractSharedClusterTest;
@@ -34,8 +31,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
-import static org.elasticsearch.index.query.FilterBuilders.rangeFilter;
-import static org.elasticsearch.index.query.FilterBuilders.regexpFilter;
 import static org.elasticsearch.search.aggregations.AggregationBuilders.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;

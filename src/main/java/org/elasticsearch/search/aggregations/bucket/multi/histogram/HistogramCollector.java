@@ -44,7 +44,7 @@ class HistogramCollector implements Aggregator.Collector {
     NumericValuesSource valuesSource;
 
     // a reusable list of matched buckets which is used when dealing with multi-valued fields. see #populateMatchedBuckets method
-    private final ReusableGrowableArray<BucketCollector> matchedBuckets = new ReusableGrowableArray<BucketCollector>();
+    private final ReusableGrowableArray<BucketCollector> matchedBuckets = new ReusableGrowableArray<BucketCollector>(BucketCollector.class);
 
     /**
      * Constructs a new histogram collector.
@@ -113,10 +113,10 @@ class HistogramCollector implements Aggregator.Collector {
         // the next get).
 
         populateMatchedBuckets(doc, valuesSource.key(), values, valueSpace);
+        BucketCollector[] mBukcets = matchedBuckets.innerValues();
         for (int i = 0; i < matchedBuckets.size(); i++) {
-            BucketCollector collector = matchedBuckets.get(i);
-            collector.matched = false;
-            collector.collect(doc, valueSpace);
+            mBukcets[i].matched = false;
+            mBukcets[i].collect(doc, valueSpace);
         }
     }
 

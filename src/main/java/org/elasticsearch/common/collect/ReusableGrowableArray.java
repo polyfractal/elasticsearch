@@ -19,41 +19,68 @@
 
 package org.elasticsearch.common.collect;
 
-import java.util.ArrayList;
+import java.lang.reflect.Array;
 
 /**
  * A simple reusable list/array which enables adding elements and provides random access to these elements. A single instance is reusable,
  * by calling {@link #reset()}, which will not clear the underlying array, but only reset its current size.
+ *
+ * THis class is <strong>not</strong> thread safe!
  */
 public class ReusableGrowableArray<T> {
 
-    private final ArrayList<T> list;
+    private final Class<T> elementType;
+
+    private T[] values;
+
     private int size = 0;
 
-    public ReusableGrowableArray() {
-        list = new ArrayList<T>();
+    public ReusableGrowableArray(Class<T> elementType) {
+        this(elementType, 10);
     }
 
-    public ReusableGrowableArray(int capacity) {
-        list = new ArrayList<T>(capacity);
+    public ReusableGrowableArray(Class<T> elementType, int capacity) {
+        this.elementType = elementType;
+        values = (T[]) Array.newInstance(elementType, capacity);
     }
 
     public void reset() {
         size = 0;
     }
 
+    public void clear() {
+        for (int i = 0; i < values.length; i++) {
+            values[i] = null;
+        }
+        size = 0;
+    }
+
+    public T[] innerValues() {
+        return values;
+    }
+
     public void add(T t) {
-        list.add(size++, t);
+        ensureCapacity(size+1);
+        values[size++] = t;
     }
 
     public T get(int i) {
-        if (i < size) {
-            return list.get(i);
+        if (i >= size) {
+            throw new IndexOutOfBoundsException();
         }
-        throw new IndexOutOfBoundsException();
+        return (T) values[i];
     }
 
     public int size() {
         return size;
+    }
+
+    private void ensureCapacity(int capacity) {
+        if (values.length < capacity) {
+            int newCap = Math.max( values.length << 1, capacity);
+            T[] tmp = (T[]) Array.newInstance(elementType, newCap);
+            System.arraycopy(values, 0, tmp, 0, values.length );
+            values = tmp;
+        }
     }
 }

@@ -130,11 +130,12 @@ public class LongTermsAggregator extends LongBucketAggregator {
             }
 
             if (matchedBuckets == null) {
-                matchedBuckets = new ReusableGrowableArray<BucketCollector>();
+                matchedBuckets = new ReusableGrowableArray<BucketCollector>(BucketCollector.class);
             }
             populateMatchingBuckets(doc, valuesSourceKey, values, valueSpace);
+            BucketCollector[] mBuckets = matchedBuckets.innerValues();
             for (int i = 0; i < matchedBuckets.size(); i++) {
-                matchedBuckets.get(i).collect(doc, valueSpace);
+                mBuckets[i].collect(doc, valueSpace);
             }
         }
 

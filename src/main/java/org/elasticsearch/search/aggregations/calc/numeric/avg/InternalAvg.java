@@ -86,7 +86,8 @@ public class InternalAvg extends NumericAggregation.SingleValue implements Avg {
     }
 
     @Override
-    public InternalAvg reduce(List<InternalAggregation> aggregations) {
+    public InternalAvg reduce(ReduceContext reduceContext) {
+        List<InternalAggregation> aggregations = reduceContext.aggregations();
         if (aggregations.size() == 1) {
             return (InternalAvg) aggregations.get(0);
         }

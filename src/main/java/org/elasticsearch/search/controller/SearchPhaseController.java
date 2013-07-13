@@ -424,7 +424,7 @@ public class SearchPhaseController extends AbstractComponent {
                 for (AtomicArray.Entry<? extends QuerySearchResultProvider> entry : queryResults.asList()) {
                     aggregationsList.add((InternalAggregations) entry.value.queryResult().aggregations());
                 }
-                aggregations = InternalAggregations.reduce(aggregationsList);
+                aggregations = InternalAggregations.reduce(aggregationsList, cacheRecycler);
             }
         }
 

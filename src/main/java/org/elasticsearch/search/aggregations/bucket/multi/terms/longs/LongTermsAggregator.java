@@ -20,7 +20,6 @@
 package org.elasticsearch.search.aggregations.bucket.multi.terms.longs;
 
 import com.google.common.collect.ImmutableList;
-import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.collect.BoundedTreeSet;
 import org.elasticsearch.common.collect.ReusableGrowableArray;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
@@ -59,7 +58,7 @@ public class LongTermsAggregator extends LongBucketAggregator {
         this.factories = factories;
         this.order = order;
         this.requiredSize = requiredSize;
-        this.bucketCollectors = CacheRecycler.popLongObjectMap();
+        this.bucketCollectors = aggregationContext.cacheRecycler().popLongObjectMap();
     }
 
     @Override
@@ -81,7 +80,7 @@ public class LongTermsAggregator extends LongBucketAggregator {
                     ordered.insertWithOverflow(((BucketCollector) collectors[i]).buildBucket());
                 }
             }
-            CacheRecycler.pushLongObjectMap(bucketCollectors);
+            aggregationContext.cacheRecycler().pushLongObjectMap(bucketCollectors);
             InternalTerms.Bucket[] list = new InternalTerms.Bucket[ordered.size()];
             for (int i = ordered.size() - 1; i >= 0; i--) {
                 list[i] = (LongTerms.Bucket) ordered.pop();
@@ -95,7 +94,7 @@ public class LongTermsAggregator extends LongBucketAggregator {
                     ordered.add(((BucketCollector) collectors[i]).buildBucket());
                 }
             }
-            CacheRecycler.pushLongObjectMap(bucketCollectors);
+            aggregationContext.cacheRecycler().pushLongObjectMap(bucketCollectors);
             return new LongTerms(name, order, valuesSource.formatter(), requiredSize, ordered);
         }
     }

@@ -78,7 +78,8 @@ public class InternalSum extends NumericAggregation.SingleValue implements Sum {
     }
 
     @Override
-    public InternalSum reduce(List<InternalAggregation> aggregations) {
+    public InternalSum reduce(ReduceContext reduceContext) {
+        List<InternalAggregation> aggregations = reduceContext.aggregations();
         if (aggregations.size() == 1) {
             return (InternalSum) aggregations.get(0);
         }

@@ -79,7 +79,8 @@ public class InternalMax extends NumericAggregation.SingleValue implements Max {
     }
 
     @Override
-    public InternalMax reduce(List<InternalAggregation> aggregations) {
+    public InternalMax reduce(ReduceContext reduceContext) {
+        List<InternalAggregation> aggregations = reduceContext.aggregations();
         if (aggregations.size() == 1) {
             return (InternalMax) aggregations.get(0);
         }

@@ -20,7 +20,6 @@
 package org.elasticsearch.search.aggregations.bucket.multi.terms.doubles;
 
 import com.google.common.collect.ImmutableList;
-import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.collect.BoundedTreeSet;
 import org.elasticsearch.common.collect.ReusableGrowableArray;
 import org.elasticsearch.common.trove.ExtTDoubleObjectHashMap;
@@ -59,7 +58,7 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
         this.factories = factories;
         this.order = order;
         this.requiredSize = requiredSize;
-        this.bucketCollectors = CacheRecycler.popDoubleObjectMap();
+        this.bucketCollectors = aggregationContext.cacheRecycler().popDoubleObjectMap();
     }
 
     @Override
@@ -81,7 +80,7 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
                     ordered.insertWithOverflow(((BucketCollector) bucketCollector).buildBucket());
                 }
             }
-            CacheRecycler.pushDoubleObjectMap(bucketCollectors);
+            aggregationContext.cacheRecycler().pushDoubleObjectMap(bucketCollectors);
             InternalTerms.Bucket[] list = new InternalTerms.Bucket[ordered.size()];
             for (int i = ordered.size() - 1; i >= 0; i--) {
                 list[i] = (DoubleTerms.Bucket) ordered.pop();
@@ -95,7 +94,7 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
                     ordered.add(((BucketCollector) collectors[i]).buildBucket());
                 }
             }
-            CacheRecycler.pushDoubleObjectMap(bucketCollectors);
+            aggregationContext.cacheRecycler().pushDoubleObjectMap(bucketCollectors);
             return new DoubleTerms(name, order, requiredSize, ordered);
         }
     }

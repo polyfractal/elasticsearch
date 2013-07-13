@@ -20,6 +20,7 @@
 package org.elasticsearch.search.aggregations.bucket.multi.geo.distance;
 
 import com.google.common.collect.Lists;
+import org.elasticsearch.cache.recycler.CacheRecycler;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Streamable;
@@ -107,7 +108,7 @@ public class InternalGeoDistance extends InternalAggregation implements GeoDista
             return aggregations;
         }
 
-        Bucket reduce(List<Bucket> buckets) {
+        Bucket reduce(List<Bucket> buckets, CacheRecycler cacheRecycler) {
             if (buckets.size() == 1) {
                 return buckets.get(0);
             }
@@ -121,7 +122,7 @@ public class InternalGeoDistance extends InternalAggregation implements GeoDista
                 }
                 aggregationsList.add(bucket.aggregations);
             }
-            reduced.aggregations = InternalAggregations.reduce(aggregationsList);
+            reduced.aggregations = InternalAggregations.reduce(aggregationsList, cacheRecycler);
             return reduced;
         }
     }
@@ -142,7 +143,8 @@ public class InternalGeoDistance extends InternalAggregation implements GeoDista
     }
 
     @Override
-    public InternalAggregation reduce(List<InternalAggregation> aggregations) {
+    public InternalAggregation reduce(ReduceContext reduceContext) {
+        List<InternalAggregation> aggregations = reduceContext.aggregations();
         if (aggregations.size() == 1) {
             return aggregations.get(0);
         }
@@ -168,7 +170,7 @@ public class InternalGeoDistance extends InternalAggregation implements GeoDista
         InternalGeoDistance reduced = (InternalGeoDistance) aggregations.get(0);
         int i = 0;
         for (List<Bucket> sameDistanceList : distancesList) {
-            reduced.buckets.set(i++, sameDistanceList.get(0).reduce(sameDistanceList));
+            reduced.buckets.set(i++, sameDistanceList.get(0).reduce(sameDistanceList, reduceContext.cacheRecycler()));
         }
         return reduced;
     }

@@ -20,6 +20,7 @@
 package org.elasticsearch.search.aggregations.bucket.multi.range;
 
 import com.google.common.collect.Lists;
+import org.elasticsearch.cache.recycler.CacheRecycler;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -84,7 +85,7 @@ public abstract class AbstractRangeBase<B extends RangeBase.Bucket> extends Inte
             return aggregations;
         }
 
-        Bucket reduce(List<Bucket> ranges) {
+        Bucket reduce(List<Bucket> ranges, CacheRecycler cacheRecycler) {
             if (ranges.size() == 1) {
                 return ranges.get(0);
             }
@@ -98,7 +99,7 @@ public abstract class AbstractRangeBase<B extends RangeBase.Bucket> extends Inte
                 }
                 aggregationsList.add(range.aggregations);
             }
-            reduced.aggregations = InternalAggregations.reduce(aggregationsList);
+            reduced.aggregations = InternalAggregations.reduce(aggregationsList, cacheRecycler);
             return reduced;
         }
 
@@ -184,7 +185,8 @@ public abstract class AbstractRangeBase<B extends RangeBase.Bucket> extends Inte
     }
 
     @Override
-    public AbstractRangeBase reduce(List<InternalAggregation> aggregations) {
+    public AbstractRangeBase reduce(ReduceContext reduceContext) {
+        List<InternalAggregation> aggregations = reduceContext.aggregations();
         if (aggregations.size() == 1) {
             return (AbstractRangeBase) aggregations.get(0);
         }
@@ -209,7 +211,7 @@ public abstract class AbstractRangeBase<B extends RangeBase.Bucket> extends Inte
         AbstractRangeBase reduced = (AbstractRangeBase) aggregations.get(0);
         int i = 0;
         for (List<Bucket> sameRangeList : rangesList) {
-            reduced.ranges.set(i++, (sameRangeList.get(0)).reduce(sameRangeList));
+            reduced.ranges.set(i++, (sameRangeList.get(0)).reduce(sameRangeList, reduceContext.cacheRecycler()));
         }
         return reduced;
     }

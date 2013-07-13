@@ -21,6 +21,7 @@ package org.elasticsearch.search.aggregations.context;
 
 import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.Scorer;
+import org.elasticsearch.cache.recycler.CacheRecycler;
 import org.elasticsearch.common.lucene.ReaderContextAware;
 import org.elasticsearch.common.lucene.ScorerAware;
 import org.elasticsearch.common.trove.ExtTHashMap;
@@ -56,6 +57,10 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
 
     public SearchContext searchContext() {
         return searchContext;
+    }
+
+    public CacheRecycler cacheRecycler() {
+        return searchContext.cacheRecycler();
     }
 
     public AtomicReaderContext currentReader() {

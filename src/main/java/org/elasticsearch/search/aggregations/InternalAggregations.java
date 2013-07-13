@@ -22,6 +22,7 @@ package org.elasticsearch.search.aggregations;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import org.elasticsearch.cache.recycler.CacheRecycler;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -116,7 +117,7 @@ public class InternalAggregations implements Aggregations, ToXContent, Streamabl
      * @param aggregationsList  A list of addAggregation to reduce
      * @return                  The reduced addAggregation
      */
-    public static InternalAggregations reduce(List<InternalAggregations> aggregationsList) {
+    public static InternalAggregations reduce(List<InternalAggregations> aggregationsList, CacheRecycler cacheRecycler) {
         if (aggregationsList.isEmpty()) {
             return null;
         }
@@ -141,7 +142,7 @@ public class InternalAggregations implements Aggregations, ToXContent, Streamabl
         for (Map.Entry<String, List<InternalAggregation>> entry : aggByName.entrySet()) {
             List<InternalAggregation> aggregations = entry.getValue();
             InternalAggregation first = aggregations.get(0); // the list can't be empty as it's created on demand
-            reducedAggregations.add(first.reduce(aggregations));
+            reducedAggregations.add(first.reduce(new InternalAggregation.ReduceContext(aggregations, cacheRecycler)));
         }
         InternalAggregations result = aggregationsList.get(0);
         result.reset(reducedAggregations);

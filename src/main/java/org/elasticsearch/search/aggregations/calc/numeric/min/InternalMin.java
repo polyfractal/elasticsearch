@@ -80,7 +80,8 @@ public class InternalMin extends NumericAggregation.SingleValue implements Min {
     }
 
     @Override
-    public InternalMin reduce(List<InternalAggregation> aggregations) {
+    public InternalMin reduce(ReduceContext reduceContext) {
+        List<InternalAggregation> aggregations = reduceContext.aggregations();
         if (aggregations.size() == 1) {
             return (InternalMin) aggregations.get(0);
         }

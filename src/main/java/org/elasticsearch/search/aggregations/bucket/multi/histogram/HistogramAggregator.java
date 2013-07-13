@@ -39,15 +39,14 @@ import java.util.List;
 /**
  *
  */
-public class HistogramAggregator extends LongBucketAggregator implements HistogramCollector.Listener {
+public class HistogramAggregator extends LongBucketAggregator {
 
     private final List<Aggregator.Factory> factories;
     private final Rounding rounding;
     private final InternalOrder order;
     private final boolean keyed;
     private final AbstractHistogramBase.Factory histogramFactory;
-
-    ExtTLongObjectHashMap<HistogramCollector.BucketCollector> collectors;
+    private final ExtTLongObjectHashMap<HistogramCollector.BucketCollector> collectors;
 
     public HistogramAggregator(String name,
                                List<Aggregator.Factory> factories,
@@ -65,11 +64,12 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
         this.order = order;
         this.keyed = keyed;
         this.histogramFactory = histogramFactory;
+        this.collectors = aggregationContext.cacheRecycler().popLongObjectMap();
     }
 
     @Override
     public Collector collector() {
-        return new HistogramCollector(this, factories, valuesSource, rounding, this);
+        return new HistogramCollector(this, factories, valuesSource, rounding, collectors);
     }
 
     @Override
@@ -88,11 +88,6 @@ public class HistogramAggregator extends LongBucketAggregator implements Histogr
         }
         CollectionUtil.quickSort(buckets, order.comparator());
         return histogramFactory.create(name, buckets, order, valuesSource.formatter(), keyed);
-    }
-
-    @Override
-    public void onFinish(ExtTLongObjectHashMap<HistogramCollector.BucketCollector> collectors) {
-        this.collectors = collectors;
     }
 
     public static class FieldDataFactory extends LongBucketAggregator.FieldDataFactory<HistogramAggregator> {

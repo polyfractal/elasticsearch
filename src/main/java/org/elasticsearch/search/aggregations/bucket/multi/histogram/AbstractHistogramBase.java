@@ -20,7 +20,7 @@
 package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
 import org.apache.lucene.util.CollectionUtil;
-import org.elasticsearch.common.CacheRecycler;
+import org.elasticsearch.cache.recycler.CacheRecycler;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Streamable;
@@ -72,7 +72,7 @@ abstract class AbstractHistogramBase<B extends HistogramBase.Bucket> extends Int
             return aggregations;
         }
 
-        Bucket reduce(List<Bucket> buckets) {
+        Bucket reduce(List<Bucket> buckets, CacheRecycler cacheRecycler) {
             if (buckets.size() == 1) {
                 return buckets.get(0);
             }
@@ -86,7 +86,7 @@ abstract class AbstractHistogramBase<B extends HistogramBase.Bucket> extends Int
                 }
                 aggregations.add((InternalAggregations) bucket.getAggregations());
             }
-            reduced.aggregations = InternalAggregations.reduce(aggregations);
+            reduced.aggregations = InternalAggregations.reduce(aggregations, cacheRecycler);
             return reduced;
         }
     }
@@ -138,13 +138,14 @@ abstract class AbstractHistogramBase<B extends HistogramBase.Bucket> extends Int
     }
 
     @Override
-    public InternalAggregation reduce(List<InternalAggregation> aggregations) {
+    public InternalAggregation reduce(ReduceContext reduceContext) {
+        List<InternalAggregation> aggregations = reduceContext.aggregations();
         if (aggregations.size() == 1) {
             return aggregations.get(0);
         }
         AbstractHistogramBase reduced = (AbstractHistogramBase) aggregations.get(0);
 
-        ExtTLongObjectHashMap<List<Bucket>> bucketsByKey = CacheRecycler.popLongObjectMap();
+        ExtTLongObjectHashMap<List<Bucket>> bucketsByKey = reduceContext.cacheRecycler().popLongObjectMap();
         for (InternalAggregation aggregation : aggregations) {
             AbstractHistogramBase<B> histogram = (AbstractHistogramBase) aggregation;
             for (B bucket : histogram.buckets) {
@@ -162,10 +163,10 @@ abstract class AbstractHistogramBase<B extends HistogramBase.Bucket> extends Int
             if (value == null) {
                 continue;
             }
-            Bucket bucket = ((List<Bucket>) value).get(0).reduce((List<Bucket>) value);
+            Bucket bucket = ((List<Bucket>) value).get(0).reduce((List<Bucket>) value, reduceContext.cacheRecycler());
             buckets.add(bucket);
         }
-        CacheRecycler.pushLongObjectMap(bucketsByKey);
+        reduceContext.cacheRecycler().pushLongObjectMap(bucketsByKey);
         CollectionUtil.quickSort(buckets, order.comparator());
         reduced.buckets = buckets;
         return reduced;

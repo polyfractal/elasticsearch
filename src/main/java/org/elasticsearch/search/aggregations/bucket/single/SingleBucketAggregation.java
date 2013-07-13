@@ -59,7 +59,8 @@ public abstract class SingleBucketAggregation<B extends SingleBucketAggregation<
     }
 
     @Override
-    public InternalAggregation reduce(List<InternalAggregation> aggregations) {
+    public InternalAggregation reduce(ReduceContext reduceContext) {
+        List<InternalAggregation> aggregations = reduceContext.aggregations();
         if (aggregations.size() == 1) {
             return aggregations.get(0);
         }
@@ -73,7 +74,7 @@ public abstract class SingleBucketAggregation<B extends SingleBucketAggregation<
             }
             subAggregationsList.add(((B) aggregation).aggregations);
         }
-        reduced.aggregations = InternalAggregations.reduce(subAggregationsList);
+        reduced.aggregations = InternalAggregations.reduce(subAggregationsList, reduceContext.cacheRecycler());
         return reduced;
     }
 

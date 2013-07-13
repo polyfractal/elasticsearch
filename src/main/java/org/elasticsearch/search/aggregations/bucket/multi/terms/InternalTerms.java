@@ -19,6 +19,7 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.terms;
 
+import org.elasticsearch.cache.recycler.CacheRecycler;
 import org.elasticsearch.common.collect.BoundedTreeSet;
 import org.elasticsearch.common.io.stream.Streamable;
 import org.elasticsearch.common.text.Text;
@@ -73,7 +74,7 @@ public abstract class InternalTerms extends InternalAggregation implements Terms
 
         protected abstract int compareTerm(Terms.Bucket other);
 
-        public Bucket reduce(List<Bucket> buckets) {
+        public Bucket reduce(List<Bucket> buckets, CacheRecycler cacheRecycler) {
             if (buckets.size() == 1) {
                 return buckets.get(0);
             }
@@ -87,7 +88,7 @@ public abstract class InternalTerms extends InternalAggregation implements Terms
                 }
                 aggregationsList.add(bucket.aggregations);
             }
-            reduced.aggregations = InternalAggregations.reduce(aggregationsList);
+            reduced.aggregations = InternalAggregations.reduce(aggregationsList, cacheRecycler);
             return reduced;
         }
     }
@@ -118,7 +119,8 @@ public abstract class InternalTerms extends InternalAggregation implements Terms
     }
 
     @Override
-    public InternalTerms reduce(List<InternalAggregation> aggregations) {
+    public InternalTerms reduce(ReduceContext reduceContext) {
+        List<InternalAggregation> aggregations = reduceContext.aggregations();
         if (aggregations.size() == 1) {
             return (InternalTerms) aggregations.get(0);
         }
@@ -141,7 +143,7 @@ public abstract class InternalTerms extends InternalAggregation implements Terms
             BucketPriorityQueue ordered = new BucketPriorityQueue(requiredSize, order.comparator());
             for (Map.Entry<Text, List<Bucket>> entry : buckets.entrySet()) {
                 List<Bucket> sameTermBuckets = entry.getValue();
-                ordered.insertWithOverflow(sameTermBuckets.get(0).reduce(sameTermBuckets));
+                ordered.insertWithOverflow(sameTermBuckets.get(0).reduce(sameTermBuckets, reduceContext.cacheRecycler()));
             }
             Bucket[] list = new Bucket[ordered.size()];
             for (int i = ordered.size() - 1; i >= 0; i--) {
@@ -153,7 +155,7 @@ public abstract class InternalTerms extends InternalAggregation implements Terms
             BoundedTreeSet<Bucket> ordered = new BoundedTreeSet<Bucket>(order.comparator(), requiredSize);
             for (Map.Entry<Text, List<Bucket>> entry : buckets.entrySet()) {
                 List<Bucket> sameTermBuckets = entry.getValue();
-                ordered.add(sameTermBuckets.get(0).reduce(sameTermBuckets));
+                ordered.add(sameTermBuckets.get(0).reduce(sameTermBuckets, reduceContext.cacheRecycler()));
             }
             reduced.buckets = ordered;
             return reduced;

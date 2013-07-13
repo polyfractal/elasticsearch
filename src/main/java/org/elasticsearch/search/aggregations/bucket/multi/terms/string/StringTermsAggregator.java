@@ -22,7 +22,6 @@ package org.elasticsearch.search.aggregations.bucket.multi.terms.string;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import org.apache.lucene.util.BytesRef;
-import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.collect.BoundedTreeSet;
 import org.elasticsearch.common.lucene.HashedBytesRef;
 import org.elasticsearch.common.trove.ExtTHashMap;
@@ -62,7 +61,7 @@ public class StringTermsAggregator extends BytesBucketAggregator {
         this.factories = factories;
         this.order = order;
         this.requiredSize = requiredSize;
-        buckets = CacheRecycler.popHashMap();
+        buckets = aggregationContext.cacheRecycler().popHashMap();
     }
 
     @Override
@@ -85,7 +84,7 @@ public class StringTermsAggregator extends BytesBucketAggregator {
                     ordered.insertWithOverflow(((BucketCollector) collectors[i]).buildBucket());
                 }
             }
-            CacheRecycler.pushHashMap(buckets);
+            aggregationContext.cacheRecycler().pushHashMap(buckets);
             InternalTerms.Bucket[] list = new InternalTerms.Bucket[ordered.size()];
             for (int i = ordered.size() - 1; i >= 0; i--) {
                 list[i] = (StringTerms.Bucket) ordered.pop();
@@ -99,7 +98,7 @@ public class StringTermsAggregator extends BytesBucketAggregator {
                     ordered.add(((BucketCollector) collectors[i]).buildBucket());
                 }
             }
-            CacheRecycler.pushHashMap(buckets);
+            aggregationContext.cacheRecycler().pushHashMap(buckets);
             return new StringTerms(name, order, requiredSize, ordered);
         }
     }

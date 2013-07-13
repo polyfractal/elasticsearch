@@ -120,7 +120,8 @@ public class InternalStats extends NumericAggregation.MultiValue implements Stat
     }
 
     @Override
-    public InternalStats reduce(List<InternalAggregation> aggregations) {
+    public InternalStats reduce(ReduceContext reduceContext) {
+        List<InternalAggregation> aggregations = reduceContext.aggregations();
         if (aggregations.size() == 1) {
             return (InternalStats) aggregations.get(0);
         }

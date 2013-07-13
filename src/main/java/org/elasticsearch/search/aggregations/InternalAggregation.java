@@ -19,6 +19,7 @@
 
 package org.elasticsearch.search.aggregations;
 
+import org.elasticsearch.cache.recycler.CacheRecycler;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.bytes.HashedBytesArray;
@@ -74,6 +75,25 @@ public abstract class InternalAggregation implements Aggregation, ToXContent, St
         }
     }
 
+    protected static class ReduceContext {
+
+        private final List<InternalAggregation> aggregations;
+        private final CacheRecycler cacheRecycler;
+
+        public ReduceContext(List<InternalAggregation> aggregations, CacheRecycler cacheRecycler) {
+            this.aggregations = aggregations;
+            this.cacheRecycler = cacheRecycler;
+        }
+
+        public List<InternalAggregation> aggregations() {
+            return aggregations;
+        }
+
+        public CacheRecycler cacheRecycler() {
+            return cacheRecycler;
+        }
+    }
+
 
     protected String name;
 
@@ -104,11 +124,8 @@ public abstract class InternalAggregation implements Aggregation, ToXContent, St
      * addAggregation are of the same type (the same type as this get). For best efficiency, when implementing,
      * try reusing an existing get instance (typically the first in the given list) to save on redundant object
      * construction.
-     *
-     * @param aggregations  The addAggregation to reduce
-     * @return              The reduced get (may be one of the given instances)
      */
-    public abstract InternalAggregation reduce(List<InternalAggregation> aggregations);
+    public abstract InternalAggregation reduce(ReduceContext reduceContext);
 
 
     /**

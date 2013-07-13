@@ -19,7 +19,6 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
-import org.elasticsearch.common.CacheRecycler;
 import org.elasticsearch.common.rounding.Rounding;
 import org.elasticsearch.common.collect.ReusableGrowableArray;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
@@ -37,25 +36,10 @@ import java.util.List;
  */
 class HistogramCollector implements Aggregator.Collector {
 
-    /**
-     * A listener which is called when the get of this collector finishes
-     */
-    static interface Listener {
-
-        /**
-         * Called when get is finished.
-         *
-         * @param collectors The bucket collectors that hold all the aggregated data
-         */
-        void onFinish(ExtTLongObjectHashMap<BucketCollector> collectors);
-
-    }
-
     final List<Aggregator.Factory> factories;
     final LongBucketAggregator aggregator;
-    final ExtTLongObjectHashMap<BucketCollector> bucketCollectors = CacheRecycler.popLongObjectMap();
+    final ExtTLongObjectHashMap<BucketCollector> bucketCollectors;
     final Rounding rounding;
-    final Listener listener;
 
     NumericValuesSource valuesSource;
 
@@ -69,19 +53,18 @@ class HistogramCollector implements Aggregator.Collector {
      *                          all bucket-level sub-aggregators
      * @param valuesSource      The values source on which this aggregator works
      * @param rounding          The rounding strategy by which the get will bucket documents
-     * @param listener          Will be called when get finishes (see {@link Listener}).
      */
     HistogramCollector(LongBucketAggregator aggregator,
                        List<Aggregator.Factory> factories,
                        NumericValuesSource valuesSource,
                        Rounding rounding,
-                       Listener listener) {
+                       ExtTLongObjectHashMap<BucketCollector> bucketCollectors) {
 
         this.factories = factories;
         this.aggregator = aggregator;
         this.valuesSource = valuesSource;
         this.rounding = rounding;
-        this.listener = listener;
+        this.bucketCollectors = bucketCollectors;
     }
 
     @Override
@@ -91,7 +74,6 @@ class HistogramCollector implements Aggregator.Collector {
                 ((BucketCollector) collector).postCollection();
             }
         }
-        listener.onFinish(bucketCollectors);
     }
 
     @Override

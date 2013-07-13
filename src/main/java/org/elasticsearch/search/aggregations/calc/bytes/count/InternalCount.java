@@ -68,7 +68,8 @@ public class InternalCount extends InternalAggregation implements Count {
     }
 
     @Override
-    public InternalAggregation reduce(List<InternalAggregation> aggregations) {
+    public InternalAggregation reduce(ReduceContext reduceContext) {
+        List<InternalAggregation> aggregations = reduceContext.aggregations();
         if (aggregations.size() == 1) {
             return aggregations.get(0);
         }

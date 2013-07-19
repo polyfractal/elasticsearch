@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  *
@@ -82,27 +83,34 @@ public class IpRangeParser implements AggregatorParser {
                         double to = Double.POSITIVE_INFINITY;
                         String toAsStr = null;
                         String key = null;
-                        String toOrFromOrKey = null;
+                        String mask = null;
+                        String toOrFromOrMaskOrKey = null;
                         while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
                             if (token == XContentParser.Token.FIELD_NAME) {
-                                toOrFromOrKey = parser.currentName();
+                                toOrFromOrMaskOrKey = parser.currentName();
                             } else if (token == XContentParser.Token.VALUE_NUMBER) {
-                                if ("from".equals(toOrFromOrKey)) {
+                                if ("from".equals(toOrFromOrMaskOrKey)) {
                                     from = parser.doubleValue();
-                                } else if ("to".equals(toOrFromOrKey)) {
+                                } else if ("to".equals(toOrFromOrMaskOrKey)) {
                                     to = parser.doubleValue();
                                 }
                             } else if (token == XContentParser.Token.VALUE_STRING) {
-                                if ("from".equals(toOrFromOrKey)) {
+                                if ("from".equals(toOrFromOrMaskOrKey)) {
                                     fromAsStr = parser.text();
-                                } else if ("to".equals(toOrFromOrKey)) {
+                                } else if ("to".equals(toOrFromOrMaskOrKey)) {
                                     toAsStr = parser.text();
-                                } else if ("key".equals(toOrFromOrKey)) {
+                                } else if ("key".equals(toOrFromOrMaskOrKey)) {
                                     key = parser.text();
+                                } else if ("mask".equals(toOrFromOrMaskOrKey)) {
+                                    mask = parser.text();
                                 }
                             }
                         }
-                        ranges.add(new RangeAggregator.Range(key, from, fromAsStr, to, toAsStr));
+                        RangeAggregator.Range range = new RangeAggregator.Range(key, from, fromAsStr, to, toAsStr);
+                        if (mask != null) {
+                            parseMaskRange(mask, range, aggregationName, context);
+                        }
+                        ranges.add(range);
                     }
                 }
             } else if (token == XContentParser.Token.START_OBJECT) {
@@ -150,5 +158,38 @@ public class IpRangeParser implements AggregatorParser {
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
         FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
         return new RangeAggregator.FieldDataFactory(aggregationName, fieldContext, searchScript, ValueFormatter.IPv4, ValueParser.IPv4, InternalIPv4Range.FACTORY, ranges, keyed);
+    }
+
+    private static final Pattern MASK_PATTERN = Pattern.compile("[\\.|/]");
+
+    private static void parseMaskRange(String cidr, RangeAggregator.Range range, String aggregationName, SearchContext ctx) {
+        String[] parts = MASK_PATTERN.split(cidr);
+        if (parts.length != 5) {
+            throw new SearchParseException(ctx, "Invalid CIDR mask format [" + cidr + "] in [ip_range] aggregation [" + aggregationName + "]");
+        }
+
+        int addr = (( Integer.parseInt(parts[0]) << 24 ) & 0xFF000000)
+                | (( Integer.parseInt(parts[1]) << 16 ) & 0xFF0000)
+                | (( Integer.parseInt(parts[2]) << 8 ) & 0xFF00)
+                |  ( Integer.parseInt(parts[3]) & 0xFF);
+
+        int mask = (-1) << (32 - Integer.parseInt(parts[4]));
+
+        int from = addr & mask;
+        int to = from + (~mask);
+
+        range.from = intIpToLongIp(from);
+        range.to = intIpToLongIp(to);
+        if (range.key == null) {
+            range.key = cidr;
+        }
+    }
+
+    public static long intIpToLongIp(int i) {
+        long p1 = ((long) ((i >> 24 ) & 0xFF)) << 24;
+        int p2 = ((i >> 16 ) & 0xFF) << 16;
+        int p3 = ((i >>  8 ) & 0xFF) << 8;
+        int p4 = i & 0xFF;
+        return p1 + p2 + p3 + p4;
     }
 }

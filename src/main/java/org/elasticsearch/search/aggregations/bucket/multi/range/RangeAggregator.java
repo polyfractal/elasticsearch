@@ -45,7 +45,7 @@ public class RangeAggregator extends DoubleBucketAggregator {
 
     public static class Range {
 
-        public final String key;
+        public String key;
         public double from = Double.NEGATIVE_INFINITY;
         String fromAsStr;
         public double to = Double.POSITIVE_INFINITY;

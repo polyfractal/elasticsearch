@@ -163,33 +163,15 @@ public class IpRangeParser implements AggregatorParser {
     private static final Pattern MASK_PATTERN = Pattern.compile("[\\.|/]");
 
     private static void parseMaskRange(String cidr, RangeAggregator.Range range, String aggregationName, SearchContext ctx) {
-        String[] parts = MASK_PATTERN.split(cidr);
-        if (parts.length != 5) {
-            throw new SearchParseException(ctx, "Invalid CIDR mask format [" + cidr + "] in [ip_range] aggregation [" + aggregationName + "]");
+        long[] fromTo = IPv4RangeBuilder.cidrMaskToMinMax(cidr);
+        if (fromTo == null) {
+            throw new SearchParseException(ctx, "invalid CIDR mask [" + cidr + "] in aggregation [" + aggregationName + "]");
         }
-
-        int addr = (( Integer.parseInt(parts[0]) << 24 ) & 0xFF000000)
-                | (( Integer.parseInt(parts[1]) << 16 ) & 0xFF0000)
-                | (( Integer.parseInt(parts[2]) << 8 ) & 0xFF00)
-                |  ( Integer.parseInt(parts[3]) & 0xFF);
-
-        int mask = (-1) << (32 - Integer.parseInt(parts[4]));
-
-        int from = addr & mask;
-        int to = from + (~mask);
-
-        range.from = intIpToLongIp(from);
-        range.to = intIpToLongIp(to);
+        range.from = fromTo[0] < 0 ? Double.NEGATIVE_INFINITY : fromTo[0];
+        range.to = fromTo[1] < 0 ? Double.POSITIVE_INFINITY : fromTo[1];
         if (range.key == null) {
             range.key = cidr;
         }
     }
 
-    public static long intIpToLongIp(int i) {
-        long p1 = ((long) ((i >> 24 ) & 0xFF)) << 24;
-        int p2 = ((i >> 16 ) & 0xFF) << 16;
-        int p3 = ((i >>  8 ) & 0xFF) << 8;
-        int p4 = i & 0xFF;
-        return p1 + p2 + p3 + p4;
-    }
 }

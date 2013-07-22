@@ -20,6 +20,7 @@
 package org.elasticsearch.search.aggregations.bucket.multi.range.ip4v;
 
 import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.index.mapper.ip.IpFieldMapper;
 import org.elasticsearch.search.aggregations.AggregationStreams;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
@@ -33,6 +34,8 @@ import java.util.List;
  *
  */
 public class InternalIPv4Range extends AbstractRangeBase<IPv4Range.Bucket> implements IPv4Range {
+
+    public static final long MAX_IP = 4294967296l;
 
     public final static Type TYPE = new Type("ip_range", "iprange");
 
@@ -63,12 +66,12 @@ public class InternalIPv4Range extends AbstractRangeBase<IPv4Range.Bucket> imple
 
         @Override
         public String getFromAsString() {
-            return ValueFormatter.IPv4.format(getFrom());
+            return Double.isInfinite(getFrom()) ? null : getFrom() == 0 ? null : ValueFormatter.IPv4.format(getFrom());
         }
 
         @Override
         public String getToAsString() {
-            return ValueFormatter.IPv4.format(getTo());
+            return Double.isInfinite(getTo()) ? null : MAX_IP == getTo() ? null : ValueFormatter.IPv4.format(getTo());
         }
     }
 

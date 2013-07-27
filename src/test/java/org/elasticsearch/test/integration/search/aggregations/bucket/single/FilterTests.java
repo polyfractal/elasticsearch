@@ -25,14 +25,13 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.search.aggregations.bucket.single.filter.Filter;
 import org.elasticsearch.search.aggregations.calc.numeric.avg.Avg;
 import org.elasticsearch.test.integration.AbstractSharedClusterTest;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.junit.Before;
+import org.junit.Test;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.index.query.FilterBuilders.termFilter;
 import static org.elasticsearch.search.aggregations.AggregationBuilders.avg;
 import static org.elasticsearch.search.aggregations.AggregationBuilders.filter;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.core.IsNull.notNullValue;
@@ -59,7 +58,7 @@ public class FilterTests extends AbstractSharedClusterTest {
         return 2;
     }
 
-    @BeforeMethod
+    @Before
     public void init() throws Exception {
         createIndex("idx");
         createIndex("idx2");
@@ -125,8 +124,8 @@ public class FilterTests extends AbstractSharedClusterTest {
                             .subAggregation(avg("avg_value")))
                     .execute().actionGet();
 
-            assertThat("expected execution to fail - an attempt to have a context based numeric sub-aggregation, but there is not value source" +
-                    "context which the sub-aggregation can inherit", false);
+            fail("expected execution to fail - an attempt to have a context based numeric sub-aggregation, but there is not value source" +
+                    "context which the sub-aggregation can inherit");
 
         } catch (ElasticSearchException ese) {
         }

@@ -186,7 +186,7 @@ public abstract class AbstractSharedClusterTest extends ElasticsearchTestCase {
         }
     }
 
-    public void createIndexMappedExtended(String name, String type, String... fields) throws IOException {
+    public void createIndexWithMappedType(String name, String type, String... fields) throws IOException {
         XContentBuilder builder = jsonBuilder().startObject().startObject(type).startObject("properties");
         boolean inField = false;
         for (int i = 0; i < fields.length; i++) {

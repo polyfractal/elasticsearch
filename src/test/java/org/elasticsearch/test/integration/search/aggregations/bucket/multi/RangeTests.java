@@ -25,14 +25,11 @@ import org.elasticsearch.search.aggregations.bucket.multi.range.Range;
 import org.elasticsearch.search.aggregations.calc.numeric.avg.Avg;
 import org.elasticsearch.search.aggregations.calc.numeric.sum.Sum;
 import org.elasticsearch.test.integration.AbstractSharedClusterTest;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.junit.Before;
+import org.junit.Test;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
-import static org.elasticsearch.search.aggregations.AggregationBuilders.avg;
-import static org.elasticsearch.search.aggregations.AggregationBuilders.range;
-import static org.elasticsearch.search.aggregations.AggregationBuilders.sum;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.elasticsearch.search.aggregations.AggregationBuilders.*;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.core.IsNull.notNullValue;
 
@@ -58,7 +55,7 @@ public class RangeTests extends AbstractSharedClusterTest {
         return 2;
     }
 
-    @BeforeMethod
+    @Before
     public void init() throws Exception {
         createIndex("idx");
 

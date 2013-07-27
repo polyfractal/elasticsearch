@@ -21,7 +21,7 @@ package org.elasticsearch.test.integration.search.aggregations.calc;
 
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.test.integration.AbstractSharedClusterTest;
-import org.testng.annotations.BeforeMethod;
+import org.junit.Before;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 
@@ -47,7 +47,7 @@ public abstract class AbstractNumericTests extends AbstractSharedClusterTest {
         return 2;
     }
 
-    @BeforeMethod
+    @Before
     public void init() throws Exception {
         createIndex("idx");
         createIndex("idx2");

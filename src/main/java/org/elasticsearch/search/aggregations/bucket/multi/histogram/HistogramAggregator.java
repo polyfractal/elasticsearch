@@ -86,7 +86,7 @@ public class HistogramAggregator extends LongBucketAggregator {
             }
             buckets.add(histogramFactory.createBucket(bucketCollector.key, bucketCollector.docCount, aggregations));
         }
-        CollectionUtil.quickSort(buckets, order.comparator());
+        CollectionUtil.introSort(buckets, order.comparator());
         return histogramFactory.create(name, buckets, order, valuesSource.formatter(), keyed);
     }
 

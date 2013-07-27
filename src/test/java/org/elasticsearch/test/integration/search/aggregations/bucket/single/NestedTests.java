@@ -25,13 +25,12 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.search.aggregations.bucket.single.nested.Nested;
 import org.elasticsearch.search.aggregations.calc.numeric.stats.Stats;
 import org.elasticsearch.test.integration.AbstractSharedClusterTest;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.junit.Before;
+import org.junit.Test;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.search.aggregations.AggregationBuilders.nested;
 import static org.elasticsearch.search.aggregations.AggregationBuilders.stats;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.core.IsNull.notNullValue;
@@ -58,7 +57,7 @@ public class NestedTests extends AbstractSharedClusterTest {
         return 2;
     }
 
-    @BeforeMethod
+    @Before
     public void init() throws Exception {
 
         createIndexMapped("idx", "type", "nested", "nested");
@@ -111,7 +110,7 @@ public class NestedTests extends AbstractSharedClusterTest {
                             .subAggregation(stats("nested_value_stats").field("nested.value")))
                     .execute().actionGet();
 
-            assertThat("expected execution to fail - an attempt to nested facet on non-nested field/path", false);
+            fail("expected execution to fail - an attempt to nested facet on non-nested field/path");
 
         } catch (ElasticSearchException ese) {
         }

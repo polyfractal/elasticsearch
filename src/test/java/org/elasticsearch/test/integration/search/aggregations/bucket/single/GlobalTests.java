@@ -26,13 +26,12 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.aggregations.bucket.single.global.Global;
 import org.elasticsearch.search.aggregations.calc.numeric.stats.Stats;
 import org.elasticsearch.test.integration.AbstractSharedClusterTest;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.junit.Before;
+import org.junit.Test;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.search.aggregations.AggregationBuilders.global;
 import static org.elasticsearch.search.aggregations.AggregationBuilders.stats;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.core.IsNull.notNullValue;
@@ -59,7 +58,7 @@ public class GlobalTests extends AbstractSharedClusterTest {
         return 2;
     }
 
-    @BeforeMethod
+    @Before
     public void init() throws Exception {
         createIndex("idx");
         createIndex("idx2");
@@ -118,8 +117,8 @@ public class GlobalTests extends AbstractSharedClusterTest {
                             .subAggregation(global("inner_global")))
                     .execute().actionGet();
 
-            assertThat("expected to fail executing non-top-level global aggregator. global aggregations are only allowed as top level" +
-                    "aggregations", false);
+            fail("expected to fail executing non-top-level global aggregator. global aggregations are only allowed as top level" +
+                    "aggregations");
 
         } catch (ElasticSearchException ese) {
         }

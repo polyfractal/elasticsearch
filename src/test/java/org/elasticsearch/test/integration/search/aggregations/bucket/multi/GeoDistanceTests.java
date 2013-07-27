@@ -27,15 +27,14 @@ import org.elasticsearch.search.aggregations.bucket.multi.geo.distance.GeoDistan
 import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
 import org.elasticsearch.test.integration.AbstractSharedClusterTest;
 import org.hamcrest.Matchers;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.util.Set;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.search.aggregations.AggregationBuilders.geoDistance;
 import static org.elasticsearch.search.aggregations.AggregationBuilders.terms;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.core.IsNull.notNullValue;
@@ -71,7 +70,7 @@ public class GeoDistanceTests extends AbstractSharedClusterTest {
                 .execute().actionGet();
     }
 
-    @BeforeMethod
+    @Before
     public void init() throws Exception {
         createIndexWithMappedType("idx", "type",
                 "location", "type:geo_point",

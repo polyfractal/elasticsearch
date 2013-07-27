@@ -167,7 +167,7 @@ abstract class AbstractHistogramBase<B extends HistogramBase.Bucket> extends Int
             buckets.add(bucket);
         }
         reduceContext.cacheRecycler().pushLongObjectMap(bucketsByKey);
-        CollectionUtil.quickSort(buckets, order.comparator());
+        CollectionUtil.introSort(buckets, order.comparator());
         reduced.buckets = buckets;
         return reduced;
     }

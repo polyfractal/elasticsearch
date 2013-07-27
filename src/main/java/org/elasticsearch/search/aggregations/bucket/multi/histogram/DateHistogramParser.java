@@ -87,7 +87,7 @@ public class DateHistogramParser implements AggregatorParser {
         Map<String, Object> scriptParams = null;
         boolean multiValued = true;
         boolean keyed = false;
-        InternalOrder order = InternalOrder.KEY_ASC;
+        InternalOrder order = (InternalOrder) Histogram.Order.KEY_ASC;
         String interval = null;
         Chronology chronology = ISOChronology.getInstanceUTC();
         boolean preZoneAdjustLargeInterval = false;
@@ -208,10 +208,10 @@ public class DateHistogramParser implements AggregatorParser {
 
     private static InternalOrder resolveOrder(String key, boolean asc) {
         if ("_key".equals(key) || "_time".equals(key)) {
-            return asc ? HistogramBase.Order.KEY_ASC : HistogramBase.Order.KEY_DESC;
+            return (InternalOrder) (asc ? InternalOrder.KEY_ASC : InternalOrder.KEY_DESC);
         }
         if ("_count".equals(key)) {
-            return asc ? HistogramBase.Order.COUNT_ASC : HistogramBase.Order.COUNT_DESC;
+            return (InternalOrder) (asc ? InternalOrder.COUNT_ASC : InternalOrder.COUNT_DESC);
         }
         int i = key.indexOf('.');
         if (i < 0) {

@@ -26,9 +26,6 @@ import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.ValuesSourceAggregator;
-import org.elasticsearch.search.aggregations.bucket.multi.terms.doubles.DoubleTermsAggregator;
-import org.elasticsearch.search.aggregations.bucket.multi.terms.longs.LongTermsAggregator;
-import org.elasticsearch.search.aggregations.bucket.multi.terms.string.StringTermsAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
@@ -44,13 +41,13 @@ public class TermsAggregatorFactory extends Aggregator.CompoundFactory<Aggregato
 
     private final FieldContext fieldContext;
     private final SearchScript script;
-    private final Terms.Order order;
+    private final InternalOrder order;
     private final int requiredSize;
     private final Terms.ValueType valueType;
     private final boolean multiValued;
     private final String format;
 
-    public TermsAggregatorFactory(String name, FieldContext fieldContext, SearchScript script, boolean multiValued, Terms.Order order,
+    public TermsAggregatorFactory(String name, FieldContext fieldContext, SearchScript script, boolean multiValued, InternalOrder order,
                                   int requiredSize, Terms.ValueType valueType, String format) {
         super(name);
         this.fieldContext = fieldContext;

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.bucket.multi.terms.string;
+package org.elasticsearch.search.aggregations.bucket.multi.terms;
 
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.bytes.BytesArray;
@@ -30,9 +30,6 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.aggregations.AggregationStreams;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
-import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalOrder;
-import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalTerms;
-import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -97,7 +94,7 @@ public class StringTerms extends InternalTerms {
 
     StringTerms() {} // for serialization
 
-    public StringTerms(String name, Order order, int requiredSize, Collection<InternalTerms.Bucket> buckets) {
+    public StringTerms(String name, InternalOrder order, int requiredSize, Collection<InternalTerms.Bucket> buckets) {
         super(name, order, requiredSize, buckets);
     }
 
@@ -117,6 +114,7 @@ public class StringTerms extends InternalTerms {
             buckets.add(new Bucket(in.readText(), in.readVLong(), InternalAggregations.readAggregations(in)));
         }
         this.buckets = buckets;
+        this.bucketMap = null;
     }
 
     @Override

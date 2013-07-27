@@ -37,7 +37,7 @@ public class ScriptBytesValues extends BytesValues implements ScriptValues {
     final InternalIter iter;
     final Iter.Single singleIter = new Iter.Single();
 
-    private int docId;
+    private int docId = -1;
     private Object value;
     private BytesRef scratch = new BytesRef();
 
@@ -69,7 +69,7 @@ public class ScriptBytesValues extends BytesValues implements ScriptValues {
             script.setNextDocId(docId);
             value = script.run();
         }
-        if (value != null) {
+        if (value == null) {
             return false;
         }
 

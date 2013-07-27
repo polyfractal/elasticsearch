@@ -21,43 +21,98 @@ package org.elasticsearch.search.aggregations.bucket.multi.terms;
 
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.search.aggregations.Aggregated;
 
 import java.io.IOException;
+import java.util.Comparator;
 
 /**
  *
  */
-public interface InternalOrder extends Terms.Order {
+class InternalOrder extends Terms.Order {
 
-    byte id();
+    final byte id;
+    final String key;
+    final boolean asc;
+    final Comparator<Terms.Bucket> comparator;
+
+    InternalOrder(byte id, String key, boolean asc, Comparator<Terms.Bucket> comparator) {
+        this.id = id;
+        this.key = key;
+        this.asc = asc;
+        this.comparator = comparator;
+    }
+
+    byte id() {
+        return id;
+    }
+
+    String key() {
+        return key;
+    }
+
+    boolean asc() {
+        return asc;
+    }
+
+    @Override
+    protected Comparator<Terms.Bucket> comparator() {
+        return comparator;
+    }
+
+    @Override
+    public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+        return builder.startObject().field(key, asc ? "asc" : "desc").endObject();
+    }
+
+    static class Aggregation extends InternalOrder {
+
+        static final byte ID = 0;
+
+        Aggregation(String key, boolean asc) {
+            super(ID, key, asc, new Aggregated.Comparator<Terms.Bucket>(key, asc));
+        }
+
+        Aggregation(String aggName, String valueName, boolean asc) {
+            super(ID, key(aggName, valueName), asc, new Aggregated.Comparator<Terms.Bucket>(aggName, valueName, asc));
+        }
+
+        private static String key(String aggName, String valueName) {
+            return (valueName == null) ? aggName : aggName + "." + valueName;
+        }
+
+    }
 
     public static class Streams {
 
-        public static void writeOrder(Terms.Order order, StreamOutput out) throws IOException {
-            out.writeByte(((InternalOrder) order).id());
+        public static void writeOrder(InternalOrder order, StreamOutput out) throws IOException {
+            out.writeByte(order.id());
             if (order instanceof Aggregation) {
-                out.writeBoolean(((Aggregation) order).comparator.asc());
-                out.writeString(((Aggregation) order).comparator.aggName());
-                boolean hasValueName = ((Aggregation) order).comparator.aggName() != null;
+                out.writeBoolean(((Aggregated.Comparator) order.comparator).asc());
+                out.writeString(((Aggregated.Comparator) order.comparator).aggName());
+                boolean hasValueName = ((Aggregated.Comparator) order.comparator).aggName() != null;
                 out.writeBoolean(hasValueName);
                 if (hasValueName) {
-                    out.writeString(((Aggregation) order).comparator.valueName());
+                    out.writeString(((Aggregated.Comparator) order.comparator).valueName());
                 }
             }
         }
 
-        public static Terms.Order readOrder(StreamInput in) throws IOException {
+        public static InternalOrder readOrder(StreamInput in) throws IOException {
             byte id = in.readByte();
-            if (id == 0) {
-                boolean asc = in.readBoolean();
-                String aggName = in.readString();
-                String valueName = null;
-                if (in.readBoolean()) {
-                    valueName = in.readString();
-                }
-                return new Aggregation(aggName, valueName, asc);
+            switch (id) {
+                case 1: return (InternalOrder) Terms.Order.COUNT_DESC;
+                case 2: return (InternalOrder) Terms.Order.COUNT_ASC;
+                case 3: return (InternalOrder) Terms.Order.TERM_DESC;
+                case 4: return (InternalOrder) Terms.Order.TERM_ASC;
+                case 0:
+                    boolean asc = in.readBoolean();
+                    String key = in.readString();
+                    return new InternalOrder.Aggregation(key, asc);
+                default:
+                    throw new RuntimeException("unknown histogram order");
             }
-            return Standard.resolveById(id);
         }
     }
 }

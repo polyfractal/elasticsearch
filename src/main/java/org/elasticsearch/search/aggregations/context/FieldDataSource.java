@@ -121,6 +121,7 @@ public abstract class FieldDataSource implements ReaderContextAware {
 
                 private final SearchScript script;
                 private Iter iter;
+                private final BytesRef scratch = new BytesRef();
 
                 InternalIter(SearchScript script) {
                     this.script = script;
@@ -140,8 +141,8 @@ public abstract class FieldDataSource implements ReaderContextAware {
                 public BytesRef next() {
                     BytesRef scratch = iter.next();
                     script.setNextVar("_value", scratch.utf8ToString());
-                    scratch.copyChars(script.run().toString());
-                    return scratch;
+                    this.scratch.copyChars(script.run().toString());
+                    return this.scratch;
                 }
             }
         }

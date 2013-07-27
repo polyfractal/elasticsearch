@@ -19,15 +19,12 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.terms;
 
-import org.elasticsearch.ElasticSearchIllegalArgumentException;
 import org.elasticsearch.common.text.Text;
 import org.elasticsearch.common.xcontent.ToXContent;
-import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.aggregations.Aggregated;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.Aggregations;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Comparator;
 
@@ -67,169 +64,87 @@ public interface Terms extends Aggregation, Iterable<Terms.Bucket> {
 
     Collection<Bucket> buckets();
 
+    Bucket getByTerm(String term);
+
 
     /**
      *
      */
-    static interface Order extends ToXContent {
+    static abstract class Order implements ToXContent {
 
-        public static enum Standard implements InternalOrder {
-
-            /**
-             * Order by the (higher) count of each term.
-             */
-            COUNT_DESC((byte) 1, new Comparator<Bucket>() {
-
-                @Override
-                public int compare(Bucket o1, Bucket o2) {
-                    long i = o2.getDocCount() - o1.getDocCount();
+        /**
+         * Order by the (higher) count of each term.
+         */
+        public static final Order COUNT_DESC = new InternalOrder((byte) 1, "_count", false, new Comparator<Terms.Bucket>() {
+            @Override
+            public int compare(Terms.Bucket o1, Terms.Bucket o2) {
+                long i = o2.getDocCount() - o1.getDocCount();
+                if (i == 0) {
+                    i = o2.compareTo(o1);
                     if (i == 0) {
-                        i = o2.compareTo(o1);
-                        if (i == 0) {
-                            i = System.identityHashCode(o2) - System.identityHashCode(o1);
-                        }
+                        i = System.identityHashCode(o2) - System.identityHashCode(o1);
                     }
-                    return i > 0 ? 1 : -1;
                 }
-            }, new ToXContent() {
-                @Override
-                public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-                    return builder.startObject().field("_count", "desc").endObject();
-                }
-            }),
-            /**
-             * Order by the (lower) count of each term.
-             */
-            COUNT_ASC((byte) 2, new Comparator<Bucket>() {
-
-                @Override
-                public int compare(Bucket o1, Bucket o2) {
-                    return -COUNT_DESC.comparator().compare(o1, o2);
-                }
-            }, new ToXContent() {
-                @Override
-                public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-                    return builder.startObject().field("_count", "asc").endObject();
-                }
-            }),
-            /**
-             * Order by the terms.
-             */
-            TERM_DESC((byte) 3, new Comparator<Bucket>() {
-
-                @Override
-                public int compare(Bucket o1, Bucket o2) {
-                    return o2.compareTo(o1);
-                }
-            }, new ToXContent() {
-                @Override
-                public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-                    return builder.startObject().field("_term", "desc").endObject();
-                }
-            }),
-            /**
-             * Order by the terms.
-             */
-            TERM_ASC((byte) 4, new Comparator<Bucket>() {
-
-                @Override
-                public int compare(Bucket o1, Bucket o2) {
-                    return -TERM_DESC.comparator().compare(o1, o2);
-                }
-            }, new ToXContent() {
-                @Override
-                public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-                    return builder.startObject().field("_term", "asc").endObject();
-                }
-            });
-
-
-            private final byte id;
-            private final Comparator<Bucket> comparator;
-            private final ToXContent toXContent;
-
-            Standard(byte id, Comparator<Bucket> comparator, ToXContent toXContent) {
-                this.id = id;
-                this.comparator = comparator;
-                this.toXContent = toXContent;
+                return i > 0 ? 1 : -1;
             }
+        });
 
-            public byte id() {
-                return this.id;
-            }
-
-            public Comparator<Bucket> comparator() {
-                return comparator;
-            }
-
-            static Standard resolveById(byte id) {
-                switch (id) {
-                    case 1: return COUNT_DESC;
-                    case 2: return COUNT_ASC;
-                    case 3: return TERM_DESC;
-                    case 4: return TERM_ASC;
-                    default: throw new ElasticSearchIllegalArgumentException("Unknown order type");
-                }
-            }
-
+        /**
+         * Order by the (lower) count of each term.
+         */
+        public static final Order COUNT_ASC = new InternalOrder((byte) 2, "_count", true, new Comparator<Terms.Bucket>() {
 
             @Override
-            public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-                return toXContent.toXContent(builder, params);
+            public int compare(Terms.Bucket o1, Terms.Bucket o2) {
+                return -COUNT_DESC.comparator().compare(o1, o2);
             }
+        });
+
+        /**
+         * Order by the terms.
+         */
+        public static final Order TERM_DESC = new InternalOrder((byte) 3, "_term", false, new Comparator<Terms.Bucket>() {
+
+            @Override
+            public int compare(Terms.Bucket o1, Terms.Bucket o2) {
+                return o2.compareTo(o1);
+            }
+        });
+
+        /**
+         * Order by the terms.
+         */
+        public static final Order TERM_ASC = new InternalOrder((byte) 4, "_term", true, new Comparator<Terms.Bucket>() {
+
+            @Override
+            public int compare(Terms.Bucket o1, Terms.Bucket o2) {
+                return -TERM_DESC.comparator().compare(o1, o2);
+            }
+        });
+
+        /**
+         * Creates a bucket ordering strategy which sorts buckets based on a single-valued calc get
+         *
+         * @param   aggregationName the name of the get
+         * @param   asc             The direction of the order (ascending or descending)
+         */
+        public static InternalOrder aggregation(String aggregationName, boolean asc) {
+            return new InternalOrder.Aggregation(aggregationName, null, asc);
         }
 
-        public static class Aggregation implements InternalOrder {
-
-            public static Aggregation create(String aggregationName, boolean asc) {
-                return new Aggregation(aggregationName, null, asc);
-            }
-
-            public static Aggregation create(String aggregationName, String valueName, boolean asc) {
-                return new Aggregation(aggregationName, valueName, asc);
-            }
-
-            public static Aggregation asc(String aggregationName) {
-                return new Aggregation(aggregationName, null, true);
-            }
-
-            public static Aggregation desc(String aggregationName) {
-                return new Aggregation(aggregationName, null, false);
-            }
-
-            public static Aggregation asc(String aggregationName, String valueName) {
-                return new Aggregation(aggregationName, valueName, true);
-            }
-
-            public static Aggregation desc(String aggregationName, String valueName) {
-                return new Aggregation(aggregationName, valueName, false);
-            }
-
-            final Aggregated.Comparator<Bucket> comparator;
-
-            Aggregation(String aggName, String valueName, boolean asc) {
-                this.comparator = new Aggregated.Comparator<Bucket>(aggName, valueName, asc);
-            }
-
-            @Override
-            public byte id() {
-                return (byte) 0;
-            }
-
-            @Override
-            public Comparator<Bucket> comparator() {
-                return comparator;
-            }
-
-            @Override
-            public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-                String name = comparator.valueName() != null ? comparator.aggName() + "." + comparator.valueName() : comparator.aggName();
-                return builder.startObject().field(name, comparator.asc() ? "asc" : "desc").endObject();
-            }
+        /**
+         * Creates a bucket ordering strategy which sorts buckets based on a multi-valued calc get
+         *
+         * @param   aggregationName the name of the get
+         * @param   valueName       The name of the value of the multi-value get by which the sorting will be applied
+         * @param   asc             The direction of the order (ascending or descending)
+         */
+        public static InternalOrder aggregation(String aggregationName, String valueName, boolean asc) {
+            return new InternalOrder.Aggregation(aggregationName, valueName, asc);
         }
 
 
-        Comparator<Bucket> comparator();
+        protected abstract Comparator<Bucket> comparator();
 
     }
 }

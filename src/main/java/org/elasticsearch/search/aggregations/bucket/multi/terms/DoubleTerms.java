@@ -17,24 +17,24 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.bucket.multi.terms.doubles;
+package org.elasticsearch.search.aggregations.bucket.multi.terms;
 
+import org.elasticsearch.common.collect.BoundedTreeSet;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.text.StringText;
 import org.elasticsearch.common.text.Text;
+import org.elasticsearch.common.trove.ExtTDoubleObjectHashMap;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.aggregations.AggregationStreams;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
-import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalOrder;
-import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalTerms;
-import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatterStreams;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -98,11 +98,11 @@ public class DoubleTerms extends InternalTerms {
 
     DoubleTerms() {} // for serialization
 
-    public DoubleTerms(String name, Order order, int requiredSize, Collection<InternalTerms.Bucket> buckets) {
+    public DoubleTerms(String name, InternalOrder order, int requiredSize, Collection<InternalTerms.Bucket> buckets) {
         this(name, order, null, requiredSize, buckets);
     }
 
-    public DoubleTerms(String name, Order order, ValueFormatter valueFormatter, int requiredSize, Collection<InternalTerms.Bucket> buckets) {
+    public DoubleTerms(String name, InternalOrder order, ValueFormatter valueFormatter, int requiredSize, Collection<InternalTerms.Bucket> buckets) {
         super(name, order, requiredSize, buckets);
         this.valueFormatter = valueFormatter;
     }
@@ -110,6 +110,69 @@ public class DoubleTerms extends InternalTerms {
     @Override
     public Type type() {
         return TYPE;
+    }
+
+    @Override
+    public InternalTerms reduce(ReduceContext reduceContext) {
+        List<InternalAggregation> aggregations = reduceContext.aggregations();
+        if (aggregations.size() == 1) {
+            return (InternalTerms) aggregations.get(0);
+        }
+        InternalTerms reduced = null;
+
+        ExtTDoubleObjectHashMap<List<Bucket>> buckets = reduceContext.cacheRecycler().popDoubleObjectMap();
+        for (InternalAggregation aggregation : aggregations) {
+            InternalTerms terms = (InternalTerms) aggregation;
+            if (terms instanceof UnmappedTerms) {
+                continue;
+            }
+            if (reduced == null) {
+                reduced = terms;
+            }
+            for (Terms.Bucket bucket : terms.buckets) {
+                List<Bucket> existingBuckets = buckets.get(((Bucket) bucket).term);
+                if (existingBuckets == null) {
+                    existingBuckets = new ArrayList<Bucket>(aggregations.size());
+                    buckets.put(((Bucket) bucket).term, existingBuckets);
+                }
+                existingBuckets.add((Bucket) bucket);
+            }
+        }
+
+        if (reduced == null) {
+            // there are only unmapped terms, so we just return the first one (no need to reduce)
+            return (UnmappedTerms) aggregations.get(0);
+        }
+
+        if (requiredSize < BucketPriorityQueue.LIMIT) {
+            BucketPriorityQueue ordered = new BucketPriorityQueue(requiredSize, order.comparator());
+            Object[] internalBuckets = buckets.internalValues();
+            for (int i = 0; i < internalBuckets.length; i++) {
+                if (internalBuckets[i] != null) {
+                    List<InternalTerms.Bucket> sameTermBuckets = (List<InternalTerms.Bucket>) internalBuckets[i];
+                    ordered.insertWithOverflow(sameTermBuckets.get(0).reduce(sameTermBuckets, reduceContext.cacheRecycler()));
+                }
+            }
+            reduceContext.cacheRecycler().pushDoubleObjectMap(buckets);
+            InternalTerms.Bucket[] list = new InternalTerms.Bucket[ordered.size()];
+            for (int i = ordered.size() - 1; i >= 0; i--) {
+                list[i] = (Bucket) ordered.pop();
+            }
+            reduced.buckets = Arrays.asList(list);
+            return reduced;
+        } else {
+            BoundedTreeSet<InternalTerms.Bucket> ordered = new BoundedTreeSet<InternalTerms.Bucket>(order.comparator(), requiredSize);
+            Object[] internalBuckets = buckets.internalValues();
+            for (int i = 0; i < internalBuckets.length; i++) {
+                if (internalBuckets[i] != null) {
+                    List<InternalTerms.Bucket> sameTermBuckets = (List<InternalTerms.Bucket>) internalBuckets[i];
+                    ordered.add(sameTermBuckets.get(0).reduce(sameTermBuckets, reduceContext.cacheRecycler()));
+                }
+            }
+            reduceContext.cacheRecycler().pushDoubleObjectMap(buckets);
+            reduced.buckets = ordered;
+            return reduced;
+        }
     }
 
     @Override
@@ -124,6 +187,7 @@ public class DoubleTerms extends InternalTerms {
             buckets.add(new Bucket(in.readDouble(), in.readVLong(), InternalAggregations.readAggregations(in)));
         }
         this.buckets = buckets;
+        this.bucketMap = null;
     }
 
     @Override

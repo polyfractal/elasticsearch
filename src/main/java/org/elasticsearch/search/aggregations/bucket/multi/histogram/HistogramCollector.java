@@ -91,11 +91,11 @@ class HistogramCollector implements Aggregator.Collector {
             // there's no need to mark buckets as a match on a bucket will always be a single match per doc
             // so we can just collect it
 
-            double value = values.getValue(doc);
+            long value = values.getValue(doc);
             if (!valueSpace.accept(valuesSource.key(), value)) {
                 return;
             }
-            long key = rounding.round((long) value);
+            long key = rounding.round(value);
             BucketCollector bucketCollector = bucketCollectors.get(key);
             if (bucketCollector == null) {
                 bucketCollector = new BucketCollector(key, rounding, valuesSource, factories, aggregator);

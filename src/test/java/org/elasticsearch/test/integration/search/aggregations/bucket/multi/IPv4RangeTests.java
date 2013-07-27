@@ -61,7 +61,7 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
 
     @BeforeMethod
     public void init() throws Exception {
-        createIndexMappedExtended("idx", "type",
+        createIndexWithMappedType("idx", "type",
                 "ip", "type:ip", "ips", "type:ip");
 
         for (int i = 0; i < 255; i++) {

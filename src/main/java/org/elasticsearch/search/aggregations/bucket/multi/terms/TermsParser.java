@@ -25,7 +25,6 @@ import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
-import org.elasticsearch.search.aggregations.bucket.multi.terms.string.StringTerms;
 import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.internal.SearchContext;
 
@@ -99,7 +98,7 @@ public class TermsParser implements AggregatorParser {
             }
         }
 
-        Terms.Order order = resolveOrder(orderKey, orderAsc);
+        InternalOrder order = resolveOrder(orderKey, orderAsc);
         SearchScript searchScript = null;
         if (script != null) {
             searchScript = context.scriptService().search(context.lookup(), scriptLang, script, scriptParams);
@@ -111,25 +110,25 @@ public class TermsParser implements AggregatorParser {
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
         if (mapper == null) {
-            return null; // skipping get on unmapped fields
+            return new UnmappedTermsAggregator.Factory(aggregationName, order, requiredSize);
         }
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
         FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
         return new TermsAggregatorFactory(aggregationName, fieldContext, searchScript, multiValued, order, requiredSize, valueType, format);
     }
 
-    static Terms.Order resolveOrder(String key, boolean asc) {
+    static InternalOrder resolveOrder(String key, boolean asc) {
         if ("_term".equals(key)) {
-            return asc ? Terms.Order.Standard.TERM_ASC : Terms.Order.Standard.TERM_DESC;
+            return (InternalOrder) (asc ? InternalOrder.TERM_ASC : InternalOrder.TERM_DESC);
         }
         if ("_count".equals(key)) {
-            return asc ? Terms.Order.Standard.COUNT_ASC : Terms.Order.Standard.COUNT_DESC;
+            return (InternalOrder) (asc ? InternalOrder.COUNT_ASC : InternalOrder.COUNT_DESC);
         }
         int i = key.indexOf('.');
         if (i < 0) {
-            return Terms.Order.Aggregation.create(key, asc);
+            return Terms.Order.aggregation(key, asc);
         }
-        return Terms.Order.Aggregation.create(key.substring(0, i), key.substring(i+1), asc);
+        return Terms.Order.aggregation(key.substring(0, i), key.substring(i+1), asc);
     }
 
 }

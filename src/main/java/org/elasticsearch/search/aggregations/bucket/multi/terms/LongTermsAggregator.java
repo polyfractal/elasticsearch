@@ -17,19 +17,15 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.bucket.multi.terms.doubles;
+package org.elasticsearch.search.aggregations.bucket.multi.terms;
 
 import com.google.common.collect.ImmutableList;
 import org.elasticsearch.common.collect.BoundedTreeSet;
 import org.elasticsearch.common.collect.ReusableGrowableArray;
-import org.elasticsearch.common.trove.ExtTDoubleObjectHashMap;
-import org.elasticsearch.index.fielddata.DoubleValues;
+import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
+import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.DoubleBucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.multi.terms.BucketPriorityQueue;
-import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalTerms;
-import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
+import org.elasticsearch.search.aggregations.bucket.LongBucketAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
@@ -44,21 +40,21 @@ import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.buil
 /**
  *
  */
-public class DoubleTermsAggregator extends DoubleBucketAggregator {
+public class LongTermsAggregator extends LongBucketAggregator {
 
     private final List<Aggregator.Factory> factories;
-    private final Terms.Order order;
+    private final InternalOrder order;
     private final int requiredSize;
 
-    ExtTDoubleObjectHashMap<BucketCollector> bucketCollectors;
+    final ExtTLongObjectHashMap<BucketCollector> bucketCollectors;
 
-    public DoubleTermsAggregator(String name, List<Aggregator.Factory> factories, NumericValuesSource valuesSource,
-                                 Terms.Order order, int requiredSize, AggregationContext aggregationContext, Aggregator parent) {
+    public LongTermsAggregator(String name, List<Aggregator.Factory> factories, NumericValuesSource valuesSource,
+                               InternalOrder order, int requiredSize, AggregationContext aggregationContext, Aggregator parent) {
         super(name, valuesSource, aggregationContext, parent);
         this.factories = factories;
         this.order = order;
         this.requiredSize = requiredSize;
-        this.bucketCollectors = aggregationContext.cacheRecycler().popDoubleObjectMap();
+        this.bucketCollectors = aggregationContext.cacheRecycler().popLongObjectMap();
     }
 
     @Override
@@ -67,25 +63,25 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
     }
 
     @Override
-    public DoubleTerms buildAggregation() {
-
+    public LongTerms buildAggregation() {
         if (bucketCollectors.isEmpty()) {
-            return new DoubleTerms(name, order, requiredSize, ImmutableList.<InternalTerms.Bucket>of());
+            return new LongTerms(name, order, valuesSource.formatter(), requiredSize, ImmutableList.<InternalTerms.Bucket>of());
         }
 
         if (requiredSize < EntryPriorityQueue.LIMIT) {
             BucketPriorityQueue ordered = new BucketPriorityQueue(requiredSize, order.comparator());
-            for (Object bucketCollector : bucketCollectors.internalValues()) {
-                if (bucketCollector != null) {
-                    ordered.insertWithOverflow(((BucketCollector) bucketCollector).buildBucket());
+            Object[] collectors = bucketCollectors.internalValues();
+            for (int i = 0; i < collectors.length; i++) {
+                if (collectors[i] != null) {
+                    ordered.insertWithOverflow(((BucketCollector) collectors[i]).buildBucket());
                 }
             }
-            aggregationContext.cacheRecycler().pushDoubleObjectMap(bucketCollectors);
+            aggregationContext.cacheRecycler().pushLongObjectMap(bucketCollectors);
             InternalTerms.Bucket[] list = new InternalTerms.Bucket[ordered.size()];
             for (int i = ordered.size() - 1; i >= 0; i--) {
-                list[i] = (DoubleTerms.Bucket) ordered.pop();
+                list[i] = (LongTerms.Bucket) ordered.pop();
             }
-            return new DoubleTerms(name, order, requiredSize, Arrays.asList(list));
+            return new LongTerms(name, order, valuesSource.formatter(), requiredSize, Arrays.asList(list));
         } else {
             BoundedTreeSet<InternalTerms.Bucket> ordered = new BoundedTreeSet<InternalTerms.Bucket>(order.comparator(), requiredSize);
             Object[] collectors = bucketCollectors.internalValues();
@@ -94,8 +90,8 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
                     ordered.add(((BucketCollector) collectors[i]).buildBucket());
                 }
             }
-            aggregationContext.cacheRecycler().pushDoubleObjectMap(bucketCollectors);
-            return new DoubleTerms(name, order, requiredSize, ordered);
+            aggregationContext.cacheRecycler().pushLongObjectMap(bucketCollectors);
+            return new LongTerms(name, order, valuesSource.formatter(), requiredSize, ordered);
         }
     }
 
@@ -106,7 +102,7 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
         @Override
         public void collect(int doc, ValueSpace valueSpace) throws IOException {
 
-            DoubleValues values = valuesSource.doubleValues();
+            LongValues values = valuesSource.longValues();
 
             if (!values.hasValue(doc)) {
                 return;
@@ -114,15 +110,17 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
 
             Object valuesSourceKey = valuesSource.key();
             if (!values.isMultiValued()) {
-                double term = values.getValue(doc);
+                long term = values.getValue(doc);
                 if (!valueSpace.accept(valuesSourceKey, term)) {
                     return;
                 }
+
                 BucketCollector bucket = bucketCollectors.get(term);
                 if (bucket == null) {
-                    bucket = new BucketCollector(term, DoubleTermsAggregator.this);
+                    bucket = new BucketCollector(valuesSource, term, LongTermsAggregator.this);
                     bucketCollectors.put(term, bucket);
                 }
+
                 bucket.collect(doc, valueSpace);
                 return;
             }
@@ -130,24 +128,23 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
             if (matchedBuckets == null) {
                 matchedBuckets = new ReusableGrowableArray<BucketCollector>(BucketCollector.class);
             }
-            populateMatchedBuckets(doc, valuesSourceKey, values, valueSpace);
+            populateMatchingBuckets(doc, valuesSourceKey, values, valueSpace);
             BucketCollector[] mBuckets = matchedBuckets.innerValues();
             for (int i = 0; i < matchedBuckets.size(); i++) {
                 mBuckets[i].collect(doc, valueSpace);
             }
-
         }
 
-        private void populateMatchedBuckets(int doc, Object valuesSourceKey, DoubleValues values, ValueSpace context) {
+        private void populateMatchingBuckets(int doc, Object valuesSourceKey, LongValues values, ValueSpace valueSpace) {
             matchedBuckets.reset();
-            for (DoubleValues.Iter iter = values.getIter(doc); iter.hasNext();) {
-                double term = iter.next();
-                if (!context.accept(valuesSourceKey, term)) {
+            for (LongValues.Iter iter = values.getIter(doc); iter.hasNext();) {
+                long term = iter.next();
+                if (!valueSpace.accept(valuesSourceKey, term)) {
                     continue;
                 }
                 BucketCollector bucket = bucketCollectors.get(term);
                 if (bucket == null) {
-                    bucket = new BucketCollector(term, DoubleTermsAggregator.this);
+                    bucket = new BucketCollector(valuesSource, term, LongTermsAggregator.this);
                     bucketCollectors.put(term, bucket);
                 }
                 matchedBuckets.add(bucket);
@@ -156,37 +153,42 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
 
         @Override
         public void postCollection() {
-            for (Object bucketCollector : bucketCollectors.internalValues()) {
-                if (bucketCollector != null) {
-                    ((BucketCollector) bucketCollector).postCollection();
+            Object[] collectors = bucketCollectors.internalValues();
+            for (int i = 0; i < collectors.length; i++) {
+                if (collectors[i] != null) {
+                    ((BucketCollector) collectors[i]).postCollection();
                 }
             }
         }
     }
 
-    static class BucketCollector extends BucketAggregator.BucketCollector {
+    static class BucketCollector extends LongBucketAggregator.BucketCollector {
 
-        final double term;
-
+        final long term;
         long docCount;
 
-        BucketCollector(double term, DoubleTermsAggregator parent) {
-            super(parent.factories, parent);
+        BucketCollector(NumericValuesSource valuesSource, long term, LongTermsAggregator parent) {
+            super(valuesSource, parent.factories, parent);
             this.term = term;
         }
 
         @Override
-        protected ValueSpace onDoc(int doc, ValueSpace context) throws IOException {
+        protected boolean onDoc(int doc, LongValues values, ValueSpace context) throws IOException {
             docCount++;
-            return context;
+            return true;
+        }
+
+        @Override
+        public boolean accept(long value) {
+            return term == value;
         }
 
         @Override
         protected void postCollection(Aggregator[] aggregators) {
         }
 
-        DoubleTerms.Bucket buildBucket() {
-            return new DoubleTerms.Bucket(term, docCount, buildAggregations(subAggregators));
+        LongTerms.Bucket buildBucket() {
+            return new LongTerms.Bucket(term, docCount, buildAggregations(subAggregators));
         }
     }
 

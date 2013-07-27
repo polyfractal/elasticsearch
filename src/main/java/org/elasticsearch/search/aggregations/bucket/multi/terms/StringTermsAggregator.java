@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.elasticsearch.search.aggregations.bucket.multi.terms.string;
+package org.elasticsearch.search.aggregations.bucket.multi.terms;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.lucene.util.BytesRef;
@@ -27,11 +27,7 @@ import org.elasticsearch.common.lucene.HashedBytesRef;
 import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
 import org.elasticsearch.search.aggregations.bucket.BytesBucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.multi.terms.BucketPriorityQueue;
-import org.elasticsearch.search.aggregations.bucket.multi.terms.InternalTerms;
-import org.elasticsearch.search.aggregations.bucket.multi.terms.Terms;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
@@ -49,13 +45,13 @@ import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.buil
 public class StringTermsAggregator extends BytesBucketAggregator {
 
     private final List<Aggregator.Factory> factories;
-    private final Terms.Order order;
+    private final InternalOrder order;
     private final int requiredSize;
 
     ExtTHashMap<HashedBytesRef, BucketCollector> buckets;
 
     public StringTermsAggregator(String name, List<Aggregator.Factory> factories, ValuesSource valuesSource,
-                                 Terms.Order order, int requiredSize, AggregationContext aggregationContext, Aggregator parent) {
+                                 InternalOrder order, int requiredSize, AggregationContext aggregationContext, Aggregator parent) {
 
         super(name, valuesSource, aggregationContext, parent);
         this.factories = factories;
@@ -126,7 +122,7 @@ public class StringTermsAggregator extends BytesBucketAggregator {
                 BucketCollector bucket = buckets.get(term);
                 if (bucket == null) {
                     term.bytes = values.makeSafe(scratch);
-                    bucket = new BucketCollector(term.bytes, factories, StringTermsAggregator.this);
+                    bucket = new BucketCollector(valuesSource, term.bytes, factories, StringTermsAggregator.this);
                     buckets.put(term, bucket);
                 }
                 bucket.collect(doc, valueSpace);
@@ -158,7 +154,7 @@ public class StringTermsAggregator extends BytesBucketAggregator {
                 BucketCollector bucket = buckets.get(term);
                 if (bucket == null) {
                     term.bytes = values.makeSafe(value);
-                    bucket = new BucketCollector(term.bytes, factories, StringTermsAggregator.this);
+                    bucket = new BucketCollector(valuesSource, term.bytes, factories, StringTermsAggregator.this);
                     buckets.put(term, bucket);
                 }
                 matchedBuckets.add(bucket);
@@ -177,21 +173,26 @@ public class StringTermsAggregator extends BytesBucketAggregator {
         }
     }
 
-    static class BucketCollector extends BucketAggregator.BucketCollector {
+    static class BucketCollector extends BytesBucketAggregator.BucketCollector {
 
         final BytesRef term;
 
         long docCount;
 
-        BucketCollector(BytesRef term, List<Aggregator.Factory> factories, Aggregator aggregator) {
-            super(factories, aggregator);
+        BucketCollector(ValuesSource valuesSource, BytesRef term, List<Aggregator.Factory> factories, Aggregator aggregator) {
+            super(valuesSource, factories, aggregator);
             this.term = term;
         }
 
         @Override
-        protected ValueSpace onDoc(int doc, ValueSpace context) throws IOException {
+        protected boolean onDoc(int doc, BytesValues values, ValueSpace context) throws IOException {
             docCount++;
-            return context;
+            return true;
+        }
+
+        @Override
+        public boolean accept(BytesRef value) {
+            return value.equals(term);
         }
 
         @Override

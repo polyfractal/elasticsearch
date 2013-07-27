@@ -566,7 +566,7 @@ public class HistogramTests extends AbstractSharedClusterTest {
     public void multiValuedField_WithValueScript_WithInheritedSubAggregator() throws Exception {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(histogram("histo").field("values").script("_value + 1").interval(4)
-                    .subAggregation(terms("values").order(Terms.Order.Standard.TERM_ASC)))
+                    .subAggregation(terms("values").order(Terms.Order.TERM_ASC)))
                 .execute().actionGet();
 
         Histogram histo = response.getAggregations().get("histo");

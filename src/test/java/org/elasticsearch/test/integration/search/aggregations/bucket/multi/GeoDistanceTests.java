@@ -73,7 +73,7 @@ public class GeoDistanceTests extends AbstractSharedClusterTest {
 
     @BeforeMethod
     public void init() throws Exception {
-        createIndexMappedExtended("idx", "type",
+        createIndexWithMappedType("idx", "type",
                 "location", "type:geo_point",
                 "city", "type:string", "index:not_analyzed");
 

@@ -19,13 +19,10 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.search.aggregations.Aggregated;
 import org.elasticsearch.search.aggregations.Aggregation;
 
-import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
 
@@ -67,9 +64,9 @@ interface HistogramBase<B extends HistogramBase.Bucket> extends Aggregation, Ite
      */
     static abstract class Order implements ToXContent {
 
-        public static final InternalOrder KEY_ASC = new InternalOrder((byte) 1, "_key", true, new Comparator<Bucket>() {
+        public static final Order KEY_ASC = new InternalOrder((byte) 1, "_key", true, new Comparator<HistogramBase.Bucket>() {
             @Override
-            public int compare(Bucket b1, Bucket b2) {
+            public int compare(HistogramBase.Bucket b1, HistogramBase.Bucket b2) {
                 if (b1.getKey() > b2.getKey()) {
                     return 1;
                 }
@@ -80,16 +77,16 @@ interface HistogramBase<B extends HistogramBase.Bucket> extends Aggregation, Ite
             }
         });
 
-        public static final InternalOrder KEY_DESC = new InternalOrder((byte) 2, "_key", false, new Comparator<Bucket>() {
+        public static final Order KEY_DESC = new InternalOrder((byte) 2, "_key", false, new Comparator<HistogramBase.Bucket>() {
             @Override
-            public int compare(Bucket b1, Bucket b2) {
+            public int compare(HistogramBase.Bucket b1, HistogramBase.Bucket b2) {
                 return -KEY_ASC.comparator().compare(b1, b2);
             }
         });
 
-        public static final InternalOrder COUNT_ASC = new InternalOrder((byte) 3, "_count", true, new Comparator<Bucket>() {
+        public static final Order COUNT_ASC = new InternalOrder((byte) 3, "_count", true, new Comparator<HistogramBase.Bucket>() {
             @Override
-            public int compare(Bucket b1, Bucket b2) {
+            public int compare(HistogramBase.Bucket b1, HistogramBase.Bucket b2) {
                 if (b1.getDocCount() > b2.getDocCount()) {
                     return 1;
                 }
@@ -100,9 +97,10 @@ interface HistogramBase<B extends HistogramBase.Bucket> extends Aggregation, Ite
             }
         });
 
-        public static final InternalOrder COUNT_DESC = new InternalOrder((byte) 4, "_count", false, new Comparator<Bucket>() {
+
+        public static final Order COUNT_DESC = new InternalOrder((byte) 4, "_count", false, new Comparator<HistogramBase.Bucket>() {
             @Override
-            public int compare(Bucket b1, Bucket b2) {
+            public int compare(HistogramBase.Bucket b1, HistogramBase.Bucket b2) {
                 return -COUNT_ASC.comparator().compare(b1, b2);
             }
         });
@@ -133,41 +131,5 @@ interface HistogramBase<B extends HistogramBase.Bucket> extends Aggregation, Ite
          */
         abstract Comparator<Bucket> comparator();
 
-
-        static class Streams {
-
-            /**
-             * Writes the given order to the given output (based on the id of the order).
-             */
-            public static void writeOrder(InternalOrder order, StreamOutput out) throws IOException {
-                out.writeByte(order.id());
-                if (order instanceof InternalOrder.Aggregation) {
-                    out.writeBoolean(order.asc());
-                    out.writeString(order.key());
-                }
-            }
-
-            /**
-             * Reads an order from the given input (based on the id of the order).
-             *
-             * @see Streams#writeOrder(InternalOrder, org.elasticsearch.common.io.stream.StreamOutput)
-             */
-            public static InternalOrder readOrder(StreamInput in) throws IOException {
-                byte id = in.readByte();
-                switch (id) {
-                    case 1: return KEY_ASC;
-                    case 2: return KEY_DESC;
-                    case 3: return COUNT_ASC;
-                    case 4: return COUNT_DESC;
-                    case 0:
-                        boolean asc = in.readBoolean();
-                        String key = in.readString();
-                        return new InternalOrder.Aggregation(key, asc);
-                    default:
-                        throw new RuntimeException("unknown histogram order");
-                }
-            }
-
-        }
     }
 }

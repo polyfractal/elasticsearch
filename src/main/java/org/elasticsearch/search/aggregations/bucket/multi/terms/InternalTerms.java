@@ -19,6 +19,7 @@
 
 package org.elasticsearch.search.aggregations.bucket.multi.terms;
 
+import com.google.common.collect.Maps;
 import org.elasticsearch.cache.recycler.CacheRecycler;
 import org.elasticsearch.common.collect.BoundedTreeSet;
 import org.elasticsearch.common.io.stream.Streamable;
@@ -93,13 +94,14 @@ public abstract class InternalTerms extends InternalAggregation implements Terms
         }
     }
 
-    protected Terms.Order order;
+    protected InternalOrder order;
     protected int requiredSize;
     protected Collection<Bucket> buckets;
+    protected Map<String, Bucket> bucketMap;
 
     protected InternalTerms() {} // for serialization
 
-    protected InternalTerms(String name, Order order, int requiredSize, Collection<Bucket> buckets) {
+    protected InternalTerms(String name, InternalOrder order, int requiredSize, Collection<Bucket> buckets) {
         super(name);
         this.order = order;
         this.requiredSize = requiredSize;
@@ -119,16 +121,33 @@ public abstract class InternalTerms extends InternalAggregation implements Terms
     }
 
     @Override
+    public Terms.Bucket getByTerm(String term) {
+        if (bucketMap == null) {
+            bucketMap = Maps.newHashMapWithExpectedSize(buckets.size());
+            for (Bucket bucket : buckets) {
+                bucketMap.put(bucket.getTerm().string(), bucket);
+            }
+        }
+        return bucketMap.get(term);
+    }
+
+    @Override
     public InternalTerms reduce(ReduceContext reduceContext) {
         List<InternalAggregation> aggregations = reduceContext.aggregations();
         if (aggregations.size() == 1) {
             return (InternalTerms) aggregations.get(0);
         }
-        InternalTerms reduced = (InternalTerms) aggregations.get(0);
+        InternalTerms reduced = null;
 
-        Map<Text, List<InternalTerms.Bucket>> buckets = new HashMap<Text, List<InternalTerms.Bucket>>(reduced.requiredSize);
+        Map<Text, List<InternalTerms.Bucket>> buckets = new HashMap<Text, List<InternalTerms.Bucket>>(requiredSize);
         for (InternalAggregation aggregation : aggregations) {
             InternalTerms terms = (InternalTerms) aggregation;
+            if (terms instanceof UnmappedTerms) {
+                continue;
+            }
+            if (reduced == null) {
+                reduced = terms;
+            }
             for (Bucket bucket : terms.buckets) {
                 List<Bucket> existingBuckets = buckets.get(bucket.getTerm());
                 if (existingBuckets == null) {
@@ -137,6 +156,11 @@ public abstract class InternalTerms extends InternalAggregation implements Terms
                 }
                 existingBuckets.add(bucket);
             }
+        }
+
+        if (reduced == null) {
+            // there are only unmapped terms, so we just return the first one (no need to reduce)
+            return (UnmappedTerms) aggregations.get(0);
         }
 
         if (requiredSize < BucketPriorityQueue.LIMIT) {

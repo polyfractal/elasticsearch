@@ -58,6 +58,24 @@ public class IPv4RangeBuilder extends RangeBuilderBase<IPv4RangeBuilder> {
 
     private static final Pattern MASK_PATTERN = Pattern.compile("[\\.|/]");
 
+    /**
+     * Computes the min & max ip addresses (represented as long values - same way as stored in index) represented by the given CIDR mask
+     * expression. The returned array has the length of 2, where the first entry represents the {@code min} address and the second the {@code max}.
+     * A {@code -1} value for either the {@code min} or the {@code max}, represents an unbounded end. In other words:
+     *
+     * <p>
+     * {@code min == -1 == "0.0.0.0" }
+     * </p>
+     *
+     * and
+     *
+     * <p>
+     * {@code max == -1 == "255.255.255.255" }
+     * </p>
+     *
+     * @param cidr
+     * @return
+     */
     static long[] cidrMaskToMinMax(String cidr) {
         String[] parts = MASK_PATTERN.split(cidr);
         if (parts.length != 5) {
@@ -77,7 +95,7 @@ public class IPv4RangeBuilder extends RangeBuilderBase<IPv4RangeBuilder> {
         }
 
         int to = from + (~mask);
-        long longTo = intIpToLongIp(to) + 1; // we have to +1 the to as the range is non-inclusive on this side
+        long longTo = intIpToLongIp(to) + 1; // we have to +1 the here as the range is non-inclusive on the "to" side
         if (longTo == MAX_IP) {
             longTo = -1;
         }

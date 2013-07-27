@@ -88,7 +88,13 @@ public abstract class DoubleBucketAggregator extends ValuesSourceBucketAggregato
 
         @Override
         public boolean accept(Object valueSourceKey, long value) {
-            return parentValueSpace.accept(valueSourceKey, value);
+            if (!parentValueSpace.accept(valueSourceKey, value)) {
+                return false;
+            }
+            if (valuesSource.key().equals(valueSourceKey)) {
+                return accept((double) value);
+            }
+            return true;
         }
 
         @Override

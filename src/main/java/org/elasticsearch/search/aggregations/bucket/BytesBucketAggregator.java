@@ -54,7 +54,7 @@ public abstract class BytesBucketAggregator extends ValuesSourceBucketAggregator
             super(valuesSource, subAggregators, aggregator);
         }
 
-        protected BucketCollector(BytesValuesSource valuesSource, List<Aggregator.Factory> factories,Aggregator aggregator) {
+        protected BucketCollector(ValuesSource valuesSource, List<Aggregator.Factory> factories,Aggregator aggregator) {
             super(valuesSource, factories, aggregator);
         }
 

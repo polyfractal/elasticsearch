@@ -25,8 +25,8 @@ import org.elasticsearch.common.unit.DistanceUnit;
 import org.elasticsearch.index.fielddata.GeoPointValues;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.GeoPointBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.BucketsAggregator;
+import org.elasticsearch.search.aggregations.bucket.GeoPointBucketsAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
@@ -35,12 +35,12 @@ import org.elasticsearch.search.aggregations.context.geopoints.GeoPointValuesSou
 import java.io.IOException;
 import java.util.List;
 
-import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.buildAggregations;
+import static org.elasticsearch.search.aggregations.bucket.BucketsAggregator.buildAggregations;
 
 /**
  *
  */
-public class GeoDistanceAggregator extends GeoPointBucketAggregator {
+public class GeoDistanceAggregator extends GeoPointBucketsAggregator {
 
     static class DistanceRange {
 
@@ -82,7 +82,7 @@ public class GeoDistanceAggregator extends GeoPointBucketAggregator {
         collectors = new BucketCollector[ranges.size()];
         int i = 0;
         for (DistanceRange range : ranges) {
-            collectors[i++] = new BucketCollector(range, valuesSource, BucketAggregator.createSubAggregators(factories, this), this);
+            collectors[i++] = new BucketCollector(range, valuesSource, BucketsAggregator.createSubAggregators(factories, this), this);
         }
     }
 
@@ -117,7 +117,7 @@ public class GeoDistanceAggregator extends GeoPointBucketAggregator {
         }
     }
 
-    static class BucketCollector extends GeoPointBucketAggregator.BucketCollector {
+    static class BucketCollector extends GeoPointBucketsAggregator.BucketCollector {
 
         private final DistanceRange range;
 
@@ -167,7 +167,7 @@ public class GeoDistanceAggregator extends GeoPointBucketAggregator {
         }
     }
 
-    public static class FieldDataFactory extends GeoPointBucketAggregator.FieldDataFactory<GeoDistanceAggregator> {
+    public static class FieldDataFactory extends GeoPointBucketsAggregator.FieldDataFactory<GeoDistanceAggregator> {
 
         private final List<DistanceRange> ranges;
 
@@ -183,7 +183,7 @@ public class GeoDistanceAggregator extends GeoPointBucketAggregator {
 
     }
 
-    public static class ContextBasedFactory extends GeoPointBucketAggregator.ContextBasedFactory<GeoDistanceAggregator> {
+    public static class ContextBasedFactory extends GeoPointBucketsAggregator.ContextBasedFactory<GeoDistanceAggregator> {
 
         private final List<DistanceRange> ranges;
 

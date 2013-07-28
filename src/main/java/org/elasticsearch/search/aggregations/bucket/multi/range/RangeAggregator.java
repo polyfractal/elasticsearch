@@ -24,7 +24,7 @@ import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.bucket.DoubleBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.DoubleBucketsAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
@@ -35,13 +35,13 @@ import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
 import java.io.IOException;
 import java.util.List;
 
-import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.buildAggregations;
-import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.createSubAggregators;
+import static org.elasticsearch.search.aggregations.bucket.BucketsAggregator.buildAggregations;
+import static org.elasticsearch.search.aggregations.bucket.BucketsAggregator.createSubAggregators;
 
 /**
  *
  */
-public class RangeAggregator extends DoubleBucketAggregator {
+public class RangeAggregator extends DoubleBucketsAggregator {
 
     public static class Range {
 
@@ -133,7 +133,7 @@ public class RangeAggregator extends DoubleBucketAggregator {
         }
     }
 
-    static class BucketCollector extends DoubleBucketAggregator.BucketCollector {
+    static class BucketCollector extends DoubleBucketsAggregator.BucketCollector {
 
         private final Range range;
 
@@ -188,7 +188,7 @@ public class RangeAggregator extends DoubleBucketAggregator {
 
     }
 
-    public static class FieldDataFactory extends DoubleBucketAggregator.FieldDataFactory<RangeAggregator> {
+    public static class FieldDataFactory extends DoubleBucketsAggregator.FieldDataFactory<RangeAggregator> {
 
         private final AbstractRangeBase.Factory rangeFactory;
         private final List<Range> ranges;
@@ -216,7 +216,7 @@ public class RangeAggregator extends DoubleBucketAggregator {
 
     }
 
-    public static class ScriptFactory extends DoubleBucketAggregator.ScriptFactory<RangeAggregator> {
+    public static class ScriptFactory extends DoubleBucketsAggregator.ScriptFactory<RangeAggregator> {
 
         private final AbstractRangeBase.Factory rangeFactory;
         private final List<Range> ranges;
@@ -243,7 +243,7 @@ public class RangeAggregator extends DoubleBucketAggregator {
         }
     }
 
-    public static class ContextBasedFactory extends DoubleBucketAggregator.ContextBasedFactory<RangeAggregator> {
+    public static class ContextBasedFactory extends DoubleBucketsAggregator.ContextBasedFactory<RangeAggregator> {
 
         private final AbstractRangeBase.Factory rangeFactory;
         private final List<Range> ranges;

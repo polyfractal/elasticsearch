@@ -22,7 +22,7 @@ package org.elasticsearch.search.aggregations.bucket.single;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
-import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.BucketsAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 
 import java.util.List;
@@ -30,7 +30,7 @@ import java.util.List;
 /**
  * A bucket aggregator that creates a single bucket
  */
-public abstract class SingleBucketAggregator extends BucketAggregator {
+public abstract class SingleBucketAggregator extends BucketsAggregator {
 
     // since we only have one bucket we can eagerly initialize the sub aggregators
 

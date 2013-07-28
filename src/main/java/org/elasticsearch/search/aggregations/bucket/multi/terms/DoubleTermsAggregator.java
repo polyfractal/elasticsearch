@@ -25,7 +25,7 @@ import org.elasticsearch.common.collect.ReusableGrowableArray;
 import org.elasticsearch.common.trove.ExtTDoubleObjectHashMap;
 import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.bucket.DoubleBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.DoubleBucketsAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
@@ -35,12 +35,12 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.buildAggregations;
+import static org.elasticsearch.search.aggregations.bucket.BucketsAggregator.buildAggregations;
 
 /**
  *
  */
-public class DoubleTermsAggregator extends DoubleBucketAggregator {
+public class DoubleTermsAggregator extends DoubleBucketsAggregator {
 
     private final List<Aggregator.Factory> factories;
     private final InternalOrder order;
@@ -160,7 +160,7 @@ public class DoubleTermsAggregator extends DoubleBucketAggregator {
         }
     }
 
-    static class BucketCollector extends DoubleBucketAggregator.BucketCollector {
+    static class BucketCollector extends DoubleBucketsAggregator.BucketCollector {
 
         final double term;
 

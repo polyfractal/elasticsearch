@@ -32,13 +32,13 @@ import java.util.List;
 /**
  *
  */
-public abstract class ValuesSourceBucketAggregator<VS extends ValuesSource> extends ValuesSourceAggregator<VS> implements ValuesSourceBased {
+public abstract class ValuesSourceBucketsAggregator<VS extends ValuesSource> extends ValuesSourceAggregator<VS> implements ValuesSourceBased {
 
-    public ValuesSourceBucketAggregator(String name,
-                                        VS valuesSource,
-                                        Class<VS> valuesSourceType,
-                                        AggregationContext aggregationContext,
-                                        Aggregator parent) {
+    public ValuesSourceBucketsAggregator(String name,
+                                         VS valuesSource,
+                                         Class<VS> valuesSourceType,
+                                         AggregationContext aggregationContext,
+                                         Aggregator parent) {
 
         super(name, valuesSource, valuesSourceType, aggregationContext, parent);
     }

@@ -32,9 +32,9 @@ import java.util.List;
 /**
  *
  */
-public abstract class BucketAggregator extends Aggregator {
+public abstract class BucketsAggregator extends Aggregator {
 
-    protected BucketAggregator(String name, AggregationContext aggregationContext, Aggregator parent) {
+    protected BucketsAggregator(String name, AggregationContext aggregationContext, Aggregator parent) {
         super(name, aggregationContext, parent);
     }
 

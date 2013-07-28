@@ -22,9 +22,9 @@ package org.elasticsearch.search.aggregations.bucket.single.missing;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.InternalAggregations;
-import org.elasticsearch.search.aggregations.bucket.BytesBucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.single.SingleBytesBucketAggregator;
+import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.bucket.BucketsAggregator;
+import org.elasticsearch.search.aggregations.bucket.BytesBucketsAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
@@ -37,26 +37,29 @@ import java.util.List;
 /**
  *
  */
-public class MissingAggregator extends SingleBytesBucketAggregator {
+public class MissingAggregator extends BytesBucketsAggregator {
+
+    private final Aggregator[] subAggregators;
 
     long docCount;
 
     public MissingAggregator(String name, List<Aggregator.Factory> factories, ValuesSource valuesSource,
                              AggregationContext aggregationContext, Aggregator parent) {
-        super(name, factories, valuesSource, aggregationContext, parent);
+        super(name, valuesSource, aggregationContext, parent);
+        subAggregators = BucketsAggregator.createSubAggregators(factories, this);
     }
 
     @Override
-    public Collector collector(Aggregator[] aggregators) {
-        return new Collector(valuesSource, aggregators);
+    public Aggregator.Collector collector() {
+        return new Collector(valuesSource, subAggregators);
     }
 
     @Override
-    public InternalMissing buildAggregation(InternalAggregations aggregations) {
-        return new InternalMissing(name, docCount, aggregations);
+    public InternalAggregation buildAggregation() {
+        return new InternalMissing(name, docCount, BucketsAggregator.buildAggregations(subAggregators));
     }
 
-    class Collector extends BytesBucketAggregator.BucketCollector {
+    class Collector extends BytesBucketsAggregator.BucketCollector {
 
         private long docCount;
 

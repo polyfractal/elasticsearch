@@ -21,13 +21,13 @@ package org.elasticsearch.search.aggregations.bucket.multi.terms;
 
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.bucket.BucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.BucketsAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 
 /**
  *
  */
-public class UnmappedTermsAggregator extends BucketAggregator {
+public class UnmappedTermsAggregator extends BucketsAggregator {
 
     private final InternalOrder order;
     private final int requiredSize;

@@ -27,7 +27,7 @@ import org.elasticsearch.common.lucene.HashedBytesRef;
 import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.bucket.BytesBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.BytesBucketsAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
@@ -37,12 +37,12 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.buildAggregations;
+import static org.elasticsearch.search.aggregations.bucket.BucketsAggregator.buildAggregations;
 
 /**
  *
  */
-public class StringTermsAggregator extends BytesBucketAggregator {
+public class StringTermsAggregator extends BytesBucketsAggregator {
 
     private final List<Aggregator.Factory> factories;
     private final InternalOrder order;
@@ -173,7 +173,7 @@ public class StringTermsAggregator extends BytesBucketAggregator {
         }
     }
 
-    static class BucketCollector extends BytesBucketAggregator.BucketCollector {
+    static class BucketCollector extends BytesBucketsAggregator.BucketCollector {
 
         final BytesRef term;
 

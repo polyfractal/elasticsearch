@@ -22,7 +22,7 @@ package org.elasticsearch.search.aggregations.bucket;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.inject.internal.Nullable;
-import org.elasticsearch.index.fielddata.DoubleValues;
+import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
@@ -38,46 +38,57 @@ import java.util.List;
 /**
  *
  */
-public abstract class DoubleBucketAggregator extends ValuesSourceBucketAggregator<NumericValuesSource> {
+public abstract class LongBucketsAggregator extends ValuesSourceBucketsAggregator<NumericValuesSource> {
 
-    protected DoubleBucketAggregator(String name,
-                                     NumericValuesSource valuesSource,
-                                     AggregationContext aggregationContext,
-                                     Aggregator parent) {
+    public LongBucketsAggregator(String name,
+                                 NumericValuesSource valuesSource,
+                                 AggregationContext aggregationContext,
+                                 Aggregator parent) {
 
         super(name, valuesSource, NumericValuesSource.class, aggregationContext, parent);
     }
 
-    public static abstract class BucketCollector extends ValuesSourceBucketAggregator.BucketCollector<NumericValuesSource> implements ValueSpace {
+    public static abstract class BucketCollector extends ValuesSourceBucketsAggregator.BucketCollector<NumericValuesSource> implements ValueSpace {
 
-        private ValueSpace parentValueSpace;
+        private ValueSpace parentContext;
 
         protected BucketCollector(NumericValuesSource valuesSource, Aggregator[] subAggregators, Aggregator aggregator) {
             super(valuesSource, subAggregators, aggregator);
         }
 
-        protected BucketCollector(NumericValuesSource valuesSource, List<Aggregator.Factory> factories, Aggregator parent) {
+        protected BucketCollector(NumericValuesSource valuesSource, List<Factory> factories, Aggregator parent) {
             super(valuesSource, factories, parent);
         }
 
         @Override
-        protected final ValueSpace onDoc(int doc, ValueSpace valueSpace) throws IOException {
-            DoubleValues values = valuesSource.doubleValues();
-            if (!onDoc(doc, values, valueSpace)) {
+        protected final ValueSpace onDoc(int doc, ValueSpace context) throws IOException {
+            LongValues values = valuesSource.longValues();
+            if (!onDoc(doc, values, context)) {
                 return null;
             }
             if (values.isMultiValued()) {
-                parentValueSpace = valueSpace;
+                parentContext = context;
                 return this;
             }
-            return valueSpace;
+            return context;
         }
 
-        protected abstract boolean onDoc(int doc, DoubleValues values, ValueSpace context) throws IOException;
+        protected abstract boolean onDoc(int doc, LongValues values, ValueSpace context) throws IOException;
 
         @Override
         public boolean accept(Object valueSourceKey, double value) {
-            if (!parentValueSpace.accept(valueSourceKey, value)) {
+            if (!parentContext.accept(valueSourceKey, value)) {
+                return false;
+            }
+            if (valuesSource.key().equals(valueSourceKey)) {
+                return accept((long) value);
+            }
+            return true;
+        }
+
+        @Override
+        public boolean accept(Object valueSourceKey, long value) {
+            if (!parentContext.accept(valueSourceKey, value)) {
                 return false;
             }
             if (valuesSource.key().equals(valueSourceKey)) {
@@ -87,30 +98,19 @@ public abstract class DoubleBucketAggregator extends ValuesSourceBucketAggregato
         }
 
         @Override
-        public boolean accept(Object valueSourceKey, long value) {
-            if (!parentValueSpace.accept(valueSourceKey, value)) {
-                return false;
-            }
-            if (valuesSource.key().equals(valueSourceKey)) {
-                return accept((double) value);
-            }
-            return true;
-        }
-
-        @Override
         public boolean accept(Object valueSourceKey, GeoPoint value) {
-            return parentValueSpace.accept(valueSourceKey, value);
+            return parentContext.accept(valueSourceKey, value);
         }
 
         @Override
         public boolean accept(Object valueSourceKey, BytesRef value) {
-            return parentValueSpace.accept(valueSourceKey, value);
+            return parentContext.accept(valueSourceKey, value);
         }
 
-        public abstract boolean accept(double value);
+        public abstract boolean accept(long value);
     }
 
-    protected abstract static class FieldDataFactory<A extends DoubleBucketAggregator> extends CompoundFactory<A> {
+    protected abstract static class FieldDataFactory<A extends LongBucketsAggregator> extends CompoundFactory<A> {
 
         private final FieldContext fieldContext;
         private final SearchScript valueScript;
@@ -130,7 +130,7 @@ public abstract class DoubleBucketAggregator extends ValuesSourceBucketAggregato
         }
 
         @Override
-        public A create(AggregationContext aggregationContext, Aggregator parent) {
+        public final A create(AggregationContext aggregationContext, Aggregator parent) {
             NumericValuesSource source = aggregationContext.numericField(fieldContext, valueScript, formatter, parser);
             return create(source, aggregationContext, parent);
         }
@@ -138,7 +138,7 @@ public abstract class DoubleBucketAggregator extends ValuesSourceBucketAggregato
         protected abstract A create(NumericValuesSource source, AggregationContext aggregationContext, Aggregator parent);
     }
 
-    protected abstract static class ScriptFactory<A extends DoubleBucketAggregator> extends CompoundFactory<A> {
+    protected abstract static class ScriptFactory<A extends LongBucketsAggregator> extends CompoundFactory<A> {
 
         private final SearchScript script;
         private final boolean multiValued;
@@ -161,7 +161,7 @@ public abstract class DoubleBucketAggregator extends ValuesSourceBucketAggregato
         protected abstract A create(NumericValuesSource source, AggregationContext aggregationContext, Aggregator parent);
     }
 
-    protected abstract static class ContextBasedFactory<A extends DoubleBucketAggregator> extends CompoundFactory<A> {
+    protected abstract static class ContextBasedFactory<A extends LongBucketsAggregator> extends CompoundFactory<A> {
 
         protected ContextBasedFactory(String name) {
             super(name);

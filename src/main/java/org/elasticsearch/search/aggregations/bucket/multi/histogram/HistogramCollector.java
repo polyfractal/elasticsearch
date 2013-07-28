@@ -24,7 +24,7 @@ import org.elasticsearch.common.collect.ReusableGrowableArray;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.bucket.LongBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.LongBucketsAggregator;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 
@@ -37,7 +37,7 @@ import java.util.List;
 class HistogramCollector implements Aggregator.Collector {
 
     final List<Aggregator.Factory> factories;
-    final LongBucketAggregator aggregator;
+    final LongBucketsAggregator aggregator;
     final ExtTLongObjectHashMap<BucketCollector> bucketCollectors;
     final Rounding rounding;
 
@@ -54,7 +54,7 @@ class HistogramCollector implements Aggregator.Collector {
      * @param valuesSource      The values source on which this aggregator works
      * @param rounding          The rounding strategy by which the get will bucket documents
      */
-    HistogramCollector(LongBucketAggregator aggregator,
+    HistogramCollector(LongBucketsAggregator aggregator,
                        List<Aggregator.Factory> factories,
                        NumericValuesSource valuesSource,
                        Rounding rounding,
@@ -151,7 +151,7 @@ class HistogramCollector implements Aggregator.Collector {
      * A collector for a histogram bucket. This collector counts the number of documents that fall into it,
      * but also serves as the get context for all the sub addAggregation it contains.
      */
-    static class BucketCollector extends LongBucketAggregator.BucketCollector {
+    static class BucketCollector extends LongBucketsAggregator.BucketCollector {
 
         // hacky, but needed for performance. We use this in the #findMatchedBuckets method, to keep track of the buckets
         // we already matched (we don't want to pick up the same bucket twice). An alternative for this hack would have

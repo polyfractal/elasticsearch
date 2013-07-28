@@ -25,7 +25,7 @@ import org.elasticsearch.common.collect.ReusableGrowableArray;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.bucket.LongBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.LongBucketsAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
@@ -35,12 +35,12 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.elasticsearch.search.aggregations.bucket.BucketAggregator.buildAggregations;
+import static org.elasticsearch.search.aggregations.bucket.BucketsAggregator.buildAggregations;
 
 /**
  *
  */
-public class LongTermsAggregator extends LongBucketAggregator {
+public class LongTermsAggregator extends LongBucketsAggregator {
 
     private final List<Aggregator.Factory> factories;
     private final InternalOrder order;
@@ -162,7 +162,7 @@ public class LongTermsAggregator extends LongBucketAggregator {
         }
     }
 
-    static class BucketCollector extends LongBucketAggregator.BucketCollector {
+    static class BucketCollector extends LongBucketsAggregator.BucketCollector {
 
         final long term;
         long docCount;

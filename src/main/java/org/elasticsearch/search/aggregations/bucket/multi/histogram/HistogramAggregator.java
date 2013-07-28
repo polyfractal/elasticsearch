@@ -26,7 +26,7 @@ import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.bucket.LongBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.LongBucketsAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
@@ -39,7 +39,7 @@ import java.util.List;
 /**
  *
  */
-public class HistogramAggregator extends LongBucketAggregator {
+public class HistogramAggregator extends LongBucketsAggregator {
 
     private final List<Aggregator.Factory> factories;
     private final Rounding rounding;
@@ -90,7 +90,7 @@ public class HistogramAggregator extends LongBucketAggregator {
         return histogramFactory.create(name, buckets, order, valuesSource.formatter(), keyed);
     }
 
-    public static class FieldDataFactory extends LongBucketAggregator.FieldDataFactory<HistogramAggregator> {
+    public static class FieldDataFactory extends LongBucketsAggregator.FieldDataFactory<HistogramAggregator> {
 
         private final Rounding rounding;
         private final InternalOrder order;
@@ -120,7 +120,7 @@ public class HistogramAggregator extends LongBucketAggregator {
 
     }
 
-    public static class ScriptFactory extends LongBucketAggregator.ScriptFactory<HistogramAggregator> {
+    public static class ScriptFactory extends LongBucketsAggregator.ScriptFactory<HistogramAggregator> {
 
         private final Rounding rounding;
         private final InternalOrder order;
@@ -152,7 +152,7 @@ public class HistogramAggregator extends LongBucketAggregator {
 
     }
 
-    public static class ContextBasedFactory extends LongBucketAggregator.ContextBasedFactory<HistogramAggregator> {
+    public static class ContextBasedFactory extends LongBucketsAggregator.ContextBasedFactory<HistogramAggregator> {
 
         private final Rounding rounding;
         private final InternalOrder order;

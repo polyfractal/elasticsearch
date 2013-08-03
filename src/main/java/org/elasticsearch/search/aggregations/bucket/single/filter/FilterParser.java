@@ -21,6 +21,7 @@ package org.elasticsearch.search.aggregations.bucket.single.filter;
 
 import org.apache.lucene.search.Filter;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.index.query.ParsedFilter;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
 import org.elasticsearch.search.internal.SearchContext;
@@ -39,8 +40,8 @@ public class FilterParser implements AggregatorParser {
 
     @Override
     public Aggregator.Factory parse(String aggregationName, XContentParser parser, SearchContext context) throws IOException {
-        Filter filter = context.queryParserService().parseInnerFilter(parser);
-        return new FilterAggregator.Factory(aggregationName, filter);
+        ParsedFilter filter = context.queryParserService().parseInnerFilter(parser);
+        return new FilterAggregator.Factory(aggregationName, filter.filter());
     }
 
 }

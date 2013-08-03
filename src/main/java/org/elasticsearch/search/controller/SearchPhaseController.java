@@ -418,10 +418,10 @@ public class SearchPhaseController extends AbstractComponent {
 
         // merge addAggregation
         InternalAggregations aggregations = null;
-        if (!queryResults.asList().isEmpty()) {
-            if (querySearchResult.aggregations() != null && querySearchResult.aggregations().asList() != null) {
-                List<InternalAggregations> aggregationsList = new ArrayList<InternalAggregations>(queryResults.length());
-                for (AtomicArray.Entry<? extends QuerySearchResultProvider> entry : queryResults.asList()) {
+        if (!queryResults.isEmpty()) {
+            if (firstResult.aggregations() != null && firstResult.aggregations().asList() != null) {
+                List<InternalAggregations> aggregationsList = new ArrayList<InternalAggregations>(queryResults.size());
+                for (AtomicArray.Entry<? extends QuerySearchResultProvider> entry : queryResults) {
                     aggregationsList.add((InternalAggregations) entry.value.queryResult().aggregations());
                 }
                 aggregations = InternalAggregations.reduce(aggregationsList, cacheRecycler);

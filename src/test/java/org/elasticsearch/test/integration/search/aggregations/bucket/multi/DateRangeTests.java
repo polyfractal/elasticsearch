@@ -19,6 +19,7 @@
 
 package org.elasticsearch.test.integration.search.aggregations.bucket.multi;
 
+import org.apache.lucene.util.LuceneTestCase;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.search.aggregations.bucket.multi.range.date.DateRange;

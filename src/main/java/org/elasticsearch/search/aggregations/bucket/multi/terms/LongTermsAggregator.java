@@ -183,10 +183,6 @@ public class LongTermsAggregator extends LongBucketsAggregator {
             return term == value;
         }
 
-        @Override
-        protected void postCollection(Aggregator[] aggregators) {
-        }
-
         LongTerms.Bucket buildBucket() {
             return new LongTerms.Bucket(term, docCount, buildAggregations(subAggregators));
         }

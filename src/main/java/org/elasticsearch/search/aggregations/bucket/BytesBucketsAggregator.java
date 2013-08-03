@@ -59,16 +59,16 @@ public abstract class BytesBucketsAggregator extends ValuesSourceBucketsAggregat
         }
 
         @Override
-        protected final ValueSpace onDoc(int doc, ValueSpace context) throws IOException {
+        protected final ValueSpace onDoc(int doc, ValueSpace valueSpace) throws IOException {
             BytesValues values = valuesSource.bytesValues();
-            if (!onDoc(doc, values, context)) {
+            if (!onDoc(doc, values, valueSpace)) {
                 return null;
             }
             if (values.isMultiValued()) {
-                parentContext = context;
+                parentContext = valueSpace;
                 return this;
             }
-            return context;
+            return valueSpace;
         }
 
         protected abstract boolean onDoc(int doc, BytesValues values, ValueSpace context) throws IOException;

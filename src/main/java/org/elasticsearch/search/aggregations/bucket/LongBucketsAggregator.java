@@ -36,7 +36,7 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- *
+ * A value source based aggregator which can aggregate buckets based on {@code long} value types.
  */
 public abstract class LongBucketsAggregator extends ValuesSourceBucketsAggregator<NumericValuesSource> {
 
@@ -61,16 +61,16 @@ public abstract class LongBucketsAggregator extends ValuesSourceBucketsAggregato
         }
 
         @Override
-        protected final ValueSpace onDoc(int doc, ValueSpace context) throws IOException {
+        protected final ValueSpace onDoc(int doc, ValueSpace valueSpace) throws IOException {
             LongValues values = valuesSource.longValues();
-            if (!onDoc(doc, values, context)) {
+            if (!onDoc(doc, values, valueSpace)) {
                 return null;
             }
             if (values.isMultiValued()) {
-                parentContext = context;
+                parentContext = valueSpace;
                 return this;
             }
-            return context;
+            return valueSpace;
         }
 
         protected abstract boolean onDoc(int doc, LongValues values, ValueSpace context) throws IOException;

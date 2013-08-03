@@ -77,7 +77,7 @@ public class MissingAggregator extends BytesBucketsAggregator {
         }
 
         @Override
-        protected void postCollection(Aggregator[] aggregators) {
+        protected void doPostCollection() {
             MissingAggregator.this.docCount = docCount;
         }
 

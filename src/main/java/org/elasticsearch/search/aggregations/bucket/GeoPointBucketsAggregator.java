@@ -60,16 +60,16 @@ public abstract class GeoPointBucketsAggregator extends ValuesSourceBucketsAggre
 
 
         @Override
-        protected final ValueSpace onDoc(int doc, ValueSpace context) throws IOException {
+        protected final ValueSpace onDoc(int doc, ValueSpace valueSpace) throws IOException {
             GeoPointValues values = valuesSource.values();
-            if (!onDoc(doc, values, context)) {
+            if (!onDoc(doc, values, valueSpace)) {
                 return null;
             }
             if (values.isMultiValued()) {
-                parentContext = context;
+                parentContext = valueSpace;
                 return this;
             }
-            return context;
+            return valueSpace;
         }
 
         /**

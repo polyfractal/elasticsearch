@@ -174,10 +174,6 @@ public class RangeAggregator extends DoubleBucketsAggregator {
         }
 
         @Override
-        protected void postCollection(Aggregator[] aggregators) {
-        }
-
-        @Override
         public boolean accept(double value) {
             return range.matches(value);
         }

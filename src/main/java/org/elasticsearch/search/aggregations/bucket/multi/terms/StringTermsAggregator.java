@@ -195,10 +195,6 @@ public class StringTermsAggregator extends BytesBucketsAggregator {
             return value.equals(term);
         }
 
-        @Override
-        protected void postCollection(Aggregator[] aggregators) {
-        }
-
         StringTerms.Bucket buildBucket() {
             return new StringTerms.Bucket(term, docCount, buildAggregations(subAggregators));
         }

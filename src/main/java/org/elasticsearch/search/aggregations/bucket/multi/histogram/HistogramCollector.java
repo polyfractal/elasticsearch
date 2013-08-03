@@ -177,10 +177,6 @@ class HistogramCollector implements Aggregator.Collector {
         }
 
         @Override
-        protected void postCollection(Aggregator[] aggregators) {
-        }
-
-        @Override
         public boolean accept(long value) {
             return this.key == rounding.round(value);
         }

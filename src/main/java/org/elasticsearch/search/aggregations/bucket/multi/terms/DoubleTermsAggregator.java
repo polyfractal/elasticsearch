@@ -182,10 +182,6 @@ public class DoubleTermsAggregator extends DoubleBucketsAggregator {
             return term == value;
         }
 
-        @Override
-        protected void postCollection(Aggregator[] aggregators) {
-        }
-
         DoubleTerms.Bucket buildBucket() {
             return new DoubleTerms.Bucket(term, docCount, buildAggregations(subAggregators));
         }

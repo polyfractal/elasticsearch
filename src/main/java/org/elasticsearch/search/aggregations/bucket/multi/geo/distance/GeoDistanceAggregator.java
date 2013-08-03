@@ -154,10 +154,6 @@ public class GeoDistanceAggregator extends GeoPointBucketsAggregator {
         }
 
         @Override
-        protected void postCollection(Aggregator[] aggregators) {
-        }
-
-        @Override
         public boolean accept(GeoPoint value) {
             return range.matches(value);
         }

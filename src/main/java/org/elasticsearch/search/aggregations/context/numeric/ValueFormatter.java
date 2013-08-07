@@ -24,6 +24,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Streamable;
 import org.elasticsearch.common.joda.FormatDateTimeFormatter;
 import org.elasticsearch.common.joda.Joda;
+import org.elasticsearch.index.mapper.core.DateFieldMapper;
 import org.elasticsearch.index.mapper.ip.IpFieldMapper;
 
 import java.io.IOException;
@@ -95,6 +96,8 @@ public interface ValueFormatter extends Streamable {
      * A time formatter which is based on date/time format.
      */
     public static class DateTime implements ValueFormatter {
+
+        public static final ValueFormatter DEFAULT = new ValueFormatter.DateTime(DateFieldMapper.Defaults.DATE_TIME_FORMATTER);
 
         static final byte ID = 2;
 

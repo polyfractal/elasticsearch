@@ -23,15 +23,13 @@ import org.apache.lucene.util.CollectionUtil;
 import org.elasticsearch.common.inject.internal.Nullable;
 import org.elasticsearch.common.rounding.Rounding;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
-import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.bucket.LongBucketsAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
-import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -69,7 +67,7 @@ public class HistogramAggregator extends LongBucketsAggregator {
 
     @Override
     public Collector collector() {
-        return new HistogramCollector(this, factories, valuesSource, rounding, collectors);
+        return valuesSource != null ? new HistogramCollector(this, factories, valuesSource, rounding, collectors) : null;
     }
 
     @Override
@@ -87,26 +85,23 @@ public class HistogramAggregator extends LongBucketsAggregator {
             buckets.add(histogramFactory.createBucket(bucketCollector.key, bucketCollector.docCount, aggregations));
         }
         CollectionUtil.introSort(buckets, order.comparator());
-        return histogramFactory.create(name, buckets, order, valuesSource.formatter(), keyed);
+
+        // value source will be null for unmapped fields
+        ValueFormatter formatter = valuesSource != null ? valuesSource.formatter() : null;
+
+        return histogramFactory.create(name, buckets, order, formatter, keyed);
     }
 
-    public static class FieldDataFactory extends LongBucketsAggregator.FieldDataFactory<HistogramAggregator> {
+    public static class Factory extends CompoundFactory<NumericValuesSource> {
 
         private final Rounding rounding;
         private final InternalOrder order;
         private final boolean keyed;
         private final AbstractHistogramBase.Factory histogramFactory;
 
-        public FieldDataFactory(String name,
-                                FieldContext fieldContext,
-                                SearchScript valueScript,
-                                Rounding rounding,
-                                InternalOrder order,
-                                boolean keyed,
-                                ValueFormatter formatter,
-                                AbstractHistogramBase.Factory histogramFactory) {
-
-            super(name, fieldContext, valueScript, formatter, null);
+        public Factory(String name, ValuesSourceConfig<NumericValuesSource> valueSourceConfig,
+                       Rounding rounding, InternalOrder order, boolean keyed, AbstractHistogramBase.Factory histogramFactory) {
+            super(name, valueSourceConfig);
             this.rounding = rounding;
             this.order = order;
             this.keyed = keyed;
@@ -114,66 +109,13 @@ public class HistogramAggregator extends LongBucketsAggregator {
         }
 
         @Override
-        protected HistogramAggregator create(NumericValuesSource source, AggregationContext aggregationContext, Aggregator parent) {
-            return new HistogramAggregator(name, factories, rounding, order, keyed, source, histogramFactory, aggregationContext, parent);
-        }
-
-    }
-
-    public static class ScriptFactory extends LongBucketsAggregator.ScriptFactory<HistogramAggregator> {
-
-        private final Rounding rounding;
-        private final InternalOrder order;
-        private final boolean keyed;
-        private final AbstractHistogramBase.Factory histogramFactory;
-
-        public ScriptFactory(String name,
-                             SearchScript script,
-                             boolean multiValued,
-                             Rounding rounding,
-                             InternalOrder order,
-                             boolean keyed,
-                             ValueFormatter formatter,
-                             ValueParser parser,
-                             AbstractHistogramBase.Factory histogramFactory) {
-
-            super(name, script, multiValued, formatter, parser);
-            this.rounding = rounding;
-            this.order = order;
-            this.keyed = keyed;
-            this.histogramFactory = histogramFactory;
-        }
-
-
-        @Override
-        protected HistogramAggregator create(NumericValuesSource source, AggregationContext aggregationContext, Aggregator parent) {
-            return new HistogramAggregator(name, factories, rounding, order, keyed, source, histogramFactory, aggregationContext, parent);
-        }
-
-    }
-
-    public static class ContextBasedFactory extends LongBucketsAggregator.ContextBasedFactory<HistogramAggregator> {
-
-        private final Rounding rounding;
-        private final InternalOrder order;
-        private final boolean keyed;
-        private final AbstractHistogramBase.Factory histogramFactory;
-
-        public ContextBasedFactory(String name,
-                                   Rounding rounding,
-                                   InternalOrder order,
-                                   boolean keyed,
-                                   AbstractHistogramBase.Factory histogramFactory) {
-            super(name);
-            this.rounding = rounding;
-            this.order = order;
-            this.keyed = keyed;
-            this.histogramFactory = histogramFactory;
-        }
-
-        @Override
-        public HistogramAggregator create(AggregationContext aggregationContext, Aggregator parent) {
+        protected HistogramAggregator createUnmapped(AggregationContext aggregationContext, Aggregator parent) {
             return new HistogramAggregator(name, factories, rounding, order, keyed, null, histogramFactory, aggregationContext, parent);
+        }
+
+        @Override
+        protected HistogramAggregator create(NumericValuesSource valuesSource, AggregationContext aggregationContext, Aggregator parent) {
+            return new HistogramAggregator(name, factories, rounding, order, keyed, valuesSource, histogramFactory, aggregationContext, parent);
         }
     }
 }

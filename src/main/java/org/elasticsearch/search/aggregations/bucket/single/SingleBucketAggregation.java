@@ -30,7 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- *
+ * A base class for all the single bucket aggregations.
  */
 @SuppressWarnings("unchecked")
 public abstract class SingleBucketAggregation<B extends SingleBucketAggregation<B>> extends InternalAggregation {
@@ -40,10 +40,13 @@ public abstract class SingleBucketAggregation<B extends SingleBucketAggregation<
 
     protected SingleBucketAggregation() {} // for serialization
 
-    protected SingleBucketAggregation(String name, long docCount, List<InternalAggregation> aggregations) {
-        this(name, docCount, new InternalAggregations(aggregations));
-    }
-
+    /**
+     * Creates a single bucket aggregation.
+     *
+     * @param name          The aggregation name.
+     * @param docCount      The document count in the single bucket.
+     * @param aggregations  The already built sub-aggregations that are associated with the bucket.
+     */
     protected SingleBucketAggregation(String name, long docCount, InternalAggregations aggregations) {
         super(name);
         this.docCount = docCount;

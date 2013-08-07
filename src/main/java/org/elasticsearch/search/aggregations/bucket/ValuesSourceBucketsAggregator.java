@@ -43,11 +43,10 @@ public abstract class ValuesSourceBucketsAggregator<VS extends ValuesSource> ext
 
     public ValuesSourceBucketsAggregator(String name,
                                          VS valuesSource,
-                                         Class<VS> valuesSourceType,
                                          AggregationContext aggregationContext,
                                          Aggregator parent) {
 
-        super(name, valuesSource, valuesSourceType, aggregationContext, parent);
+        super(name, valuesSource, aggregationContext, parent);
     }
 
     /**

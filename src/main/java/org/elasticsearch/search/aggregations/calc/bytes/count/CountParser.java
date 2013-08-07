@@ -25,6 +25,8 @@ import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
+import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -41,6 +43,9 @@ public class CountParser implements AggregatorParser {
 
     @Override
     public Aggregator.Factory parse(String aggregationName, XContentParser parser, SearchContext context) throws IOException {
+
+        ValuesSourceConfig<BytesValuesSource> config = new ValuesSourceConfig<BytesValuesSource>(BytesValuesSource.class);
+
         String field = null;
 
         XContentParser.Token token;
@@ -56,17 +61,17 @@ public class CountParser implements AggregatorParser {
         }
 
         if (field == null) {
-            // "field" is not set, so we fall back to the field context of the ancestors
-            return new CountAggregator.ContextBasedFactory(aggregationName);
+            return new CountAggregator.Factory(aggregationName, config);
         }
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
-        if (mapper != null) {
-            IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-            FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
-            return new CountAggregator.FieldDataFactory(aggregationName, fieldContext);
+        if (mapper == null) {
+            config.unmapped(true);
+            return new CountAggregator.Factory(aggregationName, config);
         }
 
-        return new UnmappedCountAggregator.Factory(aggregationName);
+        IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
+        config.fieldContext(new FieldContext(field, indexFieldData, mapper));
+        return new CountAggregator.Factory(aggregationName, config);
     }
 }

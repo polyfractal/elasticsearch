@@ -34,6 +34,8 @@ import org.elasticsearch.search.SearchParseException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
+import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
 import org.elasticsearch.search.internal.SearchContext;
@@ -81,11 +83,12 @@ public class DateHistogramParser implements AggregatorParser {
     @Override
     public Aggregator.Factory parse(String aggregationName, XContentParser parser, SearchContext context) throws IOException {
 
+        ValuesSourceConfig<NumericValuesSource> config = new ValuesSourceConfig<NumericValuesSource>(NumericValuesSource.class);
+
         String field = null;
         String script = null;
         String scriptLang = null;
         Map<String, Object> scriptParams = null;
-        boolean multiValued = true;
         boolean keyed = false;
         InternalOrder order = (InternalOrder) Histogram.Order.KEY_ASC;
         String interval = null;
@@ -130,7 +133,7 @@ public class DateHistogramParser implements AggregatorParser {
                 if ("keyed".equals(currentFieldName)) {
                     keyed = parser.booleanValue();
                 } else if ("multi_valued".equals(currentFieldName) || "multiValued".equals(currentFieldName)) {
-                    multiValued = parser.booleanValue();
+                    config.multiValued(parser.booleanValue());
                 }
             } else if (token == XContentParser.Token.START_OBJECT) {
                 if ("params".equals(currentFieldName)) {
@@ -150,15 +153,13 @@ public class DateHistogramParser implements AggregatorParser {
             }
         }
 
-        InternalDateHistogram.Factory histoFactory = new InternalDateHistogram.Factory();
-
         if (interval == null) {
             throw new SearchParseException(context, "Missing required field [interval] for histogram aggregation [" + aggregationName + "]");
         }
 
         SearchScript searchScript = null;
         if (script != null) {
-            searchScript = context.scriptService().search(context.lookup(), scriptLang, script, scriptParams);
+            config.script(context.scriptService().search(context.lookup(), scriptLang, script, scriptParams));
         }
 
         TimeZoneRounding.Builder tzRoundingBuilder;
@@ -176,25 +177,26 @@ public class DateHistogramParser implements AggregatorParser {
                 .preOffset(preOffset).postOffset(postOffset)
                 .build();
 
-        ValueFormatter formatter = null;
         if (format != null) {
-            formatter = new ValueFormatter.DateTime(format);
+            config.formatter(new ValueFormatter.DateTime(format));
         }
 
         if (field == null) {
 
             if (searchScript != null) {
                 ValueParser valueParser = new ValueParser.DateMath(new DateMathParser(DateFieldMapper.Defaults.DATE_TIME_FORMATTER, DateFieldMapper.Defaults.TIME_UNIT));
-                return new HistogramAggregator.ScriptFactory(aggregationName, searchScript, multiValued, rounding, order, keyed, formatter, valueParser, histoFactory);
+                config.parser(valueParser);
+                return new HistogramAggregator.Factory(aggregationName, config, rounding, order, keyed, InternalDateHistogram.FACTORY);
             }
 
             // falling back on the get field data context
-            return new HistogramAggregator.ContextBasedFactory(aggregationName, rounding, order, keyed, histoFactory);
+            return new HistogramAggregator.Factory(aggregationName, config, rounding, order, keyed, InternalDateHistogram.FACTORY);
         }
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
         if (mapper == null) {
-            return new UnmappedDateHistogramAggregator.Factory(aggregationName, order, keyed);
+            config.unmapped(true);
+            return new HistogramAggregator.Factory(aggregationName, config, rounding, order, keyed, InternalDateHistogram.FACTORY);
         }
 
         if (!(mapper instanceof DateFieldMapper)) {
@@ -202,8 +204,8 @@ public class DateHistogramParser implements AggregatorParser {
         }
 
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
-        return new HistogramAggregator.FieldDataFactory(aggregationName, fieldContext, searchScript, rounding, order, keyed, formatter, histoFactory);
+        config.fieldContext(new FieldContext(field, indexFieldData, mapper));
+        return new HistogramAggregator.Factory(aggregationName, config, rounding, order, keyed, InternalDateHistogram.FACTORY);
     }
 
     private static InternalOrder resolveOrder(String key, boolean asc) {

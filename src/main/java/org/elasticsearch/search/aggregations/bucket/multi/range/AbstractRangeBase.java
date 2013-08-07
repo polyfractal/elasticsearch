@@ -152,13 +152,20 @@ public abstract class AbstractRangeBase<B extends RangeBase.Bucket> extends Inte
     private ValueFormatter formatter;
     private boolean keyed;
 
+    private boolean unmapped;
+
     public AbstractRangeBase() {} // for serialization
 
     public AbstractRangeBase(String name, List<B> ranges, ValueFormatter formatter, boolean keyed) {
+        this(name, ranges, formatter, keyed, false);
+    }
+
+    public AbstractRangeBase(String name, List<B> ranges, ValueFormatter formatter, boolean keyed, boolean unmapped) {
         super(name);
         this.ranges = ranges;
         this.formatter = formatter;
         this.keyed = keyed;
+        this.unmapped = unmapped;
     }
 
     @Override
@@ -193,6 +200,9 @@ public abstract class AbstractRangeBase<B extends RangeBase.Bucket> extends Inte
         List<List<Bucket>> rangesList = null;
         for (InternalAggregation aggregation : aggregations) {
             AbstractRangeBase<Bucket> ranges = (AbstractRangeBase) aggregation;
+            if (ranges.unmapped) {
+                continue;
+            }
             if (rangesList == null) {
                 rangesList = new ArrayList<List<Bucket>>(ranges.ranges.size());
                 for (Bucket bucket : ranges.ranges) {
@@ -206,6 +216,11 @@ public abstract class AbstractRangeBase<B extends RangeBase.Bucket> extends Inte
                     rangesList.get(i++).add(range);
                 }
             }
+        }
+
+        if (rangesList == null) {
+            // unmapped, we can just take the first one
+            return (AbstractRangeBase) aggregations.get(0);
         }
 
         AbstractRangeBase reduced = (AbstractRangeBase) aggregations.get(0);

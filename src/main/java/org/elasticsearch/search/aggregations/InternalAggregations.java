@@ -103,7 +103,7 @@ public class InternalAggregations implements Aggregations, ToXContent, Streamabl
     }
 
     /**
-     * A get of the specified name.
+     * @return the aggregation of the specified name.
      */
     @SuppressWarnings({"unchecked"})
     @Override
@@ -136,7 +136,7 @@ public class InternalAggregations implements Aggregations, ToXContent, Streamabl
             }
         }
 
-        // now we can use the first get of each list to handle the reduce of its list
+        // now we can use the first aggregation of each list to handle the reduce of its list
 
         List<InternalAggregation> reducedAggregations = new ArrayList<InternalAggregation>();
         for (Map.Entry<String, List<InternalAggregation>> entry : aggByName.entrySet()) {

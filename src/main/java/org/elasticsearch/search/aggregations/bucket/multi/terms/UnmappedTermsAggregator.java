@@ -48,21 +48,4 @@ public class UnmappedTermsAggregator extends BucketsAggregator {
         return new UnmappedTerms(name, order, requiredSize);
     }
 
-    static class Factory extends CompoundFactory {
-
-        private final InternalOrder order;
-        private final int requiredSize;
-
-        Factory(String name, InternalOrder order, int requiredSize) {
-            super(name);
-            this.order = order;
-            this.requiredSize = requiredSize;
-        }
-
-        @Override
-        public Aggregator create(AggregationContext aggregationContext, Aggregator parent) {
-            return new UnmappedTermsAggregator(name, order, requiredSize, aggregationContext, parent);
-        }
-    }
-
 }

@@ -52,11 +52,6 @@ public class NestedTests extends AbstractSharedClusterTest {
         return 5;
     }
 
-    @Override
-    protected int numberOfNodes() {
-        return 2;
-    }
-
     @Before
     public void init() throws Exception {
 
@@ -80,11 +75,13 @@ public class NestedTests extends AbstractSharedClusterTest {
     }
 
     @Test
-    public void testNested() throws Exception {
+    public void simple() throws Exception {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(nested("nested").path("nested")
                         .subAggregation(stats("nested_value_stats").field("nested.value")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Nested nested = response.getAggregations().get("nested");
         assertThat(nested, notNullValue());
@@ -102,7 +99,7 @@ public class NestedTests extends AbstractSharedClusterTest {
     }
 
     @Test
-    public void testNested_OnNonNestedField() throws Exception {
+    public void OnNonNestedField() throws Exception {
 
         try {
             client().prepareSearch("idx")

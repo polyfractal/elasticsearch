@@ -33,8 +33,8 @@ import java.util.List;
  */
 public class InternalHistogram extends AbstractHistogramBase<Histogram.Bucket> implements Histogram {
 
-
     public final static Type TYPE = new Type("histogram", "histo");
+    public final static Factory FACTORY = new Factory();
 
     private final static AggregationStreams.Stream<InternalHistogram> STREAM = new AggregationStreams.Stream<InternalHistogram>() {
         @Override
@@ -57,7 +57,10 @@ public class InternalHistogram extends AbstractHistogramBase<Histogram.Bucket> i
 
     }
 
-    public static class Factory implements AbstractHistogramBase.Factory<Histogram.Bucket> {
+    static class Factory implements AbstractHistogramBase.Factory<Histogram.Bucket> {
+
+        private Factory() {
+        }
 
         public AbstractHistogramBase create(String name, List<Histogram.Bucket> buckets, InternalOrder order, ValueFormatter formatter, boolean keyed) {
             return new InternalHistogram(name, buckets, order, formatter, keyed);

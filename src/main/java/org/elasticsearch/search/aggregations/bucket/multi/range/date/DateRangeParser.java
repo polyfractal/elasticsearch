@@ -24,13 +24,14 @@ import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.index.mapper.core.DateFieldMapper;
-import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.SearchParseException;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
 import org.elasticsearch.search.aggregations.bucket.multi.range.RangeAggregator;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
+import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
 import org.elasticsearch.search.internal.SearchContext;
@@ -45,10 +46,6 @@ import java.util.Map;
  */
 public class DateRangeParser implements AggregatorParser {
 
-    private static final ValueParser DEFAULT_VALUE_PARSER = new ValueParser.DateMath(new DateMathParser(DateFieldMapper.Defaults.DATE_TIME_FORMATTER, DateFieldMapper.Defaults.TIME_UNIT));
-    private static final ValueFormatter DEFAULT_VALUE_FORMATTER = new ValueFormatter.DateTime(DateFieldMapper.Defaults.DATE_TIME_FORMATTER);
-
-
     @Override
     public String type() {
         return InternalDateRange.TYPE.name();
@@ -57,13 +54,14 @@ public class DateRangeParser implements AggregatorParser {
     @Override
     public Aggregator.Factory parse(String aggregationName, XContentParser parser, SearchContext context) throws IOException {
 
+        ValuesSourceConfig<NumericValuesSource> config = new ValuesSourceConfig<NumericValuesSource>(NumericValuesSource.class);
+
         String field = null;
         List<RangeAggregator.Range> ranges = null;
         String script = null;
         String scriptLang = null;
         Map<String, Object> scriptParams = null;
         boolean keyed = false;
-        boolean multiValued = true;
         String format = null;
 
         XContentParser.Token token;
@@ -121,7 +119,7 @@ public class DateRangeParser implements AggregatorParser {
                 if ("keyed".equals(currentFieldName)) {
                     keyed = parser.booleanValue();
                 } else if ("multi_valued".equals(currentFieldName) || "multiValued".equals(currentFieldName)) {
-                    multiValued = parser.booleanValue();
+                    config.multiValued(parser.booleanValue());
                 }
             }
         }
@@ -130,33 +128,26 @@ public class DateRangeParser implements AggregatorParser {
             throw new SearchParseException(context, "Missing [ranges] in ranges aggregator [" + aggregationName + "]");
         }
 
-        SearchScript searchScript = null;
         if (script != null) {
-            searchScript = context.scriptService().search(context.lookup(), scriptLang, script, scriptParams);
+            config.script(context.scriptService().search(context.lookup(), scriptLang, script, scriptParams));
         }
 
-        ValueFormatter formatter = null;
         if (format != null) {
-            formatter = new ValueFormatter.DateTime(format);
+            config.formatter(new ValueFormatter.DateTime(format));
+        } else {
+            config.formatter(ValueFormatter.DateTime.DEFAULT);
         }
+
+        config.parser(ValueParser.DateMath.DEFAULT);
 
         if (field == null) {
-
-            if (searchScript != null) {
-                if (formatter == null) {
-                    formatter = DEFAULT_VALUE_FORMATTER;
-                }
-                return new RangeAggregator.ScriptFactory(aggregationName, searchScript, multiValued, formatter, DEFAULT_VALUE_PARSER, InternalDateRange.FACTORY, ranges, keyed);
-            }
-
-            // "field" doesn't exist, so we fall back to the context of the ancestors
-            return new RangeAggregator.ContextBasedFactory(aggregationName, InternalDateRange.FACTORY, ranges, keyed);
+            return new RangeAggregator.Factory(aggregationName, config, InternalDateRange.FACTORY, ranges, keyed);
         }
-
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
         if (mapper == null) {
-            return new UnmappedDateRangeAggregator.Factory(aggregationName, ranges, keyed, DEFAULT_VALUE_FORMATTER, DEFAULT_VALUE_PARSER);
+            config.unmapped(true);
+            return new RangeAggregator.Factory(aggregationName, config, InternalDateRange.FACTORY, ranges, keyed);
         }
 
         if (!(mapper instanceof DateFieldMapper)) {
@@ -164,11 +155,11 @@ public class DateRangeParser implements AggregatorParser {
         }
 
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
-        if (formatter == null) {
-            formatter = new ValueFormatter.DateTime(((DateFieldMapper) mapper).dateTimeFormatter());
+        config.fieldContext(new FieldContext(field, indexFieldData, mapper));
+        if (format == null) {
+            config.formatter(new ValueFormatter.DateTime(((DateFieldMapper) mapper).dateTimeFormatter()));
         }
-        ValueParser valueParser = new ValueParser.DateMath(((DateFieldMapper) mapper).dateMathParser());
-        return new RangeAggregator.FieldDataFactory(aggregationName, fieldContext, searchScript, formatter, valueParser, InternalDateRange.FACTORY, ranges, keyed);
+        config.parser(new ValueParser.DateMath(((DateFieldMapper) mapper).dateMathParser()));
+        return new RangeAggregator.Factory(aggregationName, config, InternalDateRange.FACTORY, ranges, keyed);
     }
 }

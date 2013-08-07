@@ -51,11 +51,6 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
         return 5;
     }
 
-    @Override
-    protected int numberOfNodes() {
-        return 2;
-    }
-
     @Before
     public void init() throws Exception {
         createIndex("idx");
@@ -90,6 +85,8 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
                         .field("value"))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -113,6 +110,8 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
                         .order(Terms.Order.TERM_ASC)) // we need to sort by terms cause we're checking the first 20 values
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -134,6 +133,8 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
                         .field("value")
                         .order(Terms.Order.TERM_ASC))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
@@ -158,6 +159,8 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
                         .order(Terms.Order.TERM_DESC))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -180,6 +183,8 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
                         .field("value")
                         .subAggregation(sum("sum").field("values")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
@@ -206,6 +211,8 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
                         .subAggregation(sum("sum")))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -231,6 +238,8 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
                         .script("_value + 1"))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -251,6 +260,8 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
                 .addAggregation(terms("terms")
                         .field("values"))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
@@ -277,6 +288,8 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
                         .field("values")
                         .script("_value + 1"))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
@@ -322,6 +335,8 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
                         .subAggregation(sum("sum")))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -353,6 +368,8 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
                         .script("doc['value'].value"))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -374,6 +391,8 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
                         .field("value")
                         .subAggregation(sum("sum")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
@@ -399,6 +418,8 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
                         .script("doc['values'].values"))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -419,16 +440,25 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
 
     @Test
     public void script_MultiValued_WithAggregatorInherited_NoExplicitType() throws Exception {
-        SearchResponse response = client().prepareSearch("idx").setTypes("type")
-                .addAggregation(terms("terms")
-                        .script("doc['values'].values")
-                        .subAggregation(sum("sum")))
-                .execute().actionGet();
 
-        // since no type ie explicitly defined, es will assume all values returned by the script to be strings (bytes),
+        // since no type is explicitly defined, es will assume all values returned by the script to be strings (bytes),
         // so the aggregation should fail, since the "sum" aggregation can only operation on numeric values.
 
-        assertThat(response.getFailedShards(), greaterThan(0));
+        try {
+
+            SearchResponse response = client().prepareSearch("idx").setTypes("type")
+                    .addAggregation(terms("terms")
+                            .script("doc['values'].values")
+                            .subAggregation(sum("sum")))
+                    .execute().actionGet();
+
+
+            fail("expected to fail as sub-aggregation sum requires a numeric value source context, but there is none");
+
+        } catch (Exception e) {
+            // expected
+        }
+
     }
 
     @Test
@@ -439,6 +469,8 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
                         .valueType(Terms.ValueType.DOUBLE)
                         .subAggregation(sum("sum")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
@@ -471,6 +503,8 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
                         .field("value"))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -483,6 +517,8 @@ public class DoubleTermsTests extends AbstractSharedClusterTest {
                 .addAggregation(terms("terms")
                         .field("value"))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());

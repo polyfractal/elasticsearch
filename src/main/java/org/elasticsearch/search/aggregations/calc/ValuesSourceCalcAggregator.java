@@ -30,15 +30,9 @@ import org.elasticsearch.search.aggregations.context.ValuesSourceBased;
  */
 public abstract class ValuesSourceCalcAggregator<VS extends ValuesSource> extends ValuesSourceAggregator<VS> implements ValuesSourceBased {
 
-    public ValuesSourceCalcAggregator(String name,
-                                      VS valuesSource,
-                                      Class<VS> valueSourceType,
-                                      AggregationContext aggregationContext,
-                                      Aggregator parent) {
-
-        super(name, valuesSource, valueSourceType, aggregationContext, parent);
+    public ValuesSourceCalcAggregator(String name, VS valuesSource, AggregationContext aggregationContext, Aggregator parent) {
+        super(name, valuesSource, aggregationContext, parent);
     }
-
 
     protected static abstract class Collector<VS extends ValuesSource> implements Aggregator.Collector {
 

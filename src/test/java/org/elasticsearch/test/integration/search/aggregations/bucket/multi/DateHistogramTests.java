@@ -52,11 +52,6 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
         return 5;
     }
 
-    @Override
-    protected int numberOfNodes() {
-        return 1;
-    }
-
     private DateTime date(int month, int day) {
         return new DateTime(2012, month, day, 0, 0, DateTimeZone.UTC);
     }
@@ -75,12 +70,12 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
     public void init() throws Exception {
         createIndex("idx");
 
-        indexDoc(1, 2, 1);  // Jan 2
-        indexDoc(2, 2, 2);  // Feb 2
-        indexDoc(2, 15, 3); // Feb 15
-        indexDoc(3, 2, 4);  // Mar 2
-        indexDoc(3, 15, 5); // Mar 15
-        indexDoc(3, 23, 6); // Mar 23
+        indexDoc(1, 2, 1);  // date: Jan 2, dates: Jan 2, Feb 3
+        indexDoc(2, 2, 2);  // date: Feb 2, dates: Feb 2, Mar 3
+        indexDoc(2, 15, 3); // date: Feb 15, dates: Feb 15, Mar 16
+        indexDoc(3, 2, 4);  // date: Mar 2, dates: Mar 2, Apr 3
+        indexDoc(3, 15, 5); // date: Mar 15, dates: Mar 15, Apr 16
+        indexDoc(3, 23, 6); // date: Mar 23, dates: Mar 23, Apr 24
 
         createIndex("idx_unmapped");
 
@@ -92,6 +87,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(dateHistogram("histo").field("date").interval(DateHistogram.Interval.MONTH))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -126,6 +123,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                         .order(DateHistogram.Order.KEY_ASC))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -146,6 +145,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                         .interval(DateHistogram.Interval.MONTH)
                         .order(DateHistogram.Order.KEY_DESC))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -168,6 +169,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                         .order(DateHistogram.Order.COUNT_ASC))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -189,6 +192,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                         .order(DateHistogram.Order.COUNT_DESC))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -207,6 +212,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(dateHistogram("histo").field("date").interval(DateHistogram.Interval.MONTH)
                     .subAggregation(sum("sum").field("value")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -247,6 +254,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(dateHistogram("histo").field("date").interval(DateHistogram.Interval.MONTH)
                         .subAggregation(max("max")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -291,6 +300,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                         .subAggregation(max("sum").field("value")))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -312,6 +323,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                         .order(DateHistogram.Order.aggregation("sum", false))
                         .subAggregation(max("sum").field("value")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -335,6 +348,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                         .subAggregation(stats("stats").field("value")))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -357,6 +372,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                         .subAggregation(stats("stats").field("value")))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -377,6 +394,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                         .script("new DateTime(_value).plusMonths(1).getMillis()")
                         .interval(DateHistogram.Interval.MONTH))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -418,6 +437,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(dateHistogram("histo").field("dates").interval(DateHistogram.Interval.MONTH))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -456,6 +477,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                         .interval(DateHistogram.Interval.MONTH)
                         .order(DateHistogram.Order.COUNT_DESC))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -499,6 +522,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                         .interval(DateHistogram.Interval.MONTH))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -538,6 +563,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                         .interval(DateHistogram.Interval.MONTH)
                         .subAggregation(max("max")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -587,6 +614,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(dateHistogram("histo").script("doc['date'].value").interval(DateHistogram.Interval.MONTH))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -619,6 +648,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                         .interval(DateHistogram.Interval.MONTH)
                         .subAggregation(max("max")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -658,6 +689,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(dateHistogram("histo").script("doc['dates'].values").interval(DateHistogram.Interval.MONTH))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -707,6 +740,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                         .subAggregation(max("max")))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -755,6 +790,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(dateHistogram("histo").field("date").interval(DateHistogram.Interval.MONTH))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -766,6 +803,8 @@ public class DateHistogramTests extends AbstractSharedClusterTest {
         SearchResponse response = client().prepareSearch("idx", "idx_unmapped")
                 .addAggregation(dateHistogram("histo").field("date").interval(DateHistogram.Interval.MONTH))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateHistogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());

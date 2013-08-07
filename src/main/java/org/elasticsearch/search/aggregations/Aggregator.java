@@ -28,8 +28,8 @@ import java.util.List;
 
 /**
  * Instantiated per named get in the request (every get type has a dedicated aggregator). The aggregator
- * handles the get by providing the appropriate collector (see {@link #collector()}), and when the get finishes, it is also used
- * for generating the result get (see {@link #buildAggregation()}).
+ * handles the aggregation by providing the appropriate collector (see {@link #collector()}), and when the aggregation finishes, it is also used
+ * for generating the result aggregation (see {@link #buildAggregation()}).
  */
 public abstract class Aggregator<A extends InternalAggregation> {
 
@@ -44,7 +44,7 @@ public abstract class Aggregator<A extends InternalAggregation> {
     }
 
     /**
-     * @return  The name of the get.
+     * @return  The name of the aggregation.
      */
     public String name() {
         return name;
@@ -65,7 +65,7 @@ public abstract class Aggregator<A extends InternalAggregation> {
     }
 
     /**
-     * @return  The collector what is responsible for the get.
+     * @return  The collector what is responsible for the aggregation.
      */
     public abstract Collector collector();
 
@@ -76,7 +76,7 @@ public abstract class Aggregator<A extends InternalAggregation> {
 
 
     /**
-     * The lucene collector that will be responsible for the get
+     * The lucene collector that will be responsible for the aggregation
      */
     public static interface Collector {
 
@@ -88,27 +88,27 @@ public abstract class Aggregator<A extends InternalAggregation> {
 
     /**
      * A factory that knows how to create an {@link Aggregator} of a specific type.
-     *
-     * @param <A> The type of the aggregator.
      */
-    public static abstract class Factory<A extends Aggregator> {
+    public static abstract class Factory {
 
         protected String name;
+        protected Factory parent;
 
         protected Factory(String name) {
             this.name = name;
         }
 
-        public abstract A create(AggregationContext aggregationContext, Aggregator parent);
+        public abstract Aggregator create(AggregationContext aggregationContext, Aggregator parent);
+
+        public void validate() {
+        }
     }
 
     /**
      * An aggregator factory that can hold sub-factories (factories for all the sub-aggregators of the aggregator
      * this factory creates)
-     *
-     * @param <A> The type of the aggregator.
      */
-    public static abstract class CompoundFactory<A extends Aggregator> extends Factory<A> {
+    public static abstract class CompoundFactory extends Factory {
 
         protected List<Factory> factories = new ArrayList<Factory>();
 
@@ -117,8 +117,11 @@ public abstract class Aggregator<A extends InternalAggregation> {
         }
 
         @SuppressWarnings("unchecked")
-        public Factory<A> set(List<Aggregator.Factory> factories) {
+        public Factory set(List<Factory> factories) {
             this.factories = factories;
+            for (Factory factory : factories) {
+                factory.parent = this;
+            }
             return this;
         }
 

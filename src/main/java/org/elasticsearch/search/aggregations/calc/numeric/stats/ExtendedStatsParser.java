@@ -27,7 +27,7 @@ import org.elasticsearch.search.aggregations.calc.numeric.NumericAggregatorParse
 public class ExtendedStatsParser extends NumericAggregatorParser<InternalExtendedStats> {
 
     public ExtendedStatsParser() {
-        super(InternalExtendedStats.TYPE.name(), new InternalExtendedStats.Factory());
+        super(InternalExtendedStats.TYPE, new InternalExtendedStats.Factory());
     }
 
 }

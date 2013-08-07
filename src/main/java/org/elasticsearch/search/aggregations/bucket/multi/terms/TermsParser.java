@@ -21,11 +21,20 @@ package org.elasticsearch.search.aggregations.bucket.multi.terms;
 
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexFieldData;
+import org.elasticsearch.index.fielddata.IndexNumericFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
+import org.elasticsearch.index.mapper.core.DateFieldMapper;
+import org.elasticsearch.index.mapper.ip.IpFieldMapper;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSource;
+import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
+import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
+import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
+import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
+import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -48,7 +57,7 @@ public class TermsParser implements AggregatorParser {
         String script = null;
         String scriptLang = null;
         Map<String, Object> scriptParams = null;
-        Terms.ValueType valueType = Terms.ValueType.STRING;
+        Terms.ValueType valueType = null;
         int requiredSize = 10;
         String orderKey = "_count";
         boolean orderAsc = false;
@@ -105,16 +114,55 @@ public class TermsParser implements AggregatorParser {
         }
 
         if (field == null) {
-            return new TermsAggregatorFactory(aggregationName, null, searchScript, multiValued, order, requiredSize, valueType, format);
+
+            Class<? extends ValuesSource> valueSourceType = script == null ?
+                    ValuesSource.class : // unknown, will inherit whatever is in the context
+                    valueType != null ? valueType.valuesSourceType : // the user explicitly defined a value type
+                    BytesValuesSource.class; // defaulting to bytes
+
+            ValuesSourceConfig config = new ValuesSourceConfig(valueSourceType);
+            config.script(searchScript);
+            config.multiValued(multiValued);
+            return new TermsAggregatorFactory(aggregationName, config, order, requiredSize);
         }
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
         if (mapper == null) {
-            return new UnmappedTermsAggregator.Factory(aggregationName, order, requiredSize);
+            ValuesSourceConfig config = new ValuesSourceConfig(BytesValuesSource.class);
+            config.unmapped(true);
+            return new TermsAggregatorFactory(aggregationName, config, order, requiredSize);
         }
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
-        return new TermsAggregatorFactory(aggregationName, fieldContext, searchScript, multiValued, order, requiredSize, valueType, format);
+
+        ValuesSourceConfig config;
+
+        if (mapper instanceof DateFieldMapper) {
+            DateFieldMapper dateMapper = (DateFieldMapper) mapper;
+            ValueFormatter formatter = format == null ?
+                    new ValueFormatter.DateTime(dateMapper.dateTimeFormatter()) :
+                    new ValueFormatter.DateTime(format);
+            config = new ValuesSourceConfig<NumericValuesSource>(NumericValuesSource.class)
+                    .formatter(formatter)
+                    .parser(new ValueParser.DateMath(dateMapper.dateMathParser()));
+
+        } else if (mapper instanceof IpFieldMapper) {
+            config = new ValuesSourceConfig<NumericValuesSource>(NumericValuesSource.class)
+                    .formatter(ValueFormatter.IPv4)
+                    .parser(ValueParser.IPv4);
+
+        } else if (indexFieldData instanceof IndexNumericFieldData) {
+            config = new ValuesSourceConfig<NumericValuesSource>(NumericValuesSource.class);
+
+        } else {
+            config = new ValuesSourceConfig<BytesValuesSource>(BytesValuesSource.class);
+        }
+
+        config.script(searchScript);
+        config.multiValued(multiValued);
+
+        config.fieldContext(new FieldContext(field, indexFieldData, mapper));
+
+        return new TermsAggregatorFactory(aggregationName, config, order, requiredSize);
     }
 
     static InternalOrder resolveOrder(String key, boolean asc) {

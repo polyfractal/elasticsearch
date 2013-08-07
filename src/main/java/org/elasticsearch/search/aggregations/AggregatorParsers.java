@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * A registry for all the aggregator parser, also servers as the main parser for the get module
+ * A registry for all the aggregator parser, also servers as the main parser for the aggregations module
  */
 public class AggregatorParsers {
 
@@ -53,17 +53,17 @@ public class AggregatorParsers {
     }
 
     /**
-     * Returns the parser that is registered under the given get type.
+     * Returns the parser that is registered under the given aggregation type.
      *
-     * @param type  The get type
-     * @return      The parser associated with the given get type.
+     * @param type  The aggregation type
+     * @return      The parser associated with the given aggregation type.
      */
     public AggregatorParser parser(String type) {
         return parsers.get(type);
     }
 
     /**
-     * Parses the get request recursively generating aggregator factories in turn.
+     * Parses the aggregation request recursively generating aggregator factories in turn.
      *
      * @param parser    The input xcontent that will be parsed.
      * @param context   The search context.
@@ -73,6 +73,11 @@ public class AggregatorParsers {
      * @throws IOException When parsing fails for unknown reasons.
      */
     public List<Aggregator.Factory> parseAggregators(XContentParser parser, SearchContext context) throws IOException {
+        return parseAggregators(parser, context, 0);
+    }
+
+
+    private List<Aggregator.Factory> parseAggregators(XContentParser parser, SearchContext context, int level) throws IOException {
         XContentParser.Token token = null;
         String currentFieldName = null;
 
@@ -91,7 +96,7 @@ public class AggregatorParsers {
                         currentFieldName = parser.currentName();
                     } else if (token == XContentParser.Token.START_OBJECT) {
                         if ("aggregations".equals(currentFieldName) || "aggs".equals(currentFieldName)) {
-                            subFactories = parseAggregators(parser, context);
+                            subFactories = parseAggregators(parser, context, level+1);
                         } else {
                             aggregatorType = currentFieldName;
                             AggregatorParser aggregatorParser = parser(aggregatorType);
@@ -104,7 +109,7 @@ public class AggregatorParsers {
                 }
 
                 if (factory == null) {
-                    // skipping the get
+                    // skipping the aggregation
                     continue;
                 }
 
@@ -114,6 +119,10 @@ public class AggregatorParsers {
                     }
                     Aggregator.CompoundFactory compoundFactory = (Aggregator.CompoundFactory) factory;
                     compoundFactory.set(subFactories);
+                }
+
+                if (level == 0) {
+                    factory.validate();
                 }
 
                 factories.add(factory);

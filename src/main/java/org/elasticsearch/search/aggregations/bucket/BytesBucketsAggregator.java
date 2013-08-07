@@ -22,19 +22,16 @@ package org.elasticsearch.search.aggregations.bucket;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.index.fielddata.BytesValues;
-import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
-import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 
 import java.io.IOException;
 import java.util.List;
 
 /**
- *
+ * A value source based aggregator which can aggregate buckets based on {@code bytes} values.
  */
 public abstract class BytesBucketsAggregator extends ValuesSourceBucketsAggregator<ValuesSource> {
 
@@ -43,9 +40,24 @@ public abstract class BytesBucketsAggregator extends ValuesSourceBucketsAggregat
                                      AggregationContext aggregationContext,
                                      Aggregator parent) {
 
-        super(name, valuesSource, ValuesSource.class, aggregationContext, parent);
+        super(name, valuesSource, aggregationContext, parent);
     }
 
+    /**
+     * A runtime representation of a bucket. This bucket also serves as value space, which is effectively a criteria that decides whether
+     * a bytes value matches this bucket or not. When the aggregator encounters a document, the bytes value/s will be extracted from the
+     * the document (based on the configured {@link ValuesSource}) and will be checked against this criteria. If one of the checked
+     * values matches, the document will be considered as "falling in" this bucket and it will be aggregated. Aggregating the document
+     * in this bucket means:
+     * <ol>
+     *     <li>the document will be counted as part of the {@code doc_count} of this bucket</li>
+     *     <li>
+     *         the document will be propagated to all the sub-aggregators that are associated with this bucket. In this case, this
+     *         bucket will also serve as the {@link ValueSpace} for all all the sub-aggregators, as they can only aggregate values that
+     *         match the criteria of this bucket.
+     *     </li>
+     * </ol>
+     */
     public static abstract class BucketCollector extends ValuesSourceBucketsAggregator.BucketCollector<ValuesSource> implements ValueSpace {
 
         private ValueSpace parentContext;
@@ -71,7 +83,18 @@ public abstract class BytesBucketsAggregator extends ValuesSourceBucketsAggregat
             return valueSpace;
         }
 
-        protected abstract boolean onDoc(int doc, BytesValues values, ValueSpace context) throws IOException;
+        /**
+         * Called for every doc that the aggregator encounters. If the doc falls in this bucket, it is aggregated and this method returns
+         * {@code true}, otherwise it won't be aggregated in this bucket and this method will return {@code false}.
+         *
+         * @param doc           The doc id.
+         * @param values        The values in the current segment.
+         * @param valueSpace    The value space of the aggregator.
+         *
+         * @return              {@code true} iff the give doc falls in this bucket, {@code false} otherwise.
+         * @throws IOException
+         */
+        protected abstract boolean onDoc(int doc, BytesValues values, ValueSpace valueSpace) throws IOException;
 
         @Override
         public boolean accept(Object valueSourceKey, double value) {
@@ -96,53 +119,15 @@ public abstract class BytesBucketsAggregator extends ValuesSourceBucketsAggregat
             return true;
         }
 
+        /**
+         * Indicates whether this bucket can accept the given value. Typically, each bucket defines a criteria which decides what values
+         * fit it and what don't (based on this criteria, the {@link #onDoc(int, BytesValues, ValueSpace)} decides whether a document falls
+         * in this bucket or not).
+         *
+         * @param value The checked value.
+         * @return      {@code true} if this value matches the criteria associated with this bucket, {@code false} otherwise.
+         */
         public abstract boolean accept(BytesRef value);
     }
 
-    protected abstract static class FieldDataFactory<A extends BytesBucketsAggregator> extends CompoundFactory<A> {
-
-        private final FieldContext fieldContext;
-        private final SearchScript valueScript;
-
-        public FieldDataFactory(String name, FieldContext fieldContext, SearchScript valueScript) {
-            super(name);
-            this.fieldContext = fieldContext;
-            this.valueScript = valueScript;
-        }
-
-        @Override
-        public A create(AggregationContext aggregationContext, Aggregator parent) {
-            BytesValuesSource source = aggregationContext.bytesField(fieldContext, valueScript);
-            return create(source, parent);
-        }
-
-        protected abstract A create(BytesValuesSource source, Aggregator parent);
-    }
-
-    protected abstract static class ScriptFactory<A extends BytesBucketsAggregator> extends CompoundFactory<A> {
-
-        private final SearchScript script;
-        private final boolean multiValued;
-
-        protected ScriptFactory(String name, SearchScript script, boolean multiValued) {
-            super(name);
-            this.script = script;
-            this.multiValued = multiValued;
-        }
-
-        @Override
-        public A create(AggregationContext aggregationContext, Aggregator parent) {
-            return create(aggregationContext.bytesScript(script, multiValued), parent);
-        }
-
-        protected abstract A create(BytesValuesSource source, Aggregator parent);
-    }
-
-    protected abstract static class ContextBasedFactory<A extends BytesBucketsAggregator> extends CompoundFactory<A> {
-
-        protected ContextBasedFactory(String name) {
-            super(name);
-        }
-
-    }
 }

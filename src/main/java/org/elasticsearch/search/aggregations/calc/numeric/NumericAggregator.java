@@ -19,14 +19,12 @@
 
 package org.elasticsearch.search.aggregations.calc.numeric;
 
-import org.elasticsearch.common.Nullable;
 import org.elasticsearch.index.fielddata.DoubleValues;
-import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.calc.ValuesSourceCalcAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
+import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 
 import java.io.IOException;
@@ -36,7 +34,7 @@ import java.io.IOException;
  */
 public class NumericAggregator<A extends NumericAggregation> extends ValuesSourceCalcAggregator<NumericValuesSource> {
 
-    private final NumericAggregation.Factory<A> aggregationFactory;
+    protected final NumericAggregation.Factory<A> aggregationFactory;
 
     A stats;
 
@@ -46,19 +44,22 @@ public class NumericAggregator<A extends NumericAggregation> extends ValuesSourc
                              AggregationContext aggregationContext,
                              Aggregator parent) {
 
-        super(name, valuesSource, NumericValuesSource.class, aggregationContext, parent);
+        super(name, valuesSource, aggregationContext, parent);
         this.aggregationFactory = aggregationFactory;
     }
 
     @Override
     public Collector collector() {
+        if (valuesSource == null) {
+            return null;
+        }
         A stats = aggregationFactory.create(name);
         return new Collector(valuesSource, stats);
     }
 
     @Override
     public NumericAggregation buildAggregation() {
-        return stats;
+        return stats != null ? stats : aggregationFactory.createUnmapped(name);
     }
 
     //========================================= Collector ===============================================//
@@ -106,66 +107,26 @@ public class NumericAggregator<A extends NumericAggregation> extends ValuesSourc
         }
     }
 
-    //============================================== Factories ===============================================//
+    //============================================== Factory ===============================================//
 
-    public static class FieldDataFactory<A extends NumericAggregation> extends Factory<NumericAggregator<A>> {
+    public static class Factory<A extends NumericAggregation> extends ValuesSourceCalcAggregator.Factory<NumericValuesSource> {
 
-        private final FieldContext fieldContext;
-        private final SearchScript valueScript;
         private final NumericAggregation.Factory<A> aggregationFactory;
 
-        public FieldDataFactory(String name,
-                                FieldContext fieldContext,
-                                @Nullable SearchScript valueScript,
-                                NumericAggregation.Factory<A> aggregationFactory) {
-            super(name);
-            this.fieldContext = fieldContext;
-            this.valueScript = valueScript;
+        public Factory(String name, ValuesSourceConfig<NumericValuesSource> valuesSourceBuilder, NumericAggregation.Factory<A> aggregationFactory) {
+            super(name, valuesSourceBuilder);
             this.aggregationFactory = aggregationFactory;
         }
 
         @Override
-        public NumericAggregator<A> create(AggregationContext aggregationContext, Aggregator parent) {
-            NumericValuesSource valuesSource = aggregationContext.numericField(fieldContext, valueScript, null, null);
-            return new NumericAggregator<A>(name, valuesSource, aggregationFactory, aggregationContext, parent);
-        }
-
-    }
-
-    protected static class ScriptFactory<A extends NumericAggregation> extends Factory<NumericAggregator<A>> {
-
-        private final SearchScript script;
-        private final boolean multiValued;
-        private final NumericAggregation.Factory<A> aggregationFactory;
-
-        protected ScriptFactory(String name, SearchScript script, boolean multiValued, NumericAggregation.Factory<A> aggregationFactory) {
-            super(name);
-            this.script = script;
-            this.multiValued = multiValued;
-            this.aggregationFactory = aggregationFactory;
-        }
-
-        @Override
-        public NumericAggregator<A> create(AggregationContext aggregationContext, Aggregator parent) {
-            NumericValuesSource valuesSource = aggregationContext.numericScript(script, multiValued, null, null);
-            return new NumericAggregator<A>(name, valuesSource, aggregationFactory, aggregationContext, parent);
-        }
-    }
-
-    protected static class ContextBasedFactory<A extends NumericAggregation> extends Factory<NumericAggregator<A>> {
-
-        private final NumericAggregation.Factory<A> aggregationFactory;
-
-        protected ContextBasedFactory(String name, NumericAggregation.Factory<A> aggregationFactory) {
-            super(name);
-            this.aggregationFactory = aggregationFactory;
-        }
-
-        @Override
-        public NumericAggregator<A> create(AggregationContext aggregationContext, Aggregator parent) {
+        protected NumericAggregator<A> createUnmapped(AggregationContext aggregationContext, Aggregator parent) {
             return new NumericAggregator<A>(name, null, aggregationFactory, aggregationContext, parent);
         }
-    }
 
+        @Override
+        protected NumericAggregator<A> create(NumericValuesSource vs, AggregationContext aggregationContext, Aggregator parent) {
+            return new NumericAggregator<A>(name, vs, aggregationFactory, aggregationContext, parent);
+        }
+    }
 
 }

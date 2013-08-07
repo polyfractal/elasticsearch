@@ -33,17 +33,17 @@ public interface Aggregations extends Iterable<Aggregation> {
     List<Aggregation> asList();
 
     /**
-     * Returns the {@link Aggregation}s keyed by facet name.
+     * Returns the {@link Aggregation}s keyed by aggregation name.
      */
     Map<String, Aggregation> asMap();
 
     /**
-     * Returns the {@link Aggregation}s keyed by facet name.
+     * Returns the {@link Aggregation}s keyed by aggregation name.
      */
     Map<String, Aggregation> getAsMap();
 
     /**
-     * Returns the get that is associated with the specified name.
+     * Returns the aggregation that is associated with the specified name.
      */
     <A extends Aggregation> A get(String name);
 

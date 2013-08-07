@@ -41,11 +41,6 @@ public abstract class AbstractNumericTests extends AbstractSharedClusterTest {
     protected int numberOfShards() {
         return 5;
     }
-    
-    @Override
-    protected int numberOfNodes() {
-        return 2;
-    }
 
     @Before
     public void init() throws Exception {

@@ -35,6 +35,7 @@ import java.util.List;
 public class InternalDateHistogram extends AbstractHistogramBase<DateHistogram.Bucket> implements DateHistogram {
 
     public final static Type TYPE = new Type("date_histogram", "dhisto");
+    public final static Factory FACTORY = new Factory();
 
     private final static AggregationStreams.Stream<InternalDateHistogram> STREAM = new AggregationStreams.Stream<InternalDateHistogram>() {
         @Override
@@ -66,6 +67,9 @@ public class InternalDateHistogram extends AbstractHistogramBase<DateHistogram.B
     }
 
     static class Factory implements AbstractHistogramBase.Factory<DateHistogram.Bucket> {
+
+        private Factory() {
+        }
 
         @Override
         public AbstractHistogramBase create(String name, List<DateHistogram.Bucket> buckets, InternalOrder order, ValueFormatter formatter, boolean keyed) {

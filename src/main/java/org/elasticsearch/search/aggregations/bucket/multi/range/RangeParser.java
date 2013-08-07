@@ -22,11 +22,12 @@ package org.elasticsearch.search.aggregations.bucket.multi.range;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
-import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.SearchParseException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
+import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -47,13 +48,14 @@ public class RangeParser implements AggregatorParser {
     @Override
     public Aggregator.Factory parse(String aggregationName, XContentParser parser, SearchContext context) throws IOException {
 
+        ValuesSourceConfig<NumericValuesSource> config = new ValuesSourceConfig<NumericValuesSource>(NumericValuesSource.class);
+
         String field = null;
         List<RangeAggregator.Range> ranges = null;
         String script = null;
         String scriptLang = null;
         Map<String, Object> scriptParams = null;
         boolean keyed = false;
-        boolean multiValued = true;
 
         XContentParser.Token token;
         String currentFieldName = null;
@@ -108,7 +110,7 @@ public class RangeParser implements AggregatorParser {
                 if ("keyed".equals(currentFieldName)) {
                     keyed = parser.booleanValue();
                 } else if ("multi_valued".equals(currentFieldName) || "multiValued".equals(currentFieldName)) {
-                    multiValued = parser.booleanValue();
+                    config.multiValued(parser.booleanValue());
                 }
             }
         }
@@ -117,29 +119,23 @@ public class RangeParser implements AggregatorParser {
             throw new SearchParseException(context, "Missing [ranges] in ranges aggregator [" + aggregationName + "]");
         }
 
-        SearchScript searchScript = null;
         if (script != null) {
-            searchScript = context.scriptService().search(context.lookup(), scriptLang, script, scriptParams);
+            config.script(context.scriptService().search(context.lookup(), scriptLang, script, scriptParams));
         }
 
         if (field == null) {
-
-            if (searchScript != null) {
-                return new RangeAggregator.ScriptFactory(aggregationName, searchScript, multiValued, null, null, InternalRange.FACTORY, ranges, keyed);
-            }
-
-            // "field" doesn't exist, so we fall back to the context of the ancestors
-            return new RangeAggregator.ContextBasedFactory(aggregationName, InternalRange.FACTORY, ranges, keyed);
+            return new RangeAggregator.Factory(aggregationName, config, InternalRange.FACTORY, ranges, keyed);
         }
 
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
         if (mapper == null) {
-            return new UnmappedRangeAggregator.Factory(aggregationName, ranges, keyed);
+            config.unmapped(true);
+            return new RangeAggregator.Factory(aggregationName, config, InternalRange.FACTORY, ranges, keyed);
         }
 
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
-        return new RangeAggregator.FieldDataFactory(aggregationName, fieldContext, searchScript, null, null, InternalRange.FACTORY, ranges, keyed);
+        config.fieldContext(new FieldContext(field, indexFieldData, mapper));
+        return new RangeAggregator.Factory(aggregationName, config, InternalRange.FACTORY, ranges, keyed);
     }
 }

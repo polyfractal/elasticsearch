@@ -53,11 +53,6 @@ public class FilterTests extends AbstractSharedClusterTest {
         return 5;
     }
 
-    @Override
-    protected int numberOfNodes() {
-        return 2;
-    }
-
     @Before
     public void init() throws Exception {
         createIndex("idx");
@@ -83,10 +78,12 @@ public class FilterTests extends AbstractSharedClusterTest {
     }
 
     @Test
-    public void testFilter() throws Exception {
+    public void simple() throws Exception {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(filter("tag1").filter(termFilter("tag", "tag1")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Filter filter = response.getAggregations().get("tag1");
         assertThat(filter, notNullValue());
@@ -95,12 +92,14 @@ public class FilterTests extends AbstractSharedClusterTest {
     }
 
     @Test
-    public void testFilter_WithSubAggregation() throws Exception {
+    public void withSubAggregation() throws Exception {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(filter("tag1")
                         .filter(termFilter("tag", "tag1"))
                         .subAggregation(avg("avg_value").field("value")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Filter filter = response.getAggregations().get("tag1");
         assertThat(filter, notNullValue());
@@ -115,7 +114,7 @@ public class FilterTests extends AbstractSharedClusterTest {
     }
 
     @Test
-    public void testFilter_WithContextBasedSubAggregation() throws Exception {
+    public void withContextBasedSubAggregation() throws Exception {
 
         try {
             client().prepareSearch("idx")

@@ -29,6 +29,8 @@ import org.elasticsearch.search.SearchParseException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
+import org.elasticsearch.search.aggregations.context.geopoints.GeoPointValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -146,18 +148,20 @@ public class GeoDistanceParser implements AggregatorParser {
             range.distanceType = distanceType;
         }
 
+        ValuesSourceConfig<GeoPointValuesSource> config = new ValuesSourceConfig<GeoPointValuesSource>(GeoPointValuesSource.class);
+
         if (field == null) {
-            // "field" doesn't exist, so we fall back to the context of the ancestors
-            return new GeoDistanceAggregator.ContextBasedFactory(aggregationName, ranges);
+            return new GeoDistanceAggregator.Factory(aggregationName, config, ranges);
         }
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
         if (mapper == null) {
-            return new UnmappedGeoDistanceAggregator.Factory(aggregationName, ranges);
+            config.unmapped(true);
+            return new GeoDistanceAggregator.Factory(aggregationName, config, ranges);
         }
-        IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
 
-        return new GeoDistanceAggregator.FieldDataFactory(aggregationName, fieldContext, ranges);
+        IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
+        config.fieldContext(new FieldContext(field, indexFieldData, mapper));
+        return new GeoDistanceAggregator.Factory(aggregationName, config, ranges);
     }
 }

@@ -27,7 +27,7 @@ import org.elasticsearch.search.aggregations.calc.numeric.NumericAggregatorParse
 public class MinParser extends NumericAggregatorParser<InternalMin> {
 
     public MinParser() {
-        super(InternalMin.TYPE.name(), new InternalMin.Factory());
+        super(InternalMin.TYPE, new InternalMin.Factory());
     }
 
 }

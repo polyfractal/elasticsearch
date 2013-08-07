@@ -24,6 +24,8 @@ import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
+import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -41,6 +43,8 @@ public class MissingParser implements AggregatorParser {
     @Override
     public Aggregator.Factory parse(String aggregationName, XContentParser parser, SearchContext context) throws IOException {
 
+        ValuesSourceConfig<BytesValuesSource> config = new ValuesSourceConfig<BytesValuesSource>(BytesValuesSource.class);
+
         String field = null;
 
         XContentParser.Token token;
@@ -56,15 +60,16 @@ public class MissingParser implements AggregatorParser {
         }
 
         if (field == null) {
-            // "field" doesn't exist, so we'll inherit it from the ancestors
-            return new MissingAggregator.Factory(aggregationName, null);
+            return new MissingAggregator.Factory(aggregationName, config);
         }
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
         if (mapper == null) {
-            return new UnmappedMissingAggregator.Factory(aggregationName);
+            config.unmapped(true);
+            return new MissingAggregator.Factory(aggregationName, config);
         }
-        FieldContext fieldContext = new FieldContext(field, context.fieldData().getForField(mapper), mapper);
-        return new MissingAggregator.Factory(aggregationName, fieldContext);
+
+        config.fieldContext(new FieldContext(field, context.fieldData().getForField(mapper), mapper));
+        return new MissingAggregator.Factory(aggregationName, config);
     }
 }

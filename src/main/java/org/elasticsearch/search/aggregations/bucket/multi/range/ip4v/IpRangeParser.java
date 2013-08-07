@@ -23,13 +23,14 @@ import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.index.mapper.ip.IpFieldMapper;
-import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.SearchParseException;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
 import org.elasticsearch.search.aggregations.bucket.multi.range.RangeAggregator;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
+import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
 import org.elasticsearch.search.internal.SearchContext;
@@ -38,7 +39,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  *
@@ -53,13 +53,14 @@ public class IpRangeParser implements AggregatorParser {
     @Override
     public Aggregator.Factory parse(String aggregationName, XContentParser parser, SearchContext context) throws IOException {
 
+        ValuesSourceConfig<NumericValuesSource> config = new ValuesSourceConfig<NumericValuesSource>(NumericValuesSource.class);
+
         String field = null;
         List<RangeAggregator.Range> ranges = null;
         String script = null;
         String scriptLang = null;
         Map<String, Object> scriptParams = null;
         boolean keyed = false;
-        boolean multiValued = true;
 
         XContentParser.Token token;
         String currentFieldName = null;
@@ -121,7 +122,7 @@ public class IpRangeParser implements AggregatorParser {
                 if ("keyed".equals(currentFieldName)) {
                     keyed = parser.booleanValue();
                 } else if ("multi_valued".equals(currentFieldName) || "multiValued".equals(currentFieldName)) {
-                    multiValued = parser.booleanValue();
+                    config.multiValued(parser.booleanValue());
                 }
             }
         }
@@ -130,25 +131,21 @@ public class IpRangeParser implements AggregatorParser {
             throw new SearchParseException(context, "Missing [ranges] in ranges aggregator [" + aggregationName + "]");
         }
 
-        SearchScript searchScript = null;
         if (script != null) {
-            searchScript = context.scriptService().search(context.lookup(), scriptLang, script, scriptParams);
+            config.script(context.scriptService().search(context.lookup(), scriptLang, script, scriptParams));
         }
+
+        config.formatter(ValueFormatter.IPv4);
+        config.parser(ValueParser.IPv4);
 
         if (field == null) {
-
-            if (searchScript != null) {
-                return new RangeAggregator.ScriptFactory(aggregationName, searchScript, multiValued, ValueFormatter.IPv4, ValueParser.IPv4, InternalIPv4Range.FACTORY, ranges, keyed);
-            }
-
-            // "field" doesn't exist, so we fall back to the context of the ancestors
-            return new RangeAggregator.ContextBasedFactory(aggregationName, InternalIPv4Range.FACTORY, ranges, keyed);
+            return new RangeAggregator.Factory(aggregationName, config, InternalIPv4Range.FACTORY, ranges, keyed);
         }
-
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
         if (mapper == null) {
-            return new UnmappedIPv4RangeAggregator.Factory(aggregationName, ranges, keyed);
+            config.unmapped(true);
+            return new RangeAggregator.Factory(aggregationName, config, InternalIPv4Range.FACTORY, ranges, keyed);
         }
 
         if (!(mapper instanceof IpFieldMapper)) {
@@ -156,11 +153,9 @@ public class IpRangeParser implements AggregatorParser {
         }
 
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
-        return new RangeAggregator.FieldDataFactory(aggregationName, fieldContext, searchScript, ValueFormatter.IPv4, ValueParser.IPv4, InternalIPv4Range.FACTORY, ranges, keyed);
+        config.fieldContext(new FieldContext(field, indexFieldData, mapper));
+        return new RangeAggregator.Factory(aggregationName, config, InternalIPv4Range.FACTORY, ranges, keyed);
     }
-
-    private static final Pattern MASK_PATTERN = Pattern.compile("[\\.|/]");
 
     private static void parseMaskRange(String cidr, RangeAggregator.Range range, String aggregationName, SearchContext ctx) {
         long[] fromTo = IPv4RangeBuilder.cidrMaskToMinMax(cidr);

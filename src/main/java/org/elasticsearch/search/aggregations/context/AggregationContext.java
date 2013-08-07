@@ -26,6 +26,7 @@ import org.elasticsearch.common.lucene.ReaderContextAware;
 import org.elasticsearch.common.lucene.ScorerAware;
 import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.script.SearchScript;
+import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 import org.elasticsearch.search.aggregations.context.geopoints.GeoPointValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
@@ -89,6 +90,32 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
         for (int i = 0; i < scorerAwares.size(); i++) {
             scorerAwares.get(i).setScorer(scorer);
         }
+    }
+
+    public <VS extends ValuesSource> VS valuesSource(ValuesSourceConfig<VS> config) {
+        assert config.valid() : "value source config is invalid - must have either a field context or a script";
+
+        if (config.fieldContext == null) {
+            if (NumericValuesSource.class.isAssignableFrom(config.valueSourceType)) {
+                return (VS) numericScript(config.script, config.multiValued, config.formatter, config.parser);
+            }
+            if (BytesValuesSource.class.isAssignableFrom(config.valueSourceType)) {
+                return (VS) bytesScript(config.script, config.multiValued);
+            }
+            throw new AggregationExecutionException("value source of type [" + config.valueSourceType.getSimpleName() + "] is not supported by scripts");
+        }
+
+        if (NumericValuesSource.class.isAssignableFrom(config.valueSourceType)) {
+            return (VS) numericField(config.fieldContext, config.script, config.formatter, config.parser);
+        }
+        if (BytesValuesSource.class.isAssignableFrom(config.valueSourceType)) {
+            return (VS) bytesField(config.fieldContext, config.script);
+        }
+        if (GeoPointValuesSource.class.isAssignableFrom(config.valueSourceType)) {
+            return (VS) geoPointField(config.fieldContext);
+        }
+
+        throw new AggregationExecutionException("value source of type [" + config.valueSourceType.getSimpleName() + "] is not supported");
     }
 
     public NumericValuesSource.Script numericScript(SearchScript script, boolean multiValued, ValueFormatter formatter, ValueParser parser) {

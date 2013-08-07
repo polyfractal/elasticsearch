@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- *
+ * A base class for all bucket aggregation builders.
  */
 public abstract class BucketAggregationBuilder<B extends BucketAggregationBuilder> extends AggregationBuilder {
 

@@ -185,7 +185,7 @@ public class StringTermsAggregator extends BytesBucketsAggregator {
         }
 
         @Override
-        protected boolean onDoc(int doc, BytesValues values, ValueSpace context) throws IOException {
+        protected boolean onDoc(int doc, BytesValues values, ValueSpace valueSpace) throws IOException {
             docCount++;
             return true;
         }

@@ -22,10 +22,11 @@ package org.elasticsearch.search.aggregations.calc.numeric;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
-import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
+import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -36,27 +37,28 @@ import java.util.Map;
  */
 public class NumericAggregatorParser<S extends NumericAggregation> implements AggregatorParser {
 
-    private final String type;
+    private final NumericAggregation.Type type;
     private final NumericAggregation.Factory<S> aggregationFactory;
 
-    public NumericAggregatorParser(String type, NumericAggregation.Factory<S> aggregationFactory) {
+    public NumericAggregatorParser(NumericAggregation.Type type, NumericAggregation.Factory<S> aggregationFactory) {
         this.type = type;
         this.aggregationFactory = aggregationFactory;
     }
 
     @Override
     public String type() {
-        return type;
+        return type.name();
     }
 
     @Override
     public Aggregator.Factory parse(String aggregationName, XContentParser parser, SearchContext context) throws IOException {
 
+        ValuesSourceConfig<NumericValuesSource> config = new ValuesSourceConfig<NumericValuesSource>(NumericValuesSource.class);
+
         String field = null;
         String script = null;
         String scriptLang = null;
         Map<String, Object> scriptParams = null;
-        boolean multiValued = true;
 
         XContentParser.Token token;
         String currentFieldName = null;
@@ -73,7 +75,7 @@ public class NumericAggregatorParser<S extends NumericAggregation> implements Ag
                 }
             } else if (token == XContentParser.Token.VALUE_BOOLEAN) {
                 if ("multi_valued".equals(currentFieldName) || "multiValued".equals(currentFieldName)) {
-                    multiValued = parser.booleanValue();
+                    config.multiValued(parser.booleanValue());
                 }
             } else if (token == XContentParser.Token.START_OBJECT) {
                 if ("params".equals(currentFieldName)) {
@@ -82,26 +84,22 @@ public class NumericAggregatorParser<S extends NumericAggregation> implements Ag
             }
         }
 
-        SearchScript searchScript = null;
         if (script != null) {
-            searchScript = context.scriptService().search(context.lookup(), scriptLang, script, scriptParams);
+            config.script(context.scriptService().search(context.lookup(), scriptLang, script, scriptParams));
         }
 
         if (field == null) {
-            if (searchScript != null) {
-                return new NumericAggregator.ScriptFactory<S>(aggregationName, searchScript, multiValued, aggregationFactory);
-            }
-            // both "field" and "script" don't exist, so we fall back to the field context of the ancestors
-            return new NumericAggregator.ContextBasedFactory<S>(aggregationName, aggregationFactory);
+            return new NumericAggregator.Factory<S>(aggregationName, config, aggregationFactory);
         }
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
         if (mapper == null) {
-            return new UnmappedNumericAggregator.Factory<S>(aggregationName, aggregationFactory);
+            config.unmapped(true);
+            return new NumericAggregator.Factory<S>(aggregationName, config, aggregationFactory);
         }
 
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
-        return new NumericAggregator.FieldDataFactory<S>(aggregationName, fieldContext, searchScript, aggregationFactory);
+        config.fieldContext(new FieldContext(field, indexFieldData, mapper));
+        return new NumericAggregator.Factory<S>(aggregationName, config, aggregationFactory);
     }
 }

@@ -22,10 +22,9 @@ package org.elasticsearch.search.aggregations.calc.bytes.count;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.ValuesSourceAggregator;
 import org.elasticsearch.search.aggregations.calc.bytes.BytesCalcAggregator;
-import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.FieldContext;
-import org.elasticsearch.search.aggregations.context.ValueSpace;
+import org.elasticsearch.search.aggregations.context.*;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 
 import java.io.IOException;
@@ -35,7 +34,7 @@ import java.io.IOException;
  */
 public class CountAggregator extends BytesCalcAggregator {
 
-    long value;
+    long count;
 
     public CountAggregator(String name, BytesValuesSource valuesSource, AggregationContext aggregationContext, Aggregator parent) {
         super(name, valuesSource, aggregationContext, parent);
@@ -43,68 +42,61 @@ public class CountAggregator extends BytesCalcAggregator {
 
     @Override
     public Aggregator.Collector collector() {
-        return new Collector(valuesSource);
+        return valuesSource != null ? new Collector(valuesSource) : null;
     }
 
     @Override
     public InternalAggregation buildAggregation() {
-        return new InternalCount(name, value);
+        return new InternalCount(name, count);
     }
 
     class Collector extends BytesCalcAggregator.Collector {
 
-        long value;
+        long count;
 
-        Collector(BytesValuesSource valuesSource) {
+        Collector(ValuesSource valuesSource) {
             super(valuesSource, CountAggregator.this);
         }
 
         @Override
-        protected void collect(int doc, BytesValues values, ValueSpace context) throws IOException {
+        protected void collect(int doc, BytesValues values, ValueSpace valueSpace) throws IOException {
             if (!values.hasValue(doc)) {
                 return;
             }
             if (!values.isMultiValued()) {
-                if (context.accept(valuesSource.key(), values.getValue(doc))) {
-                    value++;
+                if (valueSpace.accept(valuesSource.key(), values.getValue(doc))) {
+                    count++;
                 }
                 return;
             }
             for (BytesValues.Iter iter  = values.getIter(doc); iter.hasNext();) {
-                if (context.accept(valuesSource.key(), iter.next())) {
-                    value++;
+                if (valueSpace.accept(valuesSource.key(), iter.next())) {
+                    count++;
                 }
             }
         }
 
         @Override
         public void postCollection() {
-            CountAggregator.this.value = value;
+            CountAggregator.this.count = count;
         }
     }
 
-    public static class FieldDataFactory extends BytesCalcAggregator.FieldDataFactory<CountAggregator> {
+    public static class Factory extends ValuesSourceAggregator.Factory<BytesValuesSource> {
 
-        public FieldDataFactory(String name, FieldContext fieldContext) {
-            super(name, fieldContext);
+        public Factory(String name, ValuesSourceConfig<BytesValuesSource> valuesSourceBuilder) {
+            super(name, valuesSourceBuilder);
         }
 
         @Override
-        protected CountAggregator create(BytesValuesSource source, AggregationContext aggregationContext, Aggregator parent) {
-            return new CountAggregator(name, source, aggregationContext, parent);
-        }
-    }
-
-    public static class ContextBasedFactory extends BytesCalcAggregator.ContextBasedFactory<CountAggregator> {
-
-        public ContextBasedFactory(String name) {
-            super(name);
-        }
-
-        @Override
-        public CountAggregator create(AggregationContext aggregationContext, Aggregator parent) {
+        protected CountAggregator createUnmapped(AggregationContext aggregationContext, Aggregator parent) {
             return new CountAggregator(name, null, aggregationContext, parent);
         }
 
+        @Override
+        protected CountAggregator create(BytesValuesSource valuesSource, AggregationContext aggregationContext, Aggregator parent) {
+            return new CountAggregator(name, valuesSource, aggregationContext, parent);
+        }
     }
+
 }

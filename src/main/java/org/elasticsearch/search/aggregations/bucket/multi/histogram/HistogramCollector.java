@@ -110,7 +110,7 @@ class HistogramCollector implements Aggregator.Collector {
         // won't. thus, we need to iterate on all values and mark the bucket that they fall in (or
         // create new buckets if needed). Only after this "mark" phase ends, we can iterate over all the buckets
         // and aggregate only those that are marked (and while at it, clear the mark, making it ready for
-        // the next get).
+        // the next aggregation).
 
         populateMatchedBuckets(doc, valuesSource.key(), values, valueSpace);
         BucketCollector[] mBukcets = matchedBuckets.innerValues();
@@ -125,11 +125,11 @@ class HistogramCollector implements Aggregator.Collector {
     // collect the matched ones. We need to do this to avoid situations where multiple values in a single field
     // or multiple values across the aggregated fields match the bucket and then the bucket will collect the same
     // document multiple times.
-    private void populateMatchedBuckets(int doc, Object valuesSourceKey, LongValues values, ValueSpace context) {
+    private void populateMatchedBuckets(int doc, Object valuesSourceKey, LongValues values, ValueSpace valueSpace) {
         matchedBuckets.reset();
         for (LongValues.Iter iter = values.getIter(doc); iter.hasNext();) {
             long value = iter.next();
-            if (!context.accept(valuesSourceKey, value)) {
+            if (!valueSpace.accept(valuesSourceKey, value)) {
                 continue;
             }
             long key = rounding.round(value);
@@ -155,7 +155,7 @@ class HistogramCollector implements Aggregator.Collector {
 
         // hacky, but needed for performance. We use this in the #findMatchedBuckets method, to keep track of the buckets
         // we already matched (we don't want to pick up the same bucket twice). An alternative for this hack would have
-        // been to use a set in that method instead of a list, but that come with extra performance costs (every time
+        // been to use a set in that method instead of a list, but that comes with performance costs (every time
         // a bucket is added to the set it's being hashed and compared to other buckets)
         boolean matched = false;
 
@@ -171,7 +171,7 @@ class HistogramCollector implements Aggregator.Collector {
         }
 
         @Override
-        protected boolean onDoc(int doc, LongValues values, ValueSpace context) throws IOException {
+        protected boolean onDoc(int doc, LongValues values, ValueSpace valueSpace) throws IOException {
             docCount++;
             return true;
         }

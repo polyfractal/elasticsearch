@@ -27,7 +27,7 @@ import org.elasticsearch.search.aggregations.calc.numeric.NumericAggregatorParse
 public class MaxParser extends NumericAggregatorParser<InternalMax> {
 
     public MaxParser() {
-        super(InternalMax.TYPE.name(), new InternalMax.Factory());
+        super(InternalMax.TYPE, new InternalMax.Factory());
     }
 
 }

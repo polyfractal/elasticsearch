@@ -27,7 +27,7 @@ import org.elasticsearch.search.aggregations.calc.numeric.NumericAggregatorParse
 public class AvgParser extends NumericAggregatorParser<InternalAvg> {
 
     public AvgParser() {
-        super(InternalAvg.TYPE.name(), new InternalAvg.Factory());
+        super(InternalAvg.TYPE, new InternalAvg.Factory());
     }
 
 }

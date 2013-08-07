@@ -73,7 +73,7 @@ public class AggregationModule extends AbstractModule {
     }
 
     /**
-     * Enabling extending the get module by adding a custom get parser.
+     * Enabling extending the get module by adding a custom aggregation parser.
      *
      * @param parser The parser for the custom aggregator.
      */

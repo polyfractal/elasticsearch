@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
 public class IPv4RangeBuilder extends RangeBuilderBase<IPv4RangeBuilder> {
 
     public static final long MAX_IP = 4294967296l;
+    private static final Pattern MASK_PATTERN = Pattern.compile("[\\.|/]");
 
     public IPv4RangeBuilder(String name) {
         super(name, InternalIPv4Range.TYPE.name());
@@ -55,8 +56,6 @@ public class IPv4RangeBuilder extends RangeBuilderBase<IPv4RangeBuilder> {
     public IPv4RangeBuilder addUnboundedFrom(String from) {
         return addUnboundedFrom(null, from);
     }
-
-    private static final Pattern MASK_PATTERN = Pattern.compile("[\\.|/]");
 
     /**
      * Computes the min & max ip addresses (represented as long values - same way as stored in index) represented by the given CIDR mask

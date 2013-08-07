@@ -56,11 +56,6 @@ public class GeoDistanceTests extends AbstractSharedClusterTest {
         return 5;
     }
 
-    @Override
-    protected int numberOfNodes() {
-        return 2;
-    }
-
     private void indexCity(String name, String latLon) throws Exception {
         client().prepareIndex("idx", "type").setSource(jsonBuilder()
                 .startObject()
@@ -105,6 +100,8 @@ public class GeoDistanceTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom(1000))
                         .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         GeoDistance geoDist = response.getAggregations().get("amsterdam_rings");
         assertThat(geoDist, notNullValue());
         assertThat(geoDist.getName(), equalTo("amsterdam_rings"));
@@ -143,6 +140,8 @@ public class GeoDistanceTests extends AbstractSharedClusterTest {
                         .addRange("ring2", 500, 1000)
                         .addUnboundedFrom("ring3", 1000))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         GeoDistance geoDist = response.getAggregations().get("amsterdam_rings");
         assertThat(geoDist, notNullValue());
@@ -183,6 +182,8 @@ public class GeoDistanceTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom(1000))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         GeoDistance geoDist = response.getAggregations().get("amsterdam_rings");
         assertThat(geoDist, notNullValue());
         assertThat(geoDist.getName(), equalTo("amsterdam_rings"));
@@ -221,6 +222,8 @@ public class GeoDistanceTests extends AbstractSharedClusterTest {
                         .addRange(500, 1000)
                         .addUnboundedFrom(1000))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         GeoDistance geoDist = response.getAggregations().get("amsterdam_rings");
         assertThat(geoDist, notNullValue());
@@ -262,6 +265,8 @@ public class GeoDistanceTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom(1000)
                         .subAggregation(terms("cities").field("city")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         GeoDistance geoDist = response.getAggregations().get("amsterdam_rings");
         assertThat(geoDist, notNullValue());

@@ -22,7 +22,7 @@ package org.elasticsearch.search.aggregations;
 import org.elasticsearch.ElasticSearchException;
 
 /**
- * Thrown when failing to execute an get
+ * Thrown when failing to execute an aggregation
  */
 public class AggregationExecutionException extends ElasticSearchException {
 

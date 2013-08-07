@@ -53,11 +53,6 @@ public class GlobalTests extends AbstractSharedClusterTest {
         return 5;
     }
 
-    @Override
-    protected int numberOfNodes() {
-        return 2;
-    }
-
     @Before
     public void init() throws Exception {
         createIndex("idx");
@@ -83,12 +78,14 @@ public class GlobalTests extends AbstractSharedClusterTest {
     }
 
     @Test
-    public void testGlobal_WithStatsSubAggregator() throws Exception {
+    public void withStatsSubAggregator() throws Exception {
         SearchResponse response = client().prepareSearch("idx")
                 .setQuery(QueryBuilders.termQuery("tag", "tag1"))
                 .addAggregation(global("global")
                         .subAggregation(stats("value_stats").field("value")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Global global = response.getAggregations().get("global");
         assertThat(global, notNullValue());
@@ -107,7 +104,7 @@ public class GlobalTests extends AbstractSharedClusterTest {
     }
 
     @Test
-    public void testGlobal_NonTopLevel() throws Exception {
+    public void nonTopLevel() throws Exception {
 
         try {
 

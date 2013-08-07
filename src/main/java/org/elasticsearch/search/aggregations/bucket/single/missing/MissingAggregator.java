@@ -23,13 +23,13 @@ import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.ValuesSourceAggregator;
 import org.elasticsearch.search.aggregations.bucket.BucketsAggregator;
 import org.elasticsearch.search.aggregations.bucket.BytesBucketsAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
-import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
+import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
 
 import java.io.IOException;
 import java.util.List;
@@ -46,12 +46,12 @@ public class MissingAggregator extends BytesBucketsAggregator {
     public MissingAggregator(String name, List<Aggregator.Factory> factories, ValuesSource valuesSource,
                              AggregationContext aggregationContext, Aggregator parent) {
         super(name, valuesSource, aggregationContext, parent);
-        subAggregators = BucketsAggregator.createSubAggregators(factories, this);
+        this.subAggregators = BucketsAggregator.createSubAggregators(factories, this);
     }
 
     @Override
     public Aggregator.Collector collector() {
-        return new Collector(valuesSource, subAggregators);
+        return valuesSource != null ? new Collector(valuesSource, subAggregators) : new MissingCollector(subAggregators, this);
     }
 
     @Override
@@ -68,7 +68,7 @@ public class MissingAggregator extends BytesBucketsAggregator {
         }
 
         @Override
-        protected boolean onDoc(int doc, BytesValues values, ValueSpace context) throws IOException {
+        protected boolean onDoc(int doc, BytesValues values, ValueSpace valueSpace) throws IOException {
             if (!values.hasValue(doc)) {
                 docCount++;
                 return true;
@@ -90,21 +90,40 @@ public class MissingAggregator extends BytesBucketsAggregator {
         }
     }
 
-    public static class Factory extends Aggregator.CompoundFactory<MissingAggregator> {
+    public class MissingCollector extends BucketsAggregator.BucketCollector {
 
-        private final FieldContext fieldContext;
+        private long docCount;
 
-        public Factory(String name, FieldContext fieldContext) {
-            super(name);
-            this.fieldContext = fieldContext;
+        public MissingCollector(Aggregator[] subAggregators, Aggregator aggregator) {
+            super(subAggregators, aggregator);
         }
 
         @Override
-        public MissingAggregator create(AggregationContext aggregationContext, Aggregator parent) {
-            if (fieldContext == null) {
-                return new MissingAggregator(name, factories, null, aggregationContext, parent);
-            }
-            BytesValuesSource valuesSource = aggregationContext.bytesField(fieldContext, null);
+        protected ValueSpace onDoc(int doc, ValueSpace valueSpace) throws IOException {
+            docCount++;
+            return valueSpace;
+        }
+
+        @Override
+        protected void postCollection(Aggregator[] aggregators) {
+            MissingAggregator.this.docCount = docCount;
+        }
+
+    }
+
+    public static class Factory extends ValuesSourceAggregator.CompoundFactory<ValuesSource> {
+
+        public Factory(String name, ValuesSourceConfig valueSourceConfig) {
+            super(name, valueSourceConfig);
+        }
+
+        @Override
+        protected MissingAggregator createUnmapped(AggregationContext aggregationContext, Aggregator parent) {
+            return new MissingAggregator(name, factories, null, aggregationContext, parent);
+        }
+
+        @Override
+        protected MissingAggregator create(ValuesSource valuesSource, AggregationContext aggregationContext, Aggregator parent) {
             return new MissingAggregator(name, factories, valuesSource, aggregationContext, parent);
         }
     }

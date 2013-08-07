@@ -24,6 +24,9 @@ import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.search.aggregations.Aggregated;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.Aggregations;
+import org.elasticsearch.search.aggregations.context.ValuesSource;
+import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
+import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 
 import java.util.Collection;
 import java.util.Comparator;
@@ -35,7 +38,15 @@ public interface Terms extends Aggregation, Iterable<Terms.Bucket> {
 
     static enum ValueType {
 
-        STRING, LONG, DOUBLE;
+        STRING(BytesValuesSource.class),
+        LONG(NumericValuesSource.class),
+        DOUBLE(NumericValuesSource.class);
+
+        final Class<? extends ValuesSource> valuesSourceType;
+
+        private ValueType(Class<? extends ValuesSource> valuesSourceType) {
+            this.valuesSourceType = valuesSourceType;
+        }
 
         static ValueType resolveType(String type) {
             if ("string".equals(type)) {

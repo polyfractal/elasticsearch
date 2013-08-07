@@ -21,18 +21,19 @@ package org.elasticsearch.search.aggregations.bucket.multi.range;
 
 import com.google.common.collect.Lists;
 import org.elasticsearch.index.fielddata.DoubleValues;
-import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.DoubleBucketsAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
+import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
 import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.aggregations.context.numeric.ValueFormatter;
 import org.elasticsearch.search.aggregations.context.numeric.ValueParser;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.elasticsearch.search.aggregations.bucket.BucketsAggregator.buildAggregations;
@@ -97,14 +98,15 @@ public class RangeAggregator extends DoubleBucketsAggregator {
         bucketCollectors = new BucketCollector[ranges.size()];
         int i = 0;
         for (Range range : ranges) {
-            range.process(valuesSource.parser(), aggregationContext);
+            ValueParser parser = valuesSource != null ? valuesSource.parser() : null;
+            range.process(parser, aggregationContext);
             bucketCollectors[i++] = new BucketCollector(range, valuesSource, createSubAggregators(factories, this), this);
         }
     }
 
     @Override
     public Collector collector() {
-        return new Collector();
+        return valuesSource != null ? new Collector() : null;
     }
 
     @Override
@@ -113,6 +115,9 @@ public class RangeAggregator extends DoubleBucketsAggregator {
         for (int i = 0; i < bucketCollectors.length; i++) {
             buckets.add(bucketCollectors[i].buildBucket(rangeFactory));
         }
+
+        // value source can be null in the case of unmapped fields
+        ValueFormatter formatter = valuesSource != null ? valuesSource.formatter() : null;
         return rangeFactory.create(name, buckets, valuesSource.formatter(), keyed);
     }
 
@@ -145,8 +150,8 @@ public class RangeAggregator extends DoubleBucketsAggregator {
         }
 
         @Override
-        protected boolean onDoc(int doc, DoubleValues values, ValueSpace context) throws IOException {
-            if (matches(doc, values, context)) {
+        protected boolean onDoc(int doc, DoubleValues values, ValueSpace valueSpace) throws IOException {
+            if (matches(doc, values, valueSpace)) {
                 docCount++;
                 return true;
             }
@@ -181,80 +186,69 @@ public class RangeAggregator extends DoubleBucketsAggregator {
         RangeBase.Bucket buildBucket(AbstractRangeBase.Factory factory) {
             return factory.createBucket(range.key, range.from, range.to, docCount, buildAggregations(subAggregators), valuesSource.formatter());
         }
-
     }
 
-    public static class FieldDataFactory extends DoubleBucketsAggregator.FieldDataFactory<RangeAggregator> {
+    public static class Unmapped extends Aggregator {
+        private final List<RangeAggregator.Range> ranges;
+        private final boolean keyed;
+        private final AbstractRangeBase.Factory factory;
+        private final ValueFormatter formatter;
+        private final ValueParser parser;
+
+        public Unmapped(String name,
+                        List<RangeAggregator.Range> ranges,
+                        boolean keyed,
+                        ValueFormatter formatter,
+                        ValueParser parser,
+                        AggregationContext aggregationContext,
+                        Aggregator parent,
+                        AbstractRangeBase.Factory factory) {
+
+            super(name, aggregationContext, parent);
+            this.ranges = ranges;
+            this.keyed = keyed;
+            this.formatter = formatter;
+            this.parser = parser;
+            this.factory = factory;
+        }
+
+        @Override
+        public Collector collector() {
+            return null;
+        }
+
+        @Override
+        public AbstractRangeBase buildAggregation() {
+            List<RangeBase.Bucket> buckets = new ArrayList<RangeBase.Bucket>(ranges.size());
+            for (RangeAggregator.Range range : ranges) {
+                range.process(parser, aggregationContext) ;
+                buckets.add(factory.createBucket(range.key, range.from, range.to, 0, InternalAggregations.EMPTY, formatter));
+            }
+            return factory.create(name, buckets, formatter, keyed);
+        }
+    }
+
+    public static class Factory extends CompoundFactory<NumericValuesSource> {
 
         private final AbstractRangeBase.Factory rangeFactory;
         private final List<Range> ranges;
         private final boolean keyed;
 
-        public FieldDataFactory(String name,
-                                FieldContext fieldContext,
-                                SearchScript valueScript,
-                                ValueFormatter formatter,
-                                ValueParser parser,
-                                AbstractRangeBase.Factory rangeFactory,
-                                List<Range> ranges,
-                                boolean keyed) {
-
-            super(name, fieldContext, valueScript, formatter, parser);
+        public Factory(String name, ValuesSourceConfig<NumericValuesSource> valueSourceConfig, AbstractRangeBase.Factory rangeFactory, List<Range> ranges, boolean keyed) {
+            super(name, valueSourceConfig);
             this.rangeFactory = rangeFactory;
             this.ranges = ranges;
             this.keyed = keyed;
         }
 
         @Override
-        protected RangeAggregator create(NumericValuesSource source, AggregationContext aggregationContext, Aggregator parent) {
-            return new RangeAggregator(name, factories, source, rangeFactory, ranges, keyed, aggregationContext, parent);
-        }
-
-    }
-
-    public static class ScriptFactory extends DoubleBucketsAggregator.ScriptFactory<RangeAggregator> {
-
-        private final AbstractRangeBase.Factory rangeFactory;
-        private final List<Range> ranges;
-        private final boolean keyed;
-
-        public ScriptFactory(String name,
-                             SearchScript script,
-                             boolean multiValued,
-                             ValueFormatter formatter,
-                             ValueParser parser,
-                             AbstractRangeBase.Factory rangeFactory,
-                             List<Range> ranges,
-                             boolean keyed) {
-
-            super(name, script, multiValued, formatter, parser);
-            this.rangeFactory = rangeFactory;
-            this.ranges = ranges;
-            this.keyed = keyed;
+        protected Aggregator createUnmapped(AggregationContext aggregationContext, Aggregator parent) {
+            return new Unmapped(name, ranges, keyed, valueSourceConfig.formatter(), valueSourceConfig.parser(), aggregationContext, parent, rangeFactory);
         }
 
         @Override
-        protected RangeAggregator create(NumericValuesSource source, AggregationContext aggregationContext, Aggregator parent) {
-            return new RangeAggregator(name, factories, source, rangeFactory, ranges, keyed, aggregationContext, parent);
-        }
-    }
-
-    public static class ContextBasedFactory extends DoubleBucketsAggregator.ContextBasedFactory<RangeAggregator> {
-
-        private final AbstractRangeBase.Factory rangeFactory;
-        private final List<Range> ranges;
-        private final boolean keyed;
-
-        public ContextBasedFactory(String name, AbstractRangeBase.Factory rangeFactory, List<Range> ranges, boolean keyed) {
-            super(name);
-            this.rangeFactory = rangeFactory;
-            this.ranges = ranges;
-            this.keyed = keyed;
-        }
-
-        @Override
-        public RangeAggregator create(AggregationContext aggregationContext, Aggregator parent) {
-            return new RangeAggregator(name, factories, null, rangeFactory, ranges, keyed, aggregationContext, parent);
+        protected Aggregator create(NumericValuesSource valuesSource, AggregationContext aggregationContext, Aggregator parent) {
+            return new RangeAggregator(name, factories, valuesSource, rangeFactory, ranges, keyed, aggregationContext, parent);
         }
     }
 

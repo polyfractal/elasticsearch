@@ -28,8 +28,8 @@ import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.bucket.BucketsAggregator;
 import org.elasticsearch.search.aggregations.bucket.GeoPointBucketsAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
-import org.elasticsearch.search.aggregations.context.FieldContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
+import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
 import org.elasticsearch.search.aggregations.context.geopoints.GeoPointValuesSource;
 
 import java.io.IOException;
@@ -88,7 +88,7 @@ public class GeoDistanceAggregator extends GeoPointBucketsAggregator {
 
     @Override
     public Collector collector() {
-        return new Collector();
+        return valuesSource != null ? new Collector() : null;
     }
 
     @Override
@@ -163,34 +163,23 @@ public class GeoDistanceAggregator extends GeoPointBucketsAggregator {
         }
     }
 
-    public static class FieldDataFactory extends GeoPointBucketsAggregator.FieldDataFactory<GeoDistanceAggregator> {
+    public static class Factory extends CompoundFactory<GeoPointValuesSource> {
 
         private final List<DistanceRange> ranges;
 
-        public FieldDataFactory(String name, FieldContext fieldContext, List<DistanceRange> ranges) {
-            super(name, fieldContext, null);
+        public Factory(String name, ValuesSourceConfig<GeoPointValuesSource> valueSourceConfig, List<DistanceRange> ranges) {
+            super(name, valueSourceConfig);
             this.ranges = ranges;
         }
 
         @Override
-        protected GeoDistanceAggregator create(GeoPointValuesSource source, AggregationContext aggregationContext, Aggregator parent) {
-            return new GeoDistanceAggregator(name, source, factories, ranges, aggregationContext, parent);
-        }
-
-    }
-
-    public static class ContextBasedFactory extends GeoPointBucketsAggregator.ContextBasedFactory<GeoDistanceAggregator> {
-
-        private final List<DistanceRange> ranges;
-
-        public ContextBasedFactory(String name, List<DistanceRange> ranges) {
-            super(name);
-            this.ranges = ranges;
-        }
-
-        @Override
-        public GeoDistanceAggregator create(AggregationContext aggregationContext, Aggregator parent) {
+        protected GeoDistanceAggregator createUnmapped(AggregationContext aggregationContext, Aggregator parent) {
             return new GeoDistanceAggregator(name, null, factories, ranges, aggregationContext, parent);
+        }
+
+        @Override
+        protected GeoDistanceAggregator create(GeoPointValuesSource valuesSource, AggregationContext aggregationContext, Aggregator parent) {
+            return new GeoDistanceAggregator(name, valuesSource, factories, ranges, aggregationContext, parent);
         }
     }
 

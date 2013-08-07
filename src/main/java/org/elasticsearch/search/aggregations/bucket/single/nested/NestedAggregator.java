@@ -145,7 +145,7 @@ public class NestedAggregator extends SingleBucketAggregator implements ReaderCo
 
     }
 
-    public static class Factory extends Aggregator.CompoundFactory<NestedAggregator> {
+    public static class Factory extends Aggregator.CompoundFactory {
 
         private final String path;
 

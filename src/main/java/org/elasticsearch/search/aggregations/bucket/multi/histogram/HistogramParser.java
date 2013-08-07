@@ -23,11 +23,12 @@ import org.elasticsearch.common.rounding.Rounding;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.fielddata.IndexFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
-import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.SearchParseException;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorParser;
 import org.elasticsearch.search.aggregations.context.FieldContext;
+import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
+import org.elasticsearch.search.aggregations.context.numeric.NumericValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -46,15 +47,15 @@ public class HistogramParser implements AggregatorParser {
     @Override
     public Aggregator.Factory parse(String aggregationName, XContentParser parser, SearchContext context) throws IOException {
 
+        ValuesSourceConfig<NumericValuesSource> config = new ValuesSourceConfig<NumericValuesSource>(NumericValuesSource.class);
+
         String field = null;
         String script = null;
         String scriptLang = null;
         Map<String, Object> scriptParams = null;
         boolean keyed = false;
-        boolean includeEmptyBuckets = false;
         InternalOrder order = (InternalOrder) InternalOrder.KEY_ASC;
         long interval = -1;
-        boolean multiValued = true;
 
         XContentParser.Token token;
         String currentFieldName = null;
@@ -77,9 +78,7 @@ public class HistogramParser implements AggregatorParser {
                 if ("keyed".equals(currentFieldName)) {
                     keyed = parser.booleanValue();
                 } else if ("multi_valued".equals(currentFieldName) || "multiValued".equals(currentFieldName)) {
-                    multiValued = parser.booleanValue();
-                } else if ("include_empty_buckets".equals(currentFieldName) || "includeEmptyBuckets".equals(currentFieldName)) {
-                    includeEmptyBuckets = parser.booleanValue();
+                    config.multiValued(parser.booleanValue());
                 }
             } else if (token == XContentParser.Token.START_OBJECT) {
                 if ("params".equals(currentFieldName)) {
@@ -99,36 +98,28 @@ public class HistogramParser implements AggregatorParser {
             }
         }
 
-        InternalHistogram.Factory histogramFactory = new InternalHistogram.Factory();
-
         if (interval < 0) {
             throw new SearchParseException(context, "Missing required field [interval] for histogram aggregation [" + aggregationName + "]");
         }
         Rounding rounding = new Rounding.Interval(interval);
 
-        SearchScript searchScript = null;
         if (script != null) {
-            searchScript = context.scriptService().search(context.lookup(), scriptLang, script, scriptParams);
+            config.script(context.scriptService().search(context.lookup(), scriptLang, script, scriptParams));
         }
 
         if (field == null) {
-
-            if (searchScript != null) {
-                return new HistogramAggregator.ScriptFactory(aggregationName, searchScript, multiValued, rounding, order, keyed, null, null, histogramFactory);
-            }
-
-            // falling back on the get field data context
-            return new HistogramAggregator.ContextBasedFactory(aggregationName, rounding, order, keyed, histogramFactory);
+            return new HistogramAggregator.Factory(aggregationName, config, rounding, order, keyed, InternalHistogram.FACTORY);
         }
 
         FieldMapper mapper = context.smartNameFieldMapper(field);
         if (mapper == null) {
-            return new UnmappedHistogramAggregator.Factory(aggregationName, order, keyed);
+            config.unmapped(true);
+            return new HistogramAggregator.Factory(aggregationName, config, rounding, order, keyed, InternalHistogram.FACTORY);
         }
 
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        FieldContext fieldContext = new FieldContext(field, indexFieldData, mapper);
-        return new HistogramAggregator.FieldDataFactory(aggregationName, fieldContext, searchScript, rounding, order, keyed, null, histogramFactory);
+        config.fieldContext(new FieldContext(field, indexFieldData, mapper));
+        return new HistogramAggregator.Factory(aggregationName, config, rounding, order, keyed, InternalHistogram.FACTORY);
 
     }
 

@@ -50,11 +50,6 @@ public class RangeTests extends AbstractSharedClusterTest {
         return 5;
     }
 
-    @Override
-    protected int numberOfNodes() {
-        return 2;
-    }
-
     @Before
     public void init() throws Exception {
         createIndex("idx");
@@ -82,6 +77,8 @@ public class RangeTests extends AbstractSharedClusterTest {
                         .addRange(3, 6)
                         .addUnboundedFrom(6))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -120,6 +117,8 @@ public class RangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom("r3", 6))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -157,6 +156,8 @@ public class RangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom(6)
                         .subAggregation(sum("sum").field("value")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -205,6 +206,8 @@ public class RangeTests extends AbstractSharedClusterTest {
                         .subAggregation(avg("avg")))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -251,6 +254,8 @@ public class RangeTests extends AbstractSharedClusterTest {
                         .addRange(3, 6)
                         .addUnboundedFrom(6))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -302,6 +307,8 @@ public class RangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom(6))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -352,6 +359,8 @@ public class RangeTests extends AbstractSharedClusterTest {
                         .addRange(3, 6)
                         .addUnboundedFrom(6))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -409,6 +418,8 @@ public class RangeTests extends AbstractSharedClusterTest {
                         .subAggregation(sum("sum")))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -458,6 +469,8 @@ public class RangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom(6))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -495,6 +508,8 @@ public class RangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom(6)
                         .subAggregation(avg("avg")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -541,6 +556,8 @@ public class RangeTests extends AbstractSharedClusterTest {
                         .addRange(3, 6)
                         .addUnboundedFrom(6))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -597,6 +614,8 @@ public class RangeTests extends AbstractSharedClusterTest {
                         .subAggregation(sum("sum")))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -646,6 +665,8 @@ public class RangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom(6))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -682,6 +703,8 @@ public class RangeTests extends AbstractSharedClusterTest {
                         .addRange(3, 6)
                         .addUnboundedFrom(6))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());

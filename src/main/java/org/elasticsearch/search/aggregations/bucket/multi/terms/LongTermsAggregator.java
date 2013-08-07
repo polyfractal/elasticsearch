@@ -173,7 +173,7 @@ public class LongTermsAggregator extends LongBucketsAggregator {
         }
 
         @Override
-        protected boolean onDoc(int doc, LongValues values, ValueSpace context) throws IOException {
+        protected boolean onDoc(int doc, LongValues values, ValueSpace valueSpace) throws IOException {
             docCount++;
             return true;
         }

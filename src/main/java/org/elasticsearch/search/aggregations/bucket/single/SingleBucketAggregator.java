@@ -32,10 +32,18 @@ import java.util.List;
  */
 public abstract class SingleBucketAggregator extends BucketsAggregator {
 
-    // since we only have one bucket we can eagerly initialize the sub aggregators
+    // since we only have one bucket we can eagerly initialize the sub-aggregators
 
     private final Aggregator[] subAggregators;
 
+    /**
+     * Constructs a new single bucket aggregator.
+     *
+     * @param name                  The aggregation name.
+     * @param factories             The aggregator factories of all sub-aggregations associated with the bucket of this aggregator.
+     * @param aggregationContext    The aggregation context.
+     * @param parent                The parent aggregator of this aggregator.
+     */
     protected SingleBucketAggregator(String name, List<Aggregator.Factory> factories,
                                      AggregationContext aggregationContext, Aggregator parent) {
         super(name, aggregationContext, parent);
@@ -47,6 +55,12 @@ public abstract class SingleBucketAggregator extends BucketsAggregator {
         return collector(subAggregators);
     }
 
+    /**
+     * Creates the collector for this aggregator with the given sub-aggregators (for the single bucket)
+     *
+     * @param aggregators   The sub-aggregators
+     * @return              The collector
+     */
     protected abstract Collector collector(Aggregator[] aggregators);
 
     @Override
@@ -54,6 +68,12 @@ public abstract class SingleBucketAggregator extends BucketsAggregator {
         return buildAggregation(buildAggregations(subAggregators));
     }
 
+    /**
+     * Builds the aggregation of this aggregator, with the given sub-aggregations.
+     *
+     * @param aggregations  The already built sub-aggregations that are associated with the single bucket of this aggregator.
+     * @return              The created aggregation.
+     */
     protected abstract InternalAggregation buildAggregation(InternalAggregations aggregations);
 
 }

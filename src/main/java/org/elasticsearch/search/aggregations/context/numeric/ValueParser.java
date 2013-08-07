@@ -22,6 +22,7 @@ package org.elasticsearch.search.aggregations.context.numeric;
 import org.elasticsearch.common.joda.DateMathParser;
 import org.elasticsearch.common.joda.FormatDateTimeFormatter;
 import org.elasticsearch.common.joda.Joda;
+import org.elasticsearch.index.mapper.core.DateFieldMapper;
 import org.elasticsearch.index.mapper.ip.IpFieldMapper;
 import org.elasticsearch.search.internal.SearchContext;
 
@@ -69,6 +70,8 @@ public interface ValueParser {
      * Knows how to parse datatime values based on elasticsearch's date math expression
      */
     static class DateMath implements ValueParser {
+
+        public static final DateMath DEFAULT = new ValueParser.DateMath(new DateMathParser(DateFieldMapper.Defaults.DATE_TIME_FORMATTER, DateFieldMapper.Defaults.TIME_UNIT));
 
         private DateMathParser parser;
 

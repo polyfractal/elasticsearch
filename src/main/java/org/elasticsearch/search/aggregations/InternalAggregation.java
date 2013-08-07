@@ -22,7 +22,6 @@ package org.elasticsearch.search.aggregations;
 import org.elasticsearch.cache.recycler.CacheRecycler;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.bytes.HashedBytesArray;
 import org.elasticsearch.common.io.stream.Streamable;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilderString;
@@ -30,12 +29,12 @@ import org.elasticsearch.common.xcontent.XContentBuilderString;
 import java.util.List;
 
 /**
- * An internal implementation of {@link Aggregation}. Serves as a base class for all get implementations.
+ * An internal implementation of {@link Aggregation}. Serves as a base class for all aggregation implementations.
  */
 public abstract class InternalAggregation implements Aggregation, ToXContent, Streamable {
 
     /**
-     * The get type that holds all the string types that are associated with an get:
+     * The aggregation type that holds all the string types that are associated with an aggregation:
      * <ul>
      *     <li>name - used as the parser type</li>
      *     <li>stream - used as the stream type</li>
@@ -67,7 +66,7 @@ public abstract class InternalAggregation implements Aggregation, ToXContent, St
         }
 
         /**
-         * @return  The name of the stream type (used for registering the get stream
+         * @return  The name of the stream type (used for registering the aggregation stream
          *          (see {@link AggregationStreams#registerStream(AggregationStreams.Stream, org.elasticsearch.common.bytes.BytesReference...)}).
          */
         public BytesReference stream() {
@@ -115,13 +114,13 @@ public abstract class InternalAggregation implements Aggregation, ToXContent, St
     }
 
     /**
-     * @return The {@link Type} of this get
+     * @return The {@link Type} of this aggregation
      */
     public abstract Type type();
 
     /**
      * Reduces the given addAggregation to a single one and returns it. In <b>most</b> cases, the assumption will be the all given
-     * addAggregation are of the same type (the same type as this get). For best efficiency, when implementing,
+     * addAggregation are of the same type (the same type as this aggregation). For best efficiency, when implementing,
      * try reusing an existing get instance (typically the first in the given list) to save on redundant object
      * construction.
      */

@@ -24,7 +24,7 @@ import org.elasticsearch.search.aggregations.context.AggregationContext;
 import java.util.List;
 
 /**
- * The get context that is part of the search context.
+ * The aggregation context that is part of the search context.
  */
 public class SearchContextAggregations {
 
@@ -33,7 +33,7 @@ public class SearchContextAggregations {
     private AggregationContext aggregationContext;
 
     /**
-     * Creates a new get context with all parsed aggregator factories
+     * Creates a new aggregation context with all parsed aggregator factories
      *
      * @param factories The parsed aggregator factories
      */

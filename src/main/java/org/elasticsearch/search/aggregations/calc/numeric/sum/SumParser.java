@@ -27,7 +27,7 @@ import org.elasticsearch.search.aggregations.calc.numeric.NumericAggregatorParse
 public class SumParser extends NumericAggregatorParser<InternalSum> {
 
     public SumParser() {
-        super(InternalSum.TYPE.name(), new InternalSum.Factory());
+        super(InternalSum.TYPE, new InternalSum.Factory());
     }
 
 }

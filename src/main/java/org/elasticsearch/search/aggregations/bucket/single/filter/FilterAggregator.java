@@ -100,7 +100,7 @@ public class FilterAggregator extends SingleBucketAggregator implements ReaderCo
 
     }
 
-    public static class Factory extends Aggregator.CompoundFactory<FilterAggregator> {
+    public static class Factory extends Aggregator.CompoundFactory {
 
         private org.apache.lucene.search.Filter filter;
 

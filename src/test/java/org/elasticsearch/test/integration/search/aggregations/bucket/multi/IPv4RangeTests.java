@@ -53,11 +53,6 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
         return 5;
     }
 
-    @Override
-    protected int numberOfNodes() {
-        return 2;
-    }
-
     @Before
     public void init() throws Exception {
         createIndexWithMappedType("idx", "type",
@@ -87,6 +82,8 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
                         .addRange("10.0.0.100", "10.0.0.200")
                         .addUnboundedFrom("10.0.0.200"))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         IPv4Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -130,6 +127,8 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
                         .addMaskRange("10.0.0.128/25"))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         IPv4Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -147,7 +146,6 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
         bucket = range.getByKey("10.0.0.128/25");
         assertThat(bucket, notNullValue());
         assertThat(bucket.getKey(), equalTo("10.0.0.128/25"));
-        System.out.println(IpFieldMapper.longToIp((long) bucket.getFrom()));
         assertThat((long) bucket.getFrom(), equalTo(IpFieldMapper.ipToLong("10.0.0.128")));
         assertThat(bucket.getFromAsString(), equalTo("10.0.0.128"));
         assertThat((long) bucket.getTo(), equalTo(IpFieldMapper.ipToLong("10.0.1.0"))); // range is exclusive on the to side
@@ -164,6 +162,8 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
                         .addRange("r2", "10.0.0.100", "10.0.0.200")
                         .addUnboundedFrom("r3", "10.0.0.200"))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         IPv4Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -208,6 +208,8 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom("10.0.0.200")
                         .subAggregation(sum("sum").field("value")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         IPv4Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -262,6 +264,8 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
                         .subAggregation(max("max")))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         IPv4Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -314,6 +318,8 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
                         .addRange("10.0.0.100", "10.0.0.200")
                         .addUnboundedFrom("10.0.0.200"))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         IPv4Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -375,6 +381,8 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom("10.0.0.200"))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         IPv4Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -418,6 +426,8 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
                         .addRange("10.0.0.100", "10.0.0.200")
                         .addUnboundedFrom("10.0.0.200"))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         IPv4Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -463,6 +473,8 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom("10.0.0.200")
                         .subAggregation(max("max")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         IPv4Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -516,6 +528,8 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom("10.0.0.200"))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         IPv4Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -559,6 +573,8 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom("10.0.0.200")
                         .subAggregation(max("max")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         IPv4Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -612,6 +628,8 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom("10.0.0.200"))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         IPv4Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -655,6 +673,8 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom("10.0.0.200")
                         .subAggregation(max("max")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         IPv4Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -708,6 +728,8 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom("10.0.0.200"))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         IPv4Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -750,6 +772,8 @@ public class IPv4RangeTests extends AbstractSharedClusterTest {
                         .addRange("10.0.0.100", "10.0.0.200")
                         .addUnboundedFrom("10.0.0.200"))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         IPv4Range range = response.getAggregations().get("range");
         assertThat(range, notNullValue());

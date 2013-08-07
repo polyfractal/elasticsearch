@@ -70,7 +70,7 @@ public class GlobalAggregator extends SingleBucketAggregator {
         }
     }
 
-    public static class Factory extends Aggregator.CompoundFactory<GlobalAggregator> {
+    public static class Factory extends Aggregator.CompoundFactory {
 
         public Factory(String name) {
             super(name);

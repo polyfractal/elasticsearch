@@ -22,6 +22,7 @@ package org.elasticsearch.search.aggregations;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
 import org.elasticsearch.search.aggregations.context.ValuesSourceBased;
+import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
 
 /**
  * An aggregator that aggregates based on values that are provided by a {@link ValuesSource}.
@@ -30,18 +31,9 @@ public abstract class ValuesSourceAggregator<VS extends ValuesSource> extends Ag
 
     protected final VS valuesSource;
 
-    public ValuesSourceAggregator(String name,
-                                  VS valuesSource,
-                                  Class<VS> requiredValuesSourceType,
-                                  AggregationContext aggregationContext,
-                                  Aggregator parent) {
-
+    public ValuesSourceAggregator(String name, VS valuesSource, AggregationContext aggregationContext, Aggregator parent) {
         super(name, aggregationContext, parent);
-        if (valuesSource != null) {
-            this.valuesSource = valuesSource;
-        } else {
-            this.valuesSource = resolveValuesSourceFromAncestors(name, parent, requiredValuesSourceType);
-        }
+        this.valuesSource = valuesSource;
     }
 
     @Override
@@ -49,16 +41,97 @@ public abstract class ValuesSourceAggregator<VS extends ValuesSource> extends Ag
         return valuesSource;
     }
 
-    public static <VS extends ValuesSource> VS resolveValuesSourceFromAncestors(String aggName, Aggregator parent, Class<VS> requiredValuesSourceType) {
-        ValuesSource vs;
+    private static interface ValuesSourceConfigurable {
+
+        ValuesSourceConfig valuesSourceConfig();
+
+    }
+
+    public static abstract class Factory<VS extends ValuesSource> extends Aggregator.Factory implements ValuesSourceConfigurable {
+
+        protected ValuesSourceConfig<VS> valuesSourceConfig;
+
+        protected Factory(String name, ValuesSourceConfig<VS> valuesSourceConfig) {
+            super(name);
+            this.valuesSourceConfig = valuesSourceConfig;
+        }
+
+        @Override
+        public ValuesSourceConfig valuesSourceConfig() {
+            return valuesSourceConfig;
+        }
+
+        @Override
+        public final Aggregator create(AggregationContext aggregationContext, Aggregator parentAggregator) {
+            if (valuesSourceConfig.unmapped()) {
+                return createUnmapped(aggregationContext, parentAggregator);
+            }
+            VS vs = aggregationContext.valuesSource(valuesSourceConfig);
+            return create(vs, aggregationContext, parentAggregator);
+        }
+
+        @Override
+        public void validate() {
+            if (!valuesSourceConfig.valid()) {
+                valuesSourceConfig = resolveValuesSourceConfigFromAncestors(name, parent, valuesSourceConfig.valueSourceType());
+            }
+        }
+
+        protected abstract Aggregator createUnmapped(AggregationContext aggregationContext, Aggregator parent);
+
+        protected abstract Aggregator create(VS valuesSource, AggregationContext aggregationContext, Aggregator parent);
+    }
+
+    public static abstract class CompoundFactory<VS extends ValuesSource> extends Aggregator.CompoundFactory implements ValuesSourceConfigurable {
+
+        protected ValuesSourceConfig<VS> valueSourceConfig;
+
+        protected CompoundFactory(String name, ValuesSourceConfig<VS> valueSourceConfig) {
+            super(name);
+            this.valueSourceConfig = valueSourceConfig;
+        }
+
+        @Override
+        public ValuesSourceConfig valuesSourceConfig() {
+            return valueSourceConfig;
+        }
+
+        @Override
+        public final Aggregator create(AggregationContext aggregationContext, Aggregator parentAggregator) {
+            if (valueSourceConfig.unmapped()) {
+                return createUnmapped(aggregationContext, parentAggregator);
+            }
+            VS vs = aggregationContext.valuesSource(valueSourceConfig);
+            return create(vs, aggregationContext, parentAggregator);
+        }
+
+        @Override
+        public void validate() {
+            if (!valueSourceConfig.valid()) {
+                valueSourceConfig = resolveValuesSourceConfigFromAncestors(name, parent, valueSourceConfig.valueSourceType());
+            }
+            for (Aggregator.Factory factory : factories) {
+                factory.validate();
+            }
+        }
+
+        protected abstract Aggregator createUnmapped(AggregationContext aggregationContext, Aggregator parent);
+
+        protected abstract Aggregator create(VS valuesSource, AggregationContext aggregationContext, Aggregator parent);
+    }
+
+    private static <VS extends ValuesSource> ValuesSourceConfig<VS> resolveValuesSourceConfigFromAncestors(String aggName, Aggregator.Factory parent, Class<VS> requiredValuesSourceType) {
+        ValuesSourceConfig config;
         while (parent != null) {
-            if (parent instanceof ValuesSourceBased) {
-                vs = ((ValuesSourceBased) parent).valuesSource();
-                if (requiredValuesSourceType == null || requiredValuesSourceType.isInstance(vs)) {
-                    return (VS) vs;
+            if (parent instanceof ValuesSourceConfigurable) {
+                config = ((ValuesSourceConfigurable) parent).valuesSourceConfig();
+                if (config != null && config.valid()) {
+                    if (requiredValuesSourceType == null || requiredValuesSourceType.isAssignableFrom(config.valueSourceType())) {
+                        return (ValuesSourceConfig<VS>) config;
+                    }
                 }
             }
-            parent = parent.parent();
+            parent = parent.parent;
         }
         throw new AggregationExecutionException("could not find the appropriate value context to perform aggregation [" + aggName + "]");
     }

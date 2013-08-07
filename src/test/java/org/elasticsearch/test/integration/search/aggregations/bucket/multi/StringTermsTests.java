@@ -51,11 +51,6 @@ public class StringTermsTests extends AbstractSharedClusterTest {
         return 5;
     }
 
-    @Override
-    protected int numberOfNodes() {
-        return 2;
-    }
-
     @Before
     public void init() throws Exception {
         createIndex("idx");
@@ -90,6 +85,8 @@ public class StringTermsTests extends AbstractSharedClusterTest {
                         .field("value"))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -112,6 +109,8 @@ public class StringTermsTests extends AbstractSharedClusterTest {
                         .order(Terms.Order.TERM_ASC)) // we need to sort by terms cause we're checking the first 20 values
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -132,6 +131,8 @@ public class StringTermsTests extends AbstractSharedClusterTest {
                         .field("value")
                         .order(Terms.Order.TERM_ASC))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
@@ -155,6 +156,8 @@ public class StringTermsTests extends AbstractSharedClusterTest {
                         .order(Terms.Order.TERM_DESC))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -176,6 +179,8 @@ public class StringTermsTests extends AbstractSharedClusterTest {
                         .field("value")
                         .subAggregation(count("count").field("values")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
@@ -201,6 +206,8 @@ public class StringTermsTests extends AbstractSharedClusterTest {
                         .subAggregation(count("count")))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -225,6 +232,8 @@ public class StringTermsTests extends AbstractSharedClusterTest {
                         .script("'foo_' + _value"))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -244,6 +253,8 @@ public class StringTermsTests extends AbstractSharedClusterTest {
                 .addAggregation(terms("terms")
                         .field("values"))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
@@ -269,6 +280,8 @@ public class StringTermsTests extends AbstractSharedClusterTest {
                         .field("values")
                         .script("'foo_' + _value"))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
@@ -314,6 +327,8 @@ public class StringTermsTests extends AbstractSharedClusterTest {
                         .subAggregation(count("count")))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -344,6 +359,8 @@ public class StringTermsTests extends AbstractSharedClusterTest {
                         .script("doc['value'].value"))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -365,6 +382,8 @@ public class StringTermsTests extends AbstractSharedClusterTest {
                         .multiValued(false))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -385,6 +404,8 @@ public class StringTermsTests extends AbstractSharedClusterTest {
                         .script("doc['value'].value")
                         .subAggregation(count("count")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
@@ -408,6 +429,8 @@ public class StringTermsTests extends AbstractSharedClusterTest {
                 .addAggregation(terms("terms")
                         .script("doc['values'].values"))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
@@ -433,6 +456,8 @@ public class StringTermsTests extends AbstractSharedClusterTest {
                         .script("doc['values'].values")
                         .subAggregation(count("count")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
@@ -464,6 +489,8 @@ public class StringTermsTests extends AbstractSharedClusterTest {
                         .field("value"))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());
         assertThat(terms.getName(), equalTo("terms"));
@@ -476,6 +503,8 @@ public class StringTermsTests extends AbstractSharedClusterTest {
                 .addAggregation(terms("terms")
                         .field("value"))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Terms terms = response.getAggregations().get("terms");
         assertThat(terms, notNullValue());

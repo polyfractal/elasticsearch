@@ -54,11 +54,6 @@ public class HistogramTests extends AbstractSharedClusterTest {
         return 5;
     }
 
-    @Override
-    protected int numberOfNodes() {
-        return 2;
-    }
-
     @Before
     public void init() throws Exception {
         createIndex("idx");
@@ -83,6 +78,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(histogram("histo").field("value").interval(4))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -111,6 +108,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(histogram("histo").field("value").interval(4).order(Histogram.Order.KEY_ASC))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -137,6 +136,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(histogram("histo").field("value").interval(4).order(Histogram.Order.KEY_DESC))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -165,6 +166,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(histogram("histo").field("value").interval(4).order(Histogram.Order.COUNT_ASC))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -191,6 +194,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(histogram("histo").field("value").interval(4).order(Histogram.Order.COUNT_DESC))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -219,6 +224,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(histogram("histo").field("value").interval(4)
                     .subAggregation(sum("sum").field("value")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -260,6 +267,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
                         .subAggregation(sum("sum")))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -299,6 +308,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(histogram("histo").field("value").interval(4).order(Histogram.Order.aggregation("sum", true))
                         .subAggregation(sum("sum").field("value")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -340,6 +351,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
                         .subAggregation(sum("sum").field("value")))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -379,6 +392,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(histogram("histo").field("value").interval(4).order(Histogram.Order.aggregation("stats.sum", true))
                         .subAggregation(stats("stats")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -420,6 +435,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
                         .subAggregation(stats("stats").field("value")))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -459,6 +476,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(histogram("histo").field("value").script("_value + 1").interval(4))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -485,6 +504,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(histogram("histo").field("values").interval(4))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -513,6 +534,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(histogram("histo").field("values").interval(4).order(Histogram.Order.KEY_DESC))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -540,6 +563,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(histogram("histo").field("values").script("_value + 1").interval(4))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -561,12 +586,30 @@ public class HistogramTests extends AbstractSharedClusterTest {
         assertThat(bucket.getDocCount(), equalTo(4l)); // docs: [7, 8], [8, 9], [9. 10], [10, 11]
     }
 
+
+//    2,3
+//    3,4
+//    4,5
+//    5,6
+//    6,7
+//    7,8
+//    8,9
+//    9,10
+//    10,11
+//    11,12
+
+//    0 - 2
+//    4 - 5
+//    8 - 5
+
     @Test
     public void multiValuedField_WithValueScript_WithInheritedSubAggregator() throws Exception {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(histogram("histo").field("values").script("_value + 1").interval(4)
                     .subAggregation(terms("values").order(Terms.Order.TERM_ASC)))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -620,6 +663,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(histogram("histo").script("doc['value'].value").interval(4))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -647,6 +692,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(histogram("histo").script("doc['value'].value").interval(4)
                     .subAggregation(sum("sum")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -684,6 +731,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(histogram("histo").script("doc['values'].values").interval(4))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -711,6 +760,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(histogram("histo").script("doc['values'].values").interval(4)
                     .subAggregation(sum("sum")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
@@ -748,6 +799,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
                 .addAggregation(histogram("histo").field("value").interval(4))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());
         assertThat(histo.getName(), equalTo("histo"));
@@ -759,6 +812,8 @@ public class HistogramTests extends AbstractSharedClusterTest {
         SearchResponse response = client().prepareSearch("idx", "idx_unmapped")
                 .addAggregation(histogram("histo").field("value").interval(4))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         Histogram histo = response.getAggregations().get("histo");
         assertThat(histo, notNullValue());

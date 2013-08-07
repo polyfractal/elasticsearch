@@ -19,7 +19,6 @@
 
 package org.elasticsearch.test.integration.search.aggregations.bucket.multi;
 
-import org.apache.lucene.util.LuceneTestCase;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.search.aggregations.bucket.multi.range.date.DateRange;
@@ -53,11 +52,6 @@ public class DateRangeTests extends AbstractSharedClusterTest {
 
     protected int numberOfShards() {
         return 5;
-    }
-
-    @Override
-    protected int numberOfNodes() {
-        return 2;
     }
 
     private DateTime date(int month, int day) {
@@ -99,6 +93,8 @@ public class DateRangeTests extends AbstractSharedClusterTest {
                         .addRange(date(2, 15), date(3, 15))
                         .addUnboundedFrom(date(3, 15)))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateRange range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -142,6 +138,8 @@ public class DateRangeTests extends AbstractSharedClusterTest {
                         .addRange("2012-02-15", "2012-03-15")
                         .addUnboundedFrom("2012-03-15"))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateRange range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -187,6 +185,8 @@ public class DateRangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom("2012-03-15"))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateRange range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -230,6 +230,8 @@ public class DateRangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom("2012-02-15||+1M"))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateRange range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -272,6 +274,8 @@ public class DateRangeTests extends AbstractSharedClusterTest {
                         .addRange("r2", date(2, 15), date(3, 15))
                         .addUnboundedFrom("r3", date(3, 15)))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateRange range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -326,6 +330,8 @@ public class DateRangeTests extends AbstractSharedClusterTest {
                         .subAggregation(sum("sum").field("value")))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateRange range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -378,6 +384,8 @@ public class DateRangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom("r3", date(3, 15))
                         .subAggregation(min("min")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateRange range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -440,6 +448,8 @@ public class DateRangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom(date(3, 15)))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateRange range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -493,6 +503,8 @@ public class DateRangeTests extends AbstractSharedClusterTest {
                         .addRange(date(2, 15), date(3, 15))
                         .addUnboundedFrom(date(3, 15)))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateRange range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -548,6 +560,8 @@ public class DateRangeTests extends AbstractSharedClusterTest {
                         .subAggregation(max("max")))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateRange range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -600,6 +614,8 @@ public class DateRangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom(date(3, 15)))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateRange range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -643,6 +659,8 @@ public class DateRangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom(date(3, 15))
                         .subAggregation(max("max")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateRange range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -705,6 +723,8 @@ public class DateRangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom(date(3, 15)))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateRange range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -748,6 +768,8 @@ public class DateRangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom(date(3, 15))
                         .subAggregation(min("min")))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateRange range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
@@ -801,6 +823,8 @@ public class DateRangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom(date(3, 15)))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateRange range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -844,6 +868,8 @@ public class DateRangeTests extends AbstractSharedClusterTest {
                         .addUnboundedFrom("2012-03-15"))
                 .execute().actionGet();
 
+        assertThat(response.getFailedShards(), equalTo(0));
+
         DateRange range = response.getAggregations().get("range");
         assertThat(range, notNullValue());
         assertThat(range.getName(), equalTo("range"));
@@ -886,6 +912,8 @@ public class DateRangeTests extends AbstractSharedClusterTest {
                         .addRange(date(2, 15), date(3, 15))
                         .addUnboundedFrom(date(3, 15)))
                 .execute().actionGet();
+
+        assertThat(response.getFailedShards(), equalTo(0));
 
         DateRange range = response.getAggregations().get("range");
         assertThat(range, notNullValue());

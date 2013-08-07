@@ -172,7 +172,7 @@ public class DoubleTermsAggregator extends DoubleBucketsAggregator {
         }
 
         @Override
-        protected boolean onDoc(int doc, DoubleValues values, ValueSpace context) throws IOException {
+        protected boolean onDoc(int doc, DoubleValues values, ValueSpace valueSpace) throws IOException {
             docCount++;
             return true;
         }

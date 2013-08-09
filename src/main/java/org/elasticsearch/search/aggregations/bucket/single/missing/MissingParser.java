@@ -69,7 +69,7 @@ public class MissingParser implements AggregatorParser {
             return new MissingAggregator.Factory(aggregationName, config);
         }
 
-        config.fieldContext(new FieldContext(field, context.fieldData().getForField(mapper), mapper));
+        config.fieldContext(new FieldContext(field, context.fieldData().getForField(mapper)));
         return new MissingAggregator.Factory(aggregationName, config);
     }
 }

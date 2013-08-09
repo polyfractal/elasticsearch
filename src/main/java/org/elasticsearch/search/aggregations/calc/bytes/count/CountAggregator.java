@@ -24,13 +24,16 @@ import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.ValuesSourceAggregator;
 import org.elasticsearch.search.aggregations.calc.bytes.BytesCalcAggregator;
-import org.elasticsearch.search.aggregations.context.*;
+import org.elasticsearch.search.aggregations.context.AggregationContext;
+import org.elasticsearch.search.aggregations.context.ValueSpace;
+import org.elasticsearch.search.aggregations.context.ValuesSource;
+import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
 import org.elasticsearch.search.aggregations.context.bytes.BytesValuesSource;
 
 import java.io.IOException;
 
 /**
- * A field data based aggregator that counts the number of values a specific field has within the get context.
+ * A field data based aggregator that counts the number of values a specific field has within the aggregation context.
  */
 public class CountAggregator extends BytesCalcAggregator {
 

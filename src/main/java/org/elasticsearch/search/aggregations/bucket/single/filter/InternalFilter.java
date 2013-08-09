@@ -21,12 +21,10 @@ package org.elasticsearch.search.aggregations.bucket.single.filter;
 
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.search.aggregations.AggregationStreams;
-import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.bucket.single.SingleBucketAggregation;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
 *

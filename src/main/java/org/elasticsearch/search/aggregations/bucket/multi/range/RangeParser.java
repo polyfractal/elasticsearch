@@ -135,7 +135,7 @@ public class RangeParser implements AggregatorParser {
         }
 
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        config.fieldContext(new FieldContext(field, indexFieldData, mapper));
+        config.fieldContext(new FieldContext(field, indexFieldData));
         return new RangeAggregator.Factory(aggregationName, config, InternalRange.FACTORY, ranges, keyed);
     }
 }

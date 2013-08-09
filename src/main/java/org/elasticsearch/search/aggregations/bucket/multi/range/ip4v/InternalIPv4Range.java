@@ -20,7 +20,6 @@
 package org.elasticsearch.search.aggregations.bucket.multi.range.ip4v;
 
 import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.index.mapper.ip.IpFieldMapper;
 import org.elasticsearch.search.aggregations.AggregationStreams;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;

@@ -99,7 +99,7 @@ public class NumericAggregatorParser<S extends NumericAggregation> implements Ag
         }
 
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        config.fieldContext(new FieldContext(field, indexFieldData, mapper));
+        config.fieldContext(new FieldContext(field, indexFieldData));
         return new NumericAggregator.Factory<S>(aggregationName, config, aggregationFactory);
     }
 }

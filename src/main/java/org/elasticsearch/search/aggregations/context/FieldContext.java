@@ -20,7 +20,6 @@
 package org.elasticsearch.search.aggregations.context;
 
 import org.elasticsearch.index.fielddata.IndexFieldData;
-import org.elasticsearch.index.mapper.FieldMapper;
 
 /**
  * Used by all field data based aggregators. This determine the context of the field data the aggregators are operating
@@ -30,19 +29,16 @@ public class FieldContext {
 
     private final String field;
     private final IndexFieldData indexFieldData;
-    private final FieldMapper mapper;
 
     /**
      * Constructs a field data context for the given field and its index field data
      *
      * @param field             The name of the field
      * @param indexFieldData    The index field data of the field
-     * @param mapper            The mapper of the field.
      */
-    public FieldContext(String field, IndexFieldData indexFieldData, FieldMapper mapper) {
+    public FieldContext(String field, IndexFieldData indexFieldData) {
         this.field = field;
         this.indexFieldData = indexFieldData;
-        this.mapper = mapper;
     }
 
     public String field() {
@@ -54,10 +50,6 @@ public class FieldContext {
      */
     public IndexFieldData indexFieldData() {
         return indexFieldData;
-    }
-
-    public FieldMapper mapper() {
-        return mapper;
     }
 
 }

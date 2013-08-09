@@ -118,7 +118,7 @@ public class HistogramParser implements AggregatorParser {
         }
 
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        config.fieldContext(new FieldContext(field, indexFieldData, mapper));
+        config.fieldContext(new FieldContext(field, indexFieldData));
         return new HistogramAggregator.Factory(aggregationName, config, rounding, order, keyed, InternalHistogram.FACTORY);
 
     }

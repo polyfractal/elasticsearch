@@ -161,7 +161,7 @@ public class GeoDistanceParser implements AggregatorParser {
         }
 
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        config.fieldContext(new FieldContext(field, indexFieldData, mapper));
+        config.fieldContext(new FieldContext(field, indexFieldData));
         return new GeoDistanceAggregator.Factory(aggregationName, config, ranges);
     }
 }

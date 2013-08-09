@@ -153,7 +153,7 @@ public class IpRangeParser implements AggregatorParser {
         }
 
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        config.fieldContext(new FieldContext(field, indexFieldData, mapper));
+        config.fieldContext(new FieldContext(field, indexFieldData));
         return new RangeAggregator.Factory(aggregationName, config, InternalIPv4Range.FACTORY, ranges, keyed);
     }
 

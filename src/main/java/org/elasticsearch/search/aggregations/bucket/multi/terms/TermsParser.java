@@ -160,7 +160,7 @@ public class TermsParser implements AggregatorParser {
         config.script(searchScript);
         config.multiValued(multiValued);
 
-        config.fieldContext(new FieldContext(field, indexFieldData, mapper));
+        config.fieldContext(new FieldContext(field, indexFieldData));
 
         return new TermsAggregatorFactory(aggregationName, config, order, requiredSize);
     }

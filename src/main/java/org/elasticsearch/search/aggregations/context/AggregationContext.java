@@ -93,7 +93,8 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
     }
 
     public <VS extends ValuesSource> VS valuesSource(ValuesSourceConfig<VS> config) {
-        assert config.valid() : "value source config is invalid - must have either a field context or a script";
+        assert config.valid() : "value source config is invalid - must have either a field context or a script or marked as unmapped";
+        assert !config.unmapped : "value source should not be created for unmapped fields";
 
         if (config.fieldContext == null) {
             if (NumericValuesSource.class.isAssignableFrom(config.valueSourceType)) {
@@ -118,7 +119,7 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
         throw new AggregationExecutionException("value source of type [" + config.valueSourceType.getSimpleName() + "] is not supported");
     }
 
-    public NumericValuesSource.Script numericScript(SearchScript script, boolean multiValued, ValueFormatter formatter, ValueParser parser) {
+    private NumericValuesSource.Script numericScript(SearchScript script, boolean multiValued, ValueFormatter formatter, ValueParser parser) {
         setScorerIfNeeded(script);
         setReaderIfNeeded(script);
         scorerAwares.add(script);
@@ -126,7 +127,7 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
         return new NumericValuesSource.Script(script, multiValued, formatter, parser);
     }
 
-    public NumericValuesSource numericField(FieldContext fieldContext, SearchScript script, ValueFormatter formatter, ValueParser parser) {
+    private NumericValuesSource numericField(FieldContext fieldContext, SearchScript script, ValueFormatter formatter, ValueParser parser) {
         FieldDataSource.Numeric dataSource = (FieldDataSource.Numeric) fieldDataSources.get(fieldContext.field());
         if (dataSource == null) {
             dataSource = new FieldDataSource.Numeric(fieldContext.field(), fieldContext.indexFieldData());
@@ -143,7 +144,7 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
         return new NumericValuesSource.FieldData(dataSource, formatter, parser);
     }
 
-    public BytesValuesSource bytesField(FieldContext fieldContext, SearchScript script) {
+    private BytesValuesSource bytesField(FieldContext fieldContext, SearchScript script) {
         FieldDataSource dataSource = fieldDataSources.get(fieldContext.field());
         if (dataSource == null) {
             dataSource = new FieldDataSource.Bytes(fieldContext.field(), fieldContext.indexFieldData());
@@ -160,7 +161,7 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
         return new BytesValuesSource.FieldData(dataSource);
     }
 
-    public BytesValuesSource bytesScript(SearchScript script, boolean multiValued) {
+    private BytesValuesSource bytesScript(SearchScript script, boolean multiValued) {
         setScorerIfNeeded(script);
         setReaderIfNeeded(script);
         scorerAwares.add(script);
@@ -168,7 +169,7 @@ public class AggregationContext implements ReaderContextAware, ScorerAware {
         return new BytesValuesSource.Script(script, multiValued);
     }
 
-    public GeoPointValuesSource geoPointField(FieldContext fieldContext) {
+    private GeoPointValuesSource geoPointField(FieldContext fieldContext) {
         FieldDataSource.GeoPoint dataSource = (FieldDataSource.GeoPoint) fieldDataSources.get(fieldContext.field());
         if (dataSource == null) {
             dataSource = new FieldDataSource.GeoPoint(fieldContext.field(), fieldContext.indexFieldData());

@@ -24,7 +24,6 @@ import org.elasticsearch.search.aggregations.ValuesSourceAggregator;
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.ValueSpace;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
-import org.elasticsearch.search.aggregations.context.ValuesSourceBased;
 
 import java.io.IOException;
 import java.util.List;
@@ -39,7 +38,7 @@ import java.util.List;
  * NOTE:    For buckets that are based on common document theme other than shared values, see {@link BucketsAggregator}.
  * </pre>
  */
-public abstract class ValuesSourceBucketsAggregator<VS extends ValuesSource> extends ValuesSourceAggregator<VS> implements ValuesSourceBased {
+public abstract class ValuesSourceBucketsAggregator<VS extends ValuesSource> extends ValuesSourceAggregator<VS> {
 
     public ValuesSourceBucketsAggregator(String name,
                                          VS valuesSource,

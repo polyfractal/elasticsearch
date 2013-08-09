@@ -19,6 +19,9 @@
 
 package org.elasticsearch.common.collect;
 
+import org.apache.lucene.util.ArrayUtil;
+import org.apache.lucene.util.RamUsageEstimator;
+
 import java.lang.reflect.Array;
 
 /**
@@ -77,10 +80,9 @@ public class ReusableGrowableArray<T> {
 
     private void ensureCapacity(int capacity) {
         if (values.length < capacity) {
-            int newCap = Math.max( values.length << 1, capacity);
-            T[] tmp = (T[]) Array.newInstance(elementType, newCap);
-            System.arraycopy(values, 0, tmp, 0, values.length );
-            values = tmp;
+            T[] newArray = (T[]) Array.newInstance(elementType, ArrayUtil.oversize(capacity, RamUsageEstimator.NUM_BYTES_INT));
+            System.arraycopy(values, 0, newArray, 0, values.length );
+            values = newArray;
         }
     }
 }

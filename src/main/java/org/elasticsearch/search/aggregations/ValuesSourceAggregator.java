@@ -21,24 +21,18 @@ package org.elasticsearch.search.aggregations;
 
 import org.elasticsearch.search.aggregations.context.AggregationContext;
 import org.elasticsearch.search.aggregations.context.ValuesSource;
-import org.elasticsearch.search.aggregations.context.ValuesSourceBased;
 import org.elasticsearch.search.aggregations.context.ValuesSourceConfig;
 
 /**
  * An aggregator that aggregates based on values that are provided by a {@link ValuesSource}.
  */
-public abstract class ValuesSourceAggregator<VS extends ValuesSource> extends Aggregator implements ValuesSourceBased {
+public abstract class ValuesSourceAggregator<VS extends ValuesSource> extends Aggregator {
 
     protected final VS valuesSource;
 
     public ValuesSourceAggregator(String name, VS valuesSource, AggregationContext aggregationContext, Aggregator parent) {
         super(name, aggregationContext, parent);
         this.valuesSource = valuesSource;
-    }
-
-    @Override
-    public ValuesSource valuesSource() {
-        return valuesSource;
     }
 
     private static interface ValuesSourceConfigurable {

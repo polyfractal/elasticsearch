@@ -19,7 +19,6 @@
 
 package org.elasticsearch.search.aggregations.bucket.single.filter;
 
-import org.apache.lucene.search.Filter;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.query.ParsedFilter;
 import org.elasticsearch.search.aggregations.Aggregator;

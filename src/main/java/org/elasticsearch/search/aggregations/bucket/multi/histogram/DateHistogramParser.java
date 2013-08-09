@@ -204,7 +204,7 @@ public class DateHistogramParser implements AggregatorParser {
         }
 
         IndexFieldData indexFieldData = context.fieldData().getForField(mapper);
-        config.fieldContext(new FieldContext(field, indexFieldData, mapper));
+        config.fieldContext(new FieldContext(field, indexFieldData));
         return new HistogramAggregator.Factory(aggregationName, config, rounding, order, keyed, InternalDateHistogram.FACTORY);
     }
 

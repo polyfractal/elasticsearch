@@ -24,6 +24,7 @@ import org.elasticsearch.cache.recycler.CacheRecycler;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Streamable;
+import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.text.StringText;
 import org.elasticsearch.common.text.Text;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
@@ -145,28 +146,28 @@ abstract class AbstractHistogramBase<B extends HistogramBase.Bucket> extends Int
         }
         AbstractHistogramBase reduced = (AbstractHistogramBase) aggregations.get(0);
 
-        ExtTLongObjectHashMap<List<Bucket>> bucketsByKey = reduceContext.cacheRecycler().popLongObjectMap();
+        Recycler.V<ExtTLongObjectHashMap<List<Bucket>>> bucketsByKey = reduceContext.cacheRecycler().longObjectMap(-1);
         for (InternalAggregation aggregation : aggregations) {
             AbstractHistogramBase<B> histogram = (AbstractHistogramBase) aggregation;
             for (B bucket : histogram.buckets) {
-                List<Bucket> bucketList = bucketsByKey.get(((Bucket) bucket).key);
+                List<Bucket> bucketList = bucketsByKey.v().get(((Bucket) bucket).key);
                 if (bucketList == null) {
                     bucketList = new ArrayList<Bucket>(aggregations.size());
-                    bucketsByKey.put(((Bucket) bucket).key, bucketList);
+                    bucketsByKey.v().put(((Bucket) bucket).key, bucketList);
                 }
                 bucketList.add((Bucket) bucket);
             }
         }
 
-        List<HistogramBase.Bucket> buckets = new ArrayList<HistogramBase.Bucket>(bucketsByKey.size());
-        for (Object value : bucketsByKey.internalValues()) {
+        List<HistogramBase.Bucket> buckets = new ArrayList<HistogramBase.Bucket>(bucketsByKey.v().size());
+        for (Object value : bucketsByKey.v().internalValues()) {
             if (value == null) {
                 continue;
             }
             Bucket bucket = ((List<Bucket>) value).get(0).reduce((List<Bucket>) value, reduceContext.cacheRecycler());
             buckets.add(bucket);
         }
-        reduceContext.cacheRecycler().pushLongObjectMap(bucketsByKey);
+        bucketsByKey.release();
         CollectionUtil.introSort(buckets, order.comparator());
         reduced.buckets = buckets;
         return reduced;

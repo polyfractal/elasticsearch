@@ -21,6 +21,7 @@ package org.elasticsearch.search.aggregations.bucket.multi.histogram;
 
 import org.apache.lucene.util.CollectionUtil;
 import org.elasticsearch.common.inject.internal.Nullable;
+import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.rounding.Rounding;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.search.aggregations.Aggregator;
@@ -44,7 +45,7 @@ public class HistogramAggregator extends LongBucketsAggregator {
     private final InternalOrder order;
     private final boolean keyed;
     private final AbstractHistogramBase.Factory histogramFactory;
-    private final ExtTLongObjectHashMap<HistogramCollector.BucketCollector> collectors;
+    private final Recycler.V<ExtTLongObjectHashMap<HistogramCollector.BucketCollector>> collectors;
 
     public HistogramAggregator(String name,
                                List<Aggregator.Factory> factories,
@@ -62,18 +63,18 @@ public class HistogramAggregator extends LongBucketsAggregator {
         this.order = order;
         this.keyed = keyed;
         this.histogramFactory = histogramFactory;
-        this.collectors = aggregationContext.cacheRecycler().popLongObjectMap();
+        this.collectors = aggregationContext.cacheRecycler().longObjectMap(-1);
     }
 
     @Override
     public Collector collector() {
-        return valuesSource != null ? new HistogramCollector(this, factories, valuesSource, rounding, collectors) : null;
+        return valuesSource != null ? new HistogramCollector(this, factories, valuesSource, rounding, collectors.v()) : null;
     }
 
     @Override
     public InternalAggregation buildAggregation() {
-        List<HistogramBase.Bucket> buckets = new ArrayList<HistogramBase.Bucket>(collectors.size());
-        for (Object collector : collectors.internalValues()) {
+        List<HistogramBase.Bucket> buckets = new ArrayList<HistogramBase.Bucket>(collectors.v().size());
+        for (Object collector : collectors.v().internalValues()) {
             if (collector == null) {
                 continue;
             }
@@ -84,6 +85,7 @@ public class HistogramAggregator extends LongBucketsAggregator {
             }
             buckets.add(histogramFactory.createBucket(bucketCollector.key, bucketCollector.docCount, aggregations));
         }
+        collectors.release();
         CollectionUtil.introSort(buckets, order.comparator());
 
         // value source will be null for unmapped fields

@@ -22,6 +22,7 @@ package org.elasticsearch.search.aggregations.bucket.multi.terms;
 import org.elasticsearch.common.collect.BoundedTreeSet;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.text.StringText;
 import org.elasticsearch.common.text.Text;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
@@ -118,7 +119,7 @@ public class LongTerms extends InternalTerms {
         }
         InternalTerms reduced = null;
 
-        ExtTLongObjectHashMap<List<Bucket>> buckets = reduceContext.cacheRecycler().popLongObjectMap();
+        Recycler.V<ExtTLongObjectHashMap<List<Bucket>>> buckets = reduceContext.cacheRecycler().longObjectMap(-1);
         for (InternalAggregation aggregation : aggregations) {
             InternalTerms terms = (InternalTerms) aggregation;
             if (terms instanceof UnmappedTerms) {
@@ -128,10 +129,10 @@ public class LongTerms extends InternalTerms {
                 reduced = terms;
             }
             for (Terms.Bucket bucket : terms.buckets) {
-                List<Bucket> existingBuckets = buckets.get(((Bucket) bucket).term);
+                List<Bucket> existingBuckets = buckets.v().get(((Bucket) bucket).term);
                 if (existingBuckets == null) {
                     existingBuckets = new ArrayList<Bucket>(aggregations.size());
-                    buckets.put(((Bucket) bucket).term, existingBuckets);
+                    buckets.v().put(((Bucket) bucket).term, existingBuckets);
                 }
                 existingBuckets.add((Bucket) bucket);
             }
@@ -144,14 +145,14 @@ public class LongTerms extends InternalTerms {
 
         if (requiredSize < BucketPriorityQueue.LIMIT) {
             BucketPriorityQueue ordered = new BucketPriorityQueue(requiredSize, order.comparator());
-            Object[] internalBuckets = buckets.internalValues();
+            Object[] internalBuckets = buckets.v().internalValues();
             for (int i = 0; i < internalBuckets.length; i++) {
                 if (internalBuckets[i] != null) {
                     List<InternalTerms.Bucket> sameTermBuckets = (List<InternalTerms.Bucket>) internalBuckets[i];
                     ordered.insertWithOverflow(sameTermBuckets.get(0).reduce(sameTermBuckets, reduceContext.cacheRecycler()));
                 }
             }
-            reduceContext.cacheRecycler().pushLongObjectMap(buckets);
+            buckets.release();
             InternalTerms.Bucket[] list = new InternalTerms.Bucket[ordered.size()];
             for (int i = ordered.size() - 1; i >= 0; i--) {
                 list[i] = (Bucket) ordered.pop();
@@ -160,14 +161,14 @@ public class LongTerms extends InternalTerms {
             return reduced;
         } else {
             BoundedTreeSet<InternalTerms.Bucket> ordered = new BoundedTreeSet<InternalTerms.Bucket>(order.comparator(), requiredSize);
-            Object[] internalBuckets = buckets.internalValues();
+            Object[] internalBuckets = buckets.v().internalValues();
             for (int i = 0; i < internalBuckets.length; i++) {
                 if (internalBuckets[i] != null) {
                     List<InternalTerms.Bucket> sameTermBuckets = (List<InternalTerms.Bucket>) internalBuckets[i];
                     ordered.add(sameTermBuckets.get(0).reduce(sameTermBuckets, reduceContext.cacheRecycler()));
                 }
             }
-            reduceContext.cacheRecycler().pushLongObjectMap(buckets);
+            buckets.release();
             reduced.buckets = ordered;
             return reduced;
         }

@@ -24,6 +24,7 @@ import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.collect.BoundedTreeSet;
 import org.elasticsearch.common.collect.ReusableGrowableArray;
 import org.elasticsearch.common.lucene.HashedBytesRef;
+import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.trove.ExtTHashMap;
 import org.elasticsearch.index.fielddata.BytesValues;
 import org.elasticsearch.search.aggregations.Aggregator;
@@ -48,7 +49,7 @@ public class StringTermsAggregator extends BytesBucketsAggregator {
     private final InternalOrder order;
     private final int requiredSize;
 
-    ExtTHashMap<HashedBytesRef, BucketCollector> buckets;
+    Recycler.V<ExtTHashMap<HashedBytesRef, BucketCollector>> buckets;
 
     public StringTermsAggregator(String name, List<Aggregator.Factory> factories, ValuesSource valuesSource,
                                  InternalOrder order, int requiredSize, AggregationContext aggregationContext, Aggregator parent) {
@@ -57,7 +58,7 @@ public class StringTermsAggregator extends BytesBucketsAggregator {
         this.factories = factories;
         this.order = order;
         this.requiredSize = requiredSize;
-        buckets = aggregationContext.cacheRecycler().popHashMap();
+        buckets = aggregationContext.cacheRecycler().hashMap(-1);
     }
 
     @Override
@@ -68,19 +69,19 @@ public class StringTermsAggregator extends BytesBucketsAggregator {
     @Override
     public StringTerms buildAggregation() {
 
-        if (buckets.isEmpty()) {
+        if (buckets.v().isEmpty()) {
             return new StringTerms(name, order, requiredSize, ImmutableList.<InternalTerms.Bucket>of());
         }
 
         if (requiredSize < EntryPriorityQueue.LIMIT) {
             BucketPriorityQueue ordered = new BucketPriorityQueue(requiredSize, order.comparator());
-            Object[] collectors = buckets.internalValues();
+            Object[] collectors = buckets.v().internalValues();
             for (int i = 0; i < collectors.length; i++) {
                 if (collectors[i] != null) {
                     ordered.insertWithOverflow(((BucketCollector) collectors[i]).buildBucket());
                 }
             }
-            aggregationContext.cacheRecycler().pushHashMap(buckets);
+            buckets.release();
             InternalTerms.Bucket[] list = new InternalTerms.Bucket[ordered.size()];
             for (int i = ordered.size() - 1; i >= 0; i--) {
                 list[i] = (StringTerms.Bucket) ordered.pop();
@@ -88,13 +89,13 @@ public class StringTermsAggregator extends BytesBucketsAggregator {
             return new StringTerms(name, order, requiredSize, Arrays.asList(list));
         } else {
             BoundedTreeSet<InternalTerms.Bucket> ordered = new BoundedTreeSet<InternalTerms.Bucket>(order.comparator(), requiredSize);
-            Object[] collectors = buckets.internalValues();
+            Object[] collectors = buckets.v().internalValues();
             for (int i = 0; i < collectors.length; i++) {
                 if (collectors[i] != null) {
                     ordered.add(((BucketCollector) collectors[i]).buildBucket());
                 }
             }
-            aggregationContext.cacheRecycler().pushHashMap(buckets);
+            buckets.release();
             return new StringTerms(name, order, requiredSize, ordered);
         }
     }
@@ -119,11 +120,11 @@ public class StringTermsAggregator extends BytesBucketsAggregator {
                     return;
                 }
                 HashedBytesRef term = new HashedBytesRef(scratch, hash);
-                BucketCollector bucket = buckets.get(term);
+                BucketCollector bucket = buckets.v().get(term);
                 if (bucket == null) {
                     term.bytes = values.makeSafe(scratch);
                     bucket = new BucketCollector(valuesSource, term.bytes, factories, StringTermsAggregator.this);
-                    buckets.put(term, bucket);
+                    buckets.v().put(term, bucket);
                 }
                 bucket.collect(doc, valueSpace);
                 return;
@@ -151,11 +152,11 @@ public class StringTermsAggregator extends BytesBucketsAggregator {
                     continue;
                 }
                 HashedBytesRef term = new HashedBytesRef(value, hash);
-                BucketCollector bucket = buckets.get(term);
+                BucketCollector bucket = buckets.v().get(term);
                 if (bucket == null) {
                     term.bytes = values.makeSafe(value);
                     bucket = new BucketCollector(valuesSource, term.bytes, factories, StringTermsAggregator.this);
-                    buckets.put(term, bucket);
+                    buckets.v().put(term, bucket);
                 }
                 matchedBuckets.add(bucket);
             }
@@ -164,7 +165,7 @@ public class StringTermsAggregator extends BytesBucketsAggregator {
 
         @Override
         public void postCollection() {
-            for (Object collector : buckets.internalValues()) {
+            for (Object collector : buckets.v().internalValues()) {
                 if (collector != null) {
                     ((BucketCollector) collector).postCollection();
                 }

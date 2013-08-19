@@ -22,6 +22,7 @@ package org.elasticsearch.search.aggregations.bucket.multi.terms;
 import com.google.common.collect.ImmutableList;
 import org.elasticsearch.common.collect.BoundedTreeSet;
 import org.elasticsearch.common.collect.ReusableGrowableArray;
+import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.trove.ExtTLongObjectHashMap;
 import org.elasticsearch.index.fielddata.LongValues;
 import org.elasticsearch.search.aggregations.Aggregator;
@@ -46,7 +47,7 @@ public class LongTermsAggregator extends LongBucketsAggregator {
     private final InternalOrder order;
     private final int requiredSize;
 
-    final ExtTLongObjectHashMap<BucketCollector> bucketCollectors;
+    final Recycler.V<ExtTLongObjectHashMap<BucketCollector>> bucketCollectors;
 
     public LongTermsAggregator(String name, List<Aggregator.Factory> factories, NumericValuesSource valuesSource,
                                InternalOrder order, int requiredSize, AggregationContext aggregationContext, Aggregator parent) {
@@ -54,7 +55,7 @@ public class LongTermsAggregator extends LongBucketsAggregator {
         this.factories = factories;
         this.order = order;
         this.requiredSize = requiredSize;
-        this.bucketCollectors = aggregationContext.cacheRecycler().popLongObjectMap();
+        this.bucketCollectors = aggregationContext.cacheRecycler().longObjectMap(-1);
     }
 
     @Override
@@ -64,19 +65,19 @@ public class LongTermsAggregator extends LongBucketsAggregator {
 
     @Override
     public LongTerms buildAggregation() {
-        if (bucketCollectors.isEmpty()) {
+        if (bucketCollectors.v().isEmpty()) {
             return new LongTerms(name, order, valuesSource.formatter(), requiredSize, ImmutableList.<InternalTerms.Bucket>of());
         }
 
         if (requiredSize < EntryPriorityQueue.LIMIT) {
             BucketPriorityQueue ordered = new BucketPriorityQueue(requiredSize, order.comparator());
-            Object[] collectors = bucketCollectors.internalValues();
+            Object[] collectors = bucketCollectors.v().internalValues();
             for (int i = 0; i < collectors.length; i++) {
                 if (collectors[i] != null) {
                     ordered.insertWithOverflow(((BucketCollector) collectors[i]).buildBucket());
                 }
             }
-            aggregationContext.cacheRecycler().pushLongObjectMap(bucketCollectors);
+            bucketCollectors.release();
             InternalTerms.Bucket[] list = new InternalTerms.Bucket[ordered.size()];
             for (int i = ordered.size() - 1; i >= 0; i--) {
                 list[i] = (LongTerms.Bucket) ordered.pop();
@@ -84,13 +85,13 @@ public class LongTermsAggregator extends LongBucketsAggregator {
             return new LongTerms(name, order, valuesSource.formatter(), requiredSize, Arrays.asList(list));
         } else {
             BoundedTreeSet<InternalTerms.Bucket> ordered = new BoundedTreeSet<InternalTerms.Bucket>(order.comparator(), requiredSize);
-            Object[] collectors = bucketCollectors.internalValues();
+            Object[] collectors = bucketCollectors.v().internalValues();
             for (int i = 0; i < collectors.length; i++) {
                 if (collectors[i] != null) {
                     ordered.add(((BucketCollector) collectors[i]).buildBucket());
                 }
             }
-            aggregationContext.cacheRecycler().pushLongObjectMap(bucketCollectors);
+            bucketCollectors.release();
             return new LongTerms(name, order, valuesSource.formatter(), requiredSize, ordered);
         }
     }
@@ -115,10 +116,10 @@ public class LongTermsAggregator extends LongBucketsAggregator {
                     return;
                 }
 
-                BucketCollector bucket = bucketCollectors.get(term);
+                BucketCollector bucket = bucketCollectors.v().get(term);
                 if (bucket == null) {
                     bucket = new BucketCollector(valuesSource, term, LongTermsAggregator.this);
-                    bucketCollectors.put(term, bucket);
+                    bucketCollectors.v().put(term, bucket);
                 }
 
                 bucket.collect(doc, valueSpace);
@@ -142,10 +143,10 @@ public class LongTermsAggregator extends LongBucketsAggregator {
                 if (!valueSpace.accept(valuesSourceKey, term)) {
                     continue;
                 }
-                BucketCollector bucket = bucketCollectors.get(term);
+                BucketCollector bucket = bucketCollectors.v().get(term);
                 if (bucket == null) {
                     bucket = new BucketCollector(valuesSource, term, LongTermsAggregator.this);
-                    bucketCollectors.put(term, bucket);
+                    bucketCollectors.v().put(term, bucket);
                 }
                 matchedBuckets.add(bucket);
             }
@@ -153,7 +154,7 @@ public class LongTermsAggregator extends LongBucketsAggregator {
 
         @Override
         public void postCollection() {
-            Object[] collectors = bucketCollectors.internalValues();
+            Object[] collectors = bucketCollectors.v().internalValues();
             for (int i = 0; i < collectors.length; i++) {
                 if (collectors[i] != null) {
                     ((BucketCollector) collectors[i]).postCollection();

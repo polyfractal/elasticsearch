@@ -22,6 +22,7 @@ package org.elasticsearch.search.aggregations.bucket.multi.terms;
 import com.google.common.collect.ImmutableList;
 import org.elasticsearch.common.collect.BoundedTreeSet;
 import org.elasticsearch.common.collect.ReusableGrowableArray;
+import org.elasticsearch.common.recycler.Recycler;
 import org.elasticsearch.common.trove.ExtTDoubleObjectHashMap;
 import org.elasticsearch.index.fielddata.DoubleValues;
 import org.elasticsearch.search.aggregations.Aggregator;
@@ -46,7 +47,7 @@ public class DoubleTermsAggregator extends DoubleBucketsAggregator {
     private final InternalOrder order;
     private final int requiredSize;
 
-    ExtTDoubleObjectHashMap<BucketCollector> bucketCollectors;
+    Recycler.V<ExtTDoubleObjectHashMap<BucketCollector>> bucketCollectors;
 
     public DoubleTermsAggregator(String name, List<Aggregator.Factory> factories, NumericValuesSource valuesSource,
                                  InternalOrder order, int requiredSize, AggregationContext aggregationContext, Aggregator parent) {
@@ -54,7 +55,7 @@ public class DoubleTermsAggregator extends DoubleBucketsAggregator {
         this.factories = factories;
         this.order = order;
         this.requiredSize = requiredSize;
-        this.bucketCollectors = aggregationContext.cacheRecycler().popDoubleObjectMap();
+        this.bucketCollectors = aggregationContext.cacheRecycler().doubleObjectMap(-1);
     }
 
     @Override
@@ -65,18 +66,18 @@ public class DoubleTermsAggregator extends DoubleBucketsAggregator {
     @Override
     public DoubleTerms buildAggregation() {
 
-        if (bucketCollectors.isEmpty()) {
+        if (bucketCollectors.v().isEmpty()) {
             return new DoubleTerms(name, order, requiredSize, ImmutableList.<InternalTerms.Bucket>of());
         }
 
         if (requiredSize < EntryPriorityQueue.LIMIT) {
             BucketPriorityQueue ordered = new BucketPriorityQueue(requiredSize, order.comparator());
-            for (Object bucketCollector : bucketCollectors.internalValues()) {
+            for (Object bucketCollector : bucketCollectors.v().internalValues()) {
                 if (bucketCollector != null) {
                     ordered.insertWithOverflow(((BucketCollector) bucketCollector).buildBucket());
                 }
             }
-            aggregationContext.cacheRecycler().pushDoubleObjectMap(bucketCollectors);
+            bucketCollectors.release();
             InternalTerms.Bucket[] list = new InternalTerms.Bucket[ordered.size()];
             for (int i = ordered.size() - 1; i >= 0; i--) {
                 list[i] = (DoubleTerms.Bucket) ordered.pop();
@@ -84,13 +85,13 @@ public class DoubleTermsAggregator extends DoubleBucketsAggregator {
             return new DoubleTerms(name, order, requiredSize, Arrays.asList(list));
         } else {
             BoundedTreeSet<InternalTerms.Bucket> ordered = new BoundedTreeSet<InternalTerms.Bucket>(order.comparator(), requiredSize);
-            Object[] collectors = bucketCollectors.internalValues();
+            Object[] collectors = bucketCollectors.v().internalValues();
             for (int i = 0; i < collectors.length; i++) {
                 if (collectors[i] != null) {
                     ordered.add(((BucketCollector) collectors[i]).buildBucket());
                 }
             }
-            aggregationContext.cacheRecycler().pushDoubleObjectMap(bucketCollectors);
+            bucketCollectors.release();
             return new DoubleTerms(name, order, requiredSize, ordered);
         }
     }
@@ -114,10 +115,10 @@ public class DoubleTermsAggregator extends DoubleBucketsAggregator {
                 if (!valueSpace.accept(valuesSourceKey, term)) {
                     return;
                 }
-                BucketCollector bucket = bucketCollectors.get(term);
+                BucketCollector bucket = bucketCollectors.v().get(term);
                 if (bucket == null) {
                     bucket = new BucketCollector(valuesSource, term, DoubleTermsAggregator.this);
-                    bucketCollectors.put(term, bucket);
+                    bucketCollectors.v().put(term, bucket);
                 }
                 bucket.collect(doc, valueSpace);
                 return;
@@ -141,10 +142,10 @@ public class DoubleTermsAggregator extends DoubleBucketsAggregator {
                 if (!context.accept(valuesSourceKey, term)) {
                     continue;
                 }
-                BucketCollector bucket = bucketCollectors.get(term);
+                BucketCollector bucket = bucketCollectors.v().get(term);
                 if (bucket == null) {
                     bucket = new BucketCollector(valuesSource, term, DoubleTermsAggregator.this);
-                    bucketCollectors.put(term, bucket);
+                    bucketCollectors.v().put(term, bucket);
                 }
                 matchedBuckets.add(bucket);
             }
@@ -152,7 +153,7 @@ public class DoubleTermsAggregator extends DoubleBucketsAggregator {
 
         @Override
         public void postCollection() {
-            for (Object bucketCollector : bucketCollectors.internalValues()) {
+            for (Object bucketCollector : bucketCollectors.v().internalValues()) {
                 if (bucketCollector != null) {
                     ((BucketCollector) bucketCollector).postCollection();
                 }

@@ -34,6 +34,7 @@ import org.elasticsearch.search.aggregations.bucket.single.global.GlobalParser;
 import org.elasticsearch.search.aggregations.bucket.single.missing.MissingParser;
 import org.elasticsearch.search.aggregations.bucket.single.nested.NestedParser;
 import org.elasticsearch.search.aggregations.calc.bytes.count.CountParser;
+import org.elasticsearch.search.aggregations.calc.bytes.unique.UniqueParser;
 import org.elasticsearch.search.aggregations.calc.numeric.avg.AvgParser;
 import org.elasticsearch.search.aggregations.calc.numeric.max.MaxParser;
 import org.elasticsearch.search.aggregations.calc.numeric.min.MinParser;
@@ -58,6 +59,7 @@ public class AggregationModule extends AbstractModule {
         parsers.add(StatsParser.class);
         parsers.add(ExtendedStatsParser.class);
         parsers.add(CountParser.class);
+        parsers.add(UniqueParser.class);
 
         parsers.add(GlobalParser.class);
         parsers.add(MissingParser.class);

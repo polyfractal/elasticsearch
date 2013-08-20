@@ -12,6 +12,7 @@ import org.elasticsearch.search.aggregations.bucket.single.global.GlobalBuilder;
 import org.elasticsearch.search.aggregations.bucket.single.missing.MissingBuilder;
 import org.elasticsearch.search.aggregations.bucket.single.nested.NestedBuilder;
 import org.elasticsearch.search.aggregations.calc.bytes.count.CountBuilder;
+import org.elasticsearch.search.aggregations.calc.bytes.unique.UniqueBuilder;
 import org.elasticsearch.search.aggregations.calc.numeric.avg.AvgBuilder;
 import org.elasticsearch.search.aggregations.calc.numeric.max.MaxBuilder;
 import org.elasticsearch.search.aggregations.calc.numeric.min.MinBuilder;
@@ -29,6 +30,10 @@ public class AggregationBuilders {
 
     public static CountBuilder count(String name) {
         return new CountBuilder(name);
+    }
+
+    public static UniqueBuilder unique(String name) {
+        return new UniqueBuilder(name);
     }
 
     public static AvgBuilder avg(String name) {

@@ -18,10 +18,7 @@
  */
 package org.elasticsearch.index.fielddata.plain;
 
-import org.apache.lucene.index.AtomicReader;
-import org.apache.lucene.index.FilteredTermsEnum;
-import org.apache.lucene.index.Terms;
-import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.index.*;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.CharsRef;
 import org.apache.lucene.util.UnicodeUtil;
@@ -42,6 +39,7 @@ public abstract class AbstractBytesIndexFieldData<FD extends AtomicFieldData.Wit
 
     protected Settings frequency;
     protected Settings regex;
+    protected Settings stratified;
 
     protected AbstractBytesIndexFieldData(Index index, Settings indexSettings, Names fieldNames, FieldDataType fieldDataType,
             IndexFieldDataCache cache) {
@@ -49,6 +47,7 @@ public abstract class AbstractBytesIndexFieldData<FD extends AtomicFieldData.Wit
         final Map<String, Settings> groups = fieldDataType.getSettings().getGroups("filter");
         frequency = groups.get("frequency");
         regex = groups.get("regex");
+        stratified = groups.get("stratified");
        
     }
     
@@ -75,6 +74,16 @@ public abstract class AbstractBytesIndexFieldData<FD extends AtomicFieldData.Wit
             iterator = RegexFilter.filter(iterator, terms, reader, regex);
         }
         return iterator;
+    }
+
+    protected DocsEnum filterDocs(DocsEnum docs) {
+        if (stratified != null) {
+            return new StratifiedFilter(docs, stratified);
+        } else {
+            return docs;
+        }
+
+
     }
     
     private static final class FrequencyFilter extends FilteredTermsEnum {
@@ -142,6 +151,53 @@ public abstract class AbstractBytesIndexFieldData<FD extends AtomicFieldData.Wit
                 return AcceptStatus.YES;
             }
             return AcceptStatus.NO;
+        }
+    }
+
+    private final class StratifiedFilter extends FilterAtomicReader.FilterDocsEnum {
+
+        private long threshold;
+        private long minimum_num_values;
+        private int current = 0;
+
+        protected StratifiedFilter(DocsEnum docs, Settings stratified) {
+            super(docs);
+            float tempThreshold = stratified.getAsFloat("threshold", 0f);
+
+            if (tempThreshold == -1) {
+                threshold = -1;
+                return;
+            }
+
+            this.threshold = Math.round((docs.cost() * (tempThreshold / 100f)));
+            this.minimum_num_values = stratified.getAsInt("minimum_num_values", 100);
+
+            if (threshold < minimum_num_values) {
+                threshold = minimum_num_values;
+            }
+        }
+
+        @Override
+        public int nextDoc() throws IOException {
+            if (threshold == -1) {
+                return super.nextDoc();
+            }
+            if (current < threshold) {
+                ++current;
+                return super.nextDoc();
+            } else {
+                return DocsEnum.NO_MORE_DOCS;
+            }
+        }
+
+        @Override
+        public long cost() {
+            final long docFreq = super.cost();
+            if (docFreq > threshold) {
+                return threshold;
+            } else {
+                return docFreq;
+            }
         }
     }
 

@@ -22,6 +22,7 @@ package org.elasticsearch.index.cache.filter;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Streamable;
+import org.elasticsearch.common.metrics.FrugalQuantile;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -35,18 +36,29 @@ public class FilterCacheStats implements Streamable, ToXContent {
 
     long memorySize;
     long evictions;
+    FrugalQuantile[] quantiles = new FrugalQuantile[4];
 
     public FilterCacheStats() {
     }
 
-    public FilterCacheStats(long memorySize, long evictions) {
+    public FilterCacheStats(long memorySize, long evictions, FrugalQuantile[] quantiles) {
         this.memorySize = memorySize;
         this.evictions = evictions;
+        this.quantiles = quantiles;
     }
 
     public void add(FilterCacheStats stats) {
         this.memorySize += stats.memorySize;
         this.evictions += stats.evictions;
+
+        if (this.quantiles[0] == null) {
+            this.quantiles = stats.quantiles;
+        } else {
+            for (int i = 0; i < 4; ++i) {
+                this.quantiles[i].merge(stats.quantiles[i]);
+            }
+        }
+
     }
 
     public long getMemorySizeInBytes() {
@@ -71,12 +83,20 @@ public class FilterCacheStats implements Streamable, ToXContent {
     public void readFrom(StreamInput in) throws IOException {
         memorySize = in.readVLong();
         evictions = in.readVLong();
+
+        for (int i = 0; i < 4; ++i) {
+            this.quantiles[i].setValue(in.readVLong());
+        }
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeVLong(memorySize);
         out.writeVLong(evictions);
+
+        for (int i = 0; i < 4; ++i) {
+            out.writeVLong(this.quantiles[i].getValue());
+        }
     }
 
     @Override
@@ -84,7 +104,12 @@ public class FilterCacheStats implements Streamable, ToXContent {
         builder.startObject(Fields.FILTER_CACHE);
         builder.byteSizeField(Fields.MEMORY_SIZE_IN_BYTES, Fields.MEMORY_SIZE, memorySize);
         builder.field(Fields.EVICTIONS, getEvictions());
-        builder.endObject();
+        builder.startObject(Fields.EVICTIONS_QUANTILES);
+        for (int i = 0; i < 4; ++i) {
+            XContentBuilderString field = new XContentBuilderString(quantiles[i].getQuantile() + "%");
+            builder.byteSizeField(field, field, quantiles[i].getValue());
+        }
+        builder.endObject().endObject();
         return builder;
     }
 
@@ -93,5 +118,6 @@ public class FilterCacheStats implements Streamable, ToXContent {
         static final XContentBuilderString MEMORY_SIZE = new XContentBuilderString("memory_size");
         static final XContentBuilderString MEMORY_SIZE_IN_BYTES = new XContentBuilderString("memory_size_in_bytes");
         static final XContentBuilderString EVICTIONS = new XContentBuilderString("evictions");
+        static final XContentBuilderString EVICTIONS_QUANTILES = new XContentBuilderString("approx_eviction_quantiles_in_bytes");
     }
 }

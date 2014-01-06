@@ -33,6 +33,7 @@ import org.elasticsearch.search.aggregations.bucket.filter.FilterParser;
 import org.elasticsearch.search.aggregations.bucket.global.GlobalParser;
 import org.elasticsearch.search.aggregations.bucket.missing.MissingParser;
 import org.elasticsearch.search.aggregations.bucket.nested.NestedParser;
+import org.elasticsearch.search.aggregations.metrics.percentile.PercentileParser;
 import org.elasticsearch.search.aggregations.metrics.valuecount.ValueCountParser;
 import org.elasticsearch.search.aggregations.metrics.avg.AvgParser;
 import org.elasticsearch.search.aggregations.metrics.max.MaxParser;
@@ -58,6 +59,7 @@ public class AggregationModule extends AbstractModule {
         parsers.add(StatsParser.class);
         parsers.add(ExtendedStatsParser.class);
         parsers.add(ValueCountParser.class);
+        parsers.add(PercentileParser.class);
 
         parsers.add(GlobalParser.class);
         parsers.add(MissingParser.class);

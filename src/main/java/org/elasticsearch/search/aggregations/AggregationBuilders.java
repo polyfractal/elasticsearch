@@ -11,6 +11,7 @@ import org.elasticsearch.search.aggregations.bucket.filter.FilterAggregationBuil
 import org.elasticsearch.search.aggregations.bucket.global.GlobalBuilder;
 import org.elasticsearch.search.aggregations.bucket.missing.MissingBuilder;
 import org.elasticsearch.search.aggregations.bucket.nested.NestedBuilder;
+import org.elasticsearch.search.aggregations.metrics.percentile.PercentileBuilder;
 import org.elasticsearch.search.aggregations.metrics.valuecount.ValueCountBuilder;
 import org.elasticsearch.search.aggregations.metrics.avg.AvgBuilder;
 import org.elasticsearch.search.aggregations.metrics.max.MaxBuilder;
@@ -97,5 +98,9 @@ public class AggregationBuilders {
 
     public static TermsBuilder terms(String name) {
         return new TermsBuilder(name);
+    }
+
+    public static PercentileBuilder percentile(String name) {
+        return new PercentileBuilder(name);
     }
 }

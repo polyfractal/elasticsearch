@@ -1,11 +1,8 @@
 package org.elasticsearch.search.aggregations.metrics.percentile.providers.qdigest;
 
-import com.clearspring.analytics.stream.quantile.IQuantileEstimator;
 import it.unimi.dsi.fastutil.Hash;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
-
-
 import org.apache.lucene.util.RamUsageEstimator;
 
 import java.io.ByteArrayInputStream;

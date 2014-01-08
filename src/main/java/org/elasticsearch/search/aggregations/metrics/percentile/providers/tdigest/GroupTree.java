@@ -21,6 +21,13 @@ package org.elasticsearch.search.aggregations.metrics.percentile.providers.tdige
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
+import com.google.common.collect.AbstractIterator;
+import com.google.common.base.Preconditions;
+
+/**
+ * Upstream: Stream-lib, master @ 704002a2d8fa01fa7e9868dae9d0c8bedd8e9427
+ * https://github.com/addthis/stream-lib/blob/master/src/main/java/com/clearspring/analytics/stream/quantile/GroupTree.java
+ */
 
 /**
  * A tree containing TDigest.Group.  This adds to the normal NavigableSet the

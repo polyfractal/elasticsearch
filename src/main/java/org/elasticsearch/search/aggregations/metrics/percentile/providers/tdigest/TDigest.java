@@ -17,6 +17,10 @@ package org.elasticsearch.search.aggregations.metrics.percentile.providers.tdige
  * limitations under the License.
  */
 
+/**
+ * Upstream: Stream-lib, master @ 704002a2d8fa01fa7e9868dae9d0c8bedd8e9427
+ * https://github.com/addthis/stream-lib/blob/master/src/main/java/com/clearspring/analytics/stream/quantile/TDigest.java
+ */
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -24,6 +28,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+
 
 /**
  * Adaptive histogram based on something like streaming k-means crossed with Q-digest.

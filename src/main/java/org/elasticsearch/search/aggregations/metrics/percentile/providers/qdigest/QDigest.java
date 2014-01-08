@@ -17,6 +17,12 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
+ * Upstream: Stream-lib, master @ 704002a2d8fa01fa7e9868dae9d0c8bedd8e9427
+ * https://github.com/addthis/stream-lib/blob/master/src/main/java/com/clearspring/analytics/stream/quantile/QDigest.java
+ */
+
+
+/**
  * Q-Digest datastructure.
  * <p/>
  * Answers approximate quantile queries: actual rank of the result of query(q)

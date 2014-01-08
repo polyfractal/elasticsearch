@@ -218,8 +218,7 @@ public class FrugalProvider extends PercentileProvider {
         if (currentMerge == expectedMerges - 1) {
             for (int i = 0; i < percentiles.length; ++i) {
                 merging[(expectedMerges* i) + currentMerge] = estimates[i];
-                int median = QuickSelect.quickSelect(merging, i * expectedMerges, (i * expectedMerges) + expectedMerges - 1, (int)(expectedMerges / 2));
-                estimates[i] = merging[median];
+                estimates[i] = QuickSelect.quickSelect(merging, i * expectedMerges, (i * expectedMerges) + expectedMerges - 1, expectedMerges / 2);
             }
 
         }

@@ -17,35 +17,25 @@
  * under the License.
  */
 
-package org.elasticsearch.rest;
+package org.elasticsearch.action.admin.indices.flush;
 
-import org.elasticsearch.common.inject.AbstractModule;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.rest.action.RestActionModule;
+import org.elasticsearch.action.ActionRequestBuilder;
+import org.elasticsearch.action.support.IndicesOptions;
+import org.elasticsearch.client.ElasticsearchClient;
 
-import java.util.ArrayList;
-import java.util.List;
+public class SyncedFlushRequestBuilder extends ActionRequestBuilder<SyncedFlushRequest, SyncedFlushResponse, SyncedFlushRequestBuilder> {
 
-/**
- *
- */
-public class RestModule extends AbstractModule {
-
-    private final Settings settings;
-    private List<Class<? extends BaseRestHandler>> restPluginsActions = new ArrayList<>();
-
-    public void addRestAction(Class<? extends BaseRestHandler> restAction) {
-        restPluginsActions.add(restAction);
+    public SyncedFlushRequestBuilder(ElasticsearchClient client, SyncedFlushAction action) {
+        super(client, action, new SyncedFlushRequest());
     }
 
-    public RestModule(Settings settings) {
-        this.settings = settings;
+    public SyncedFlushRequestBuilder setIndices(String[] indices) {
+        super.request().indices(indices);
+        return this;
     }
 
-
-    @Override
-    protected void configure() {
-        bind(RestController.class).asEagerSingleton();
-        new RestActionModule(restPluginsActions).configure(binder());
+    public SyncedFlushRequestBuilder setIndicesOptions(IndicesOptions indicesOptions) {
+        super.request().indicesOptions(indicesOptions);
+        return this;
     }
 }

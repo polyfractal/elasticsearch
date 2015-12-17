@@ -17,21 +17,28 @@
  * under the License.
  */
 
-package org.elasticsearch.client.transport;
+package org.elasticsearch.action.admin.indices.flush;
 
-import org.elasticsearch.client.support.Headers;
-import org.elasticsearch.client.transport.support.TransportProxyClient;
-import org.elasticsearch.common.inject.AbstractModule;
+import org.elasticsearch.action.Action;
+import org.elasticsearch.client.ElasticsearchClient;
 
-/**
- *
- */
-public class ClientTransportModule extends AbstractModule {
+
+public class SyncedFlushAction extends Action<SyncedFlushRequest, SyncedFlushResponse, SyncedFlushRequestBuilder> {
+
+    public static final SyncedFlushAction INSTANCE = new SyncedFlushAction();
+    public static final String NAME = "indices:admin/synced_flush";
+
+    private SyncedFlushAction() {
+        super(NAME);
+    }
 
     @Override
-    protected void configure() {
-        bind(Headers.class).asEagerSingleton();
-        bind(TransportProxyClient.class).asEagerSingleton();
-        bind(TransportClientNodesService.class).asEagerSingleton();
+    public SyncedFlushResponse newResponse() {
+        return new SyncedFlushResponse();
+    }
+
+    @Override
+    public SyncedFlushRequestBuilder newRequestBuilder(ElasticsearchClient client) {
+        return new SyncedFlushRequestBuilder(client, this);
     }
 }

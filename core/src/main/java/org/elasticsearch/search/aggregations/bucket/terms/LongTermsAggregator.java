@@ -49,7 +49,7 @@ public class LongTermsAggregator extends TermsAggregator {
     protected final ValuesSource.Numeric valuesSource;
     protected final LongHash bucketOrds;
     private boolean showTermDocCountError;
-    private LongFilter longFilter;
+    protected LongFilter longFilter;
 
     public LongTermsAggregator(String name, AggregatorFactories factories, ValuesSource.Numeric valuesSource, DocValueFormat format,
             BucketOrder order, BucketCountThresholds bucketCountThresholds, SearchContext aggregationContext, Aggregator parent,

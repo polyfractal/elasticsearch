@@ -53,7 +53,13 @@ public class BucketHelpers {
      * "ignore": empty buckets will simply be ignored
      */
     public enum GapPolicy {
-        INSERT_ZEROS((byte) 0, "insert_zeros"), SKIP((byte) 1, "skip");
+        INSERT_ZEROS((byte) 0, "insert_zeros"),
+        SKIP((byte) 1, "skip"),
+        AVERAGE((byte) 2, "average"),
+        CARRY((byte) 3, "carry"),
+        NEAREST((byte) 4, "nearest"),
+        SCALE((byte) 5, "scale"),
+        NONE((byte) 1, "none");
 
         /**
          * Parse a string GapPolicy into the byte enum

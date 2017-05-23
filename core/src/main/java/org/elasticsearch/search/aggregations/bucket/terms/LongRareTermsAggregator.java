@@ -28,6 +28,7 @@ import org.elasticsearch.common.util.LongObjectPagedHashMap;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
+import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.LeafBucketCollector;
 import org.elasticsearch.search.aggregations.LeafBucketCollectorBase;
@@ -53,18 +54,16 @@ public class LongRareTermsAggregator extends TermsAggregator {
     protected final LongObjectPagedHashMap<Long> map;
     protected final BloomFilter bloom;
 
-    private final boolean showTermDocCountError;
     private final LongFilter longFilter;
     private final long maxDocCount;
     private final BigArrays bigArrays;
 
     public LongRareTermsAggregator(String name, AggregatorFactories factories, ValuesSource.Numeric valuesSource, DocValueFormat format,
-                                   Terms.Order order, BucketCountThresholds bucketCountThresholds, SearchContext aggregationContext, Aggregator parent,
-                                   SubAggCollectionMode subAggCollectMode, boolean showTermDocCountError, IncludeExclude.LongFilter longFilter,
+                                   BucketOrder order, BucketCountThresholds bucketCountThresholds, SearchContext aggregationContext, Aggregator parent,
+                                   SubAggCollectionMode subAggCollectMode, IncludeExclude.LongFilter longFilter,
                                    long maxDocCount, List<PipelineAggregator> pipelineAggregators, Map<String, Object> metaData) throws IOException {
         super(name, factories, aggregationContext, parent, bucketCountThresholds, order, format, subAggCollectMode, pipelineAggregators, metaData);
         this.valuesSource = valuesSource;
-        this.showTermDocCountError = showTermDocCountError;
         this.longFilter = longFilter;
         this.maxDocCount = maxDocCount;
         map = new LongObjectPagedHashMap<>(16, aggregationContext.bigArrays());
@@ -88,38 +87,36 @@ public class LongRareTermsAggregator extends TermsAggregator {
         return new LeafBucketCollectorBase(sub, values) {
             @Override
             public void collect(int doc, long owningBucketOrdinal) throws IOException {
-                assert owningBucketOrdinal == 0;
-                values.setDocument(doc);
-                final int valuesCount = values.count();
+                if (values.advanceExact(doc)) {
+                    final int valuesCount = values.docValueCount();
 
-                long previous = Long.MAX_VALUE;
-                for (int i = 0; i < valuesCount; ++i) {
-                    final long val = values.valueAt(i);
-                    if (previous != val || i == 0) {
-                        if ((longFilter == null) || (longFilter.accept(val))) {
+                    long previous = Long.MAX_VALUE;
+                    for (int i = 0; i < valuesCount; ++i) {
+                        final long val = values.nextValue();
+                        if (previous != val || i == 0) {
+                            if ((longFilter == null) || (longFilter.accept(val))) {
 
-                            if (!bloom.mightContain(val)) {
-                                Long valueCount = map.get(val);
-                                if (valueCount == null) {
-                                   // Brand new term, save into map
-                                    map.put(val, 1L);
-                                } else {
-                                    // We've seen this term before, but less than the threshold
-                                    // so just increment its counter
-                                    if (valueCount < maxDocCount) {
-                                        map.put(val, valueCount + 1);
+                                if (!bloom.mightContain(val)) {
+                                    Long valueCount = map.get(val);
+                                    if (valueCount == null) {
+                                        // Brand new term, save into map
+                                        map.put(val, 1L);
                                     } else {
-                                        // Otherwise we've breached the threshold, remove from
-                                        // the map and add to the bloom filter
-                                        map.remove(val);
-                                        bloom.put(val);
+                                        // We've seen this term before, but less than the threshold
+                                        // so just increment its counter
+                                        if (valueCount < maxDocCount) {
+                                            map.put(val, valueCount + 1);
+                                        } else {
+                                            // Otherwise we've breached the threshold, remove from
+                                            // the map and add to the bloom filter
+                                            map.remove(val);
+                                            bloom.put(val);
+                                        }
                                     }
                                 }
                             }
-
+                            previous = val;
                         }
-
-                        previous = val;
                     }
                 }
             }
@@ -147,7 +144,7 @@ public class LongRareTermsAggregator extends TermsAggregator {
             }
 
             if (spare == null) {
-                spare = new LongRareTerms.Bucket(0, 0, null, showTermDocCountError, 0, format);
+                spare = new LongRareTerms.Bucket(0, 0, null, false, 0, format);
             }
             spare.term = cursor.key;
             spare.docCount = cursor.value;
@@ -177,14 +174,14 @@ public class LongRareTermsAggregator extends TermsAggregator {
         }
 
         return new LongRareTerms(name, order, bucketCountThresholds.getRequiredSize(),
-            pipelineAggregators(), metaData(), format, bucketCountThresholds.getShardSize(), showTermDocCountError, otherDocCount,
-            Arrays.asList(list), 0, maxDocCount, bloom);
+            pipelineAggregators(), metaData(), format, bucketCountThresholds.getShardSize(),
+            Arrays.asList(list), maxDocCount, bloom);
     }
 
     @Override
     public InternalAggregation buildEmptyAggregation() {
         return new LongRareTerms(name, order, bucketCountThresholds.getRequiredSize(),
-            pipelineAggregators(), metaData(), format, bucketCountThresholds.getShardSize(), showTermDocCountError, 0, emptyList(), 0,
+            pipelineAggregators(), metaData(), format, bucketCountThresholds.getShardSize(), emptyList(),
             maxDocCount, bloom);
     }
 

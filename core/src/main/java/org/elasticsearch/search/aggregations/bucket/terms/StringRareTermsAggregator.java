@@ -27,6 +27,7 @@ import org.elasticsearch.index.fielddata.SortedBinaryDocValues;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
+import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.LeafBucketCollector;
 import org.elasticsearch.search.aggregations.LeafBucketCollectorBase;
@@ -51,13 +52,14 @@ public class StringRareTermsAggregator extends AbstractStringTermsAggregator {
     private final IncludeExclude.StringFilter includeExclude;
 
     public StringRareTermsAggregator(String name, AggregatorFactories factories, ValuesSource valuesSource,
-                                     Terms.Order order, DocValueFormat format, BucketCountThresholds bucketCountThresholds,
+                                     BucketOrder order, DocValueFormat format, BucketCountThresholds bucketCountThresholds,
                                      IncludeExclude.StringFilter includeExclude, SearchContext context,
-                                     Aggregator parent, SubAggCollectionMode collectionMode, boolean showTermDocCountError,
-                                     List<PipelineAggregator> pipelineAggregators, Map<String, Object> metaData) throws IOException {
+                                     Aggregator parent, SubAggCollectionMode collectionMode,
+                                     List<PipelineAggregator> pipelineAggregators, Map<String, Object> metaData,
+                                     long maxDocCount) throws IOException {
 
-        super(name, factories, context, parent, order, format, bucketCountThresholds, collectionMode, showTermDocCountError,
-            pipelineAggregators, metaData);
+        super(name, factories, context, parent, order, format, bucketCountThresholds, collectionMode,
+            false, pipelineAggregators, metaData);
         this.valuesSource = valuesSource;
         this.includeExclude = includeExclude;
         bucketOrds = new BytesRefHash(1, context.bigArrays());

@@ -20,21 +20,12 @@
 
 package org.elasticsearch.search.aggregations.bucket.terms;
 
-import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.common.io.stream.StreamInput;
-import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.io.stream.Writeable;
-import org.elasticsearch.common.xcontent.ToXContent;
-import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
+import org.elasticsearch.search.aggregations.BucketOrder;
+import org.elasticsearch.search.aggregations.InternalOrder;
 import org.elasticsearch.search.aggregations.bucket.BucketsAggregator;
-import org.elasticsearch.search.aggregations.bucket.terms.InternalOrder;
-import org.elasticsearch.search.aggregations.bucket.terms.InternalOrder.Aggregation;
-import org.elasticsearch.search.aggregations.bucket.terms.InternalOrder.CompoundOrder;
-import org.elasticsearch.search.aggregations.bucket.terms.Terms;
-import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregator;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
 import org.elasticsearch.search.aggregations.support.AggregationPath;
 import org.elasticsearch.search.internal.SearchContext;
@@ -43,34 +34,33 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 public abstract class RareTermsAggregator extends BucketsAggregator {
 
     protected final DocValueFormat format;
     protected final TermsAggregator.BucketCountThresholds bucketCountThresholds;
-    protected final Terms.Order order;
+    protected final BucketOrder order;
     protected final Set<Aggregator> aggsUsedForSorting = new HashSet<>();
     protected final SubAggCollectionMode collectMode;
 
     public RareTermsAggregator(String name, AggregatorFactories factories, SearchContext context, Aggregator parent,
-                               TermsAggregator.BucketCountThresholds bucketCountThresholds, Terms.Order order, DocValueFormat format, SubAggCollectionMode collectMode,
-                               List<PipelineAggregator> pipelineAggregators, Map<String, Object> metaData) throws IOException {
+                           TermsAggregator.BucketCountThresholds bucketCountThresholds, BucketOrder order, DocValueFormat format, SubAggCollectionMode collectMode,
+                           List<PipelineAggregator> pipelineAggregators, Map<String, Object> metaData) throws IOException {
         super(name, factories, context, parent, pipelineAggregators, metaData);
         this.bucketCountThresholds = bucketCountThresholds;
         this.order = InternalOrder.validate(order, this);
         this.format = format;
         this.collectMode = collectMode;
         // Don't defer any child agg if we are dependent on it for pruning results
-        if (order instanceof Aggregation){
-            AggregationPath path = ((Aggregation) order).path();
+        if (order instanceof InternalOrder.Aggregation){
+            AggregationPath path = ((InternalOrder.Aggregation) order).path();
             aggsUsedForSorting.add(path.resolveTopmostAggregator(this));
-        } else if (order instanceof CompoundOrder) {
-            CompoundOrder compoundOrder = (CompoundOrder) order;
-            for (Terms.Order orderElement : compoundOrder.orderElements()) {
-                if (orderElement instanceof Aggregation) {
-                    AggregationPath path = ((Aggregation) orderElement).path();
+        } else if (order instanceof InternalOrder.CompoundOrder) {
+            InternalOrder.CompoundOrder compoundOrder = (InternalOrder.CompoundOrder) order;
+            for (BucketOrder orderElement : compoundOrder.orderElements()) {
+                if (orderElement instanceof InternalOrder.Aggregation) {
+                    AggregationPath path = ((InternalOrder.Aggregation) orderElement).path();
                     aggsUsedForSorting.add(path.resolveTopmostAggregator(this));
                 }
             }

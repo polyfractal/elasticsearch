@@ -18,41 +18,34 @@
  */
 package org.elasticsearch.search.aggregations.bucket.terms;
 
-
 import org.apache.lucene.util.BytesRef;
-import org.elasticsearch.common.Numbers;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.BloomFilter;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.DocValueFormat;
-import org.elasticsearch.search.aggregations.AggregationExecutionException;
-import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
-import org.elasticsearch.search.aggregations.bucket.terms.support.BucketPriorityQueue;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
+import org.elasticsearch.search.aggregations.BucketOrder;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
- * Result of the {@link TermsAggregator} when the field is some kind of whole number like a integer, long, or a date.
+ * Result of the {@link RareTermsAggregator} when the field is a String.
  */
-public class LongRareTerms extends InternalMappedRareTerms<LongRareTerms, LongRareTerms.Bucket> {
-    public static final String NAME = "rarelterms";
-
+public class StringRareTerms extends InternalMappedRareTerms<StringRareTerms, StringRareTerms.Bucket> {
+    public static final String NAME = "srareterms";
     public static class Bucket extends InternalTerms.Bucket<Bucket> {
-        long term;
+        BytesRef termBytes;
 
-        public Bucket(long term, long docCount, InternalAggregations aggregations, boolean showDocCountError, long docCountError,
+        public Bucket(BytesRef term, long docCount, InternalAggregations aggregations, boolean showDocCountError, long docCountError,
                       DocValueFormat format) {
             super(docCount, aggregations, showDocCountError, docCountError, format);
-            this.term = term;
+            this.termBytes = term;
         }
 
         /**
@@ -60,62 +53,69 @@ public class LongRareTerms extends InternalMappedRareTerms<LongRareTerms, LongRa
          */
         public Bucket(StreamInput in, DocValueFormat format, boolean showDocCountError) throws IOException {
             super(in, format, showDocCountError);
-            term = in.readLong();
+            termBytes = in.readBytesRef();
         }
 
         @Override
         protected void writeTermTo(StreamOutput out) throws IOException {
-            out.writeLong(term);
-        }
-
-        @Override
-        public String getKeyAsString() {
-            return format.format(term);
+            out.writeBytesRef(termBytes);
         }
 
         @Override
         public Object getKey() {
-            return term;
+            return getKeyAsString();
         }
 
         @Override
         public Number getKeyAsNumber() {
-            return term;
+            // this method is needed for scripted numeric aggs
+            return Double.parseDouble(termBytes.utf8ToString());
         }
 
         @Override
-        public int compareKey(LongRareTerms.Bucket other) {
-            return Long.compare(term, other.term);
+        public String getKeyAsString() {
+            return format.format(termBytes);
         }
 
         @Override
-        protected Bucket newBucket(long docCount, InternalAggregations aggs, long docCountError) {
-            return new Bucket(term, docCount, aggs, false, docCountError, format);
+        public int compareKey(Bucket other) {
+            return termBytes.compareTo(other.termBytes);
+        }
+
+        @Override
+        Bucket newBucket(long docCount, InternalAggregations aggs, long docCountError) {
+            return new Bucket(termBytes, docCount, aggs, showDocCountError, docCountError, format);
         }
 
         @Override
         protected final XContentBuilder keyToXContent(XContentBuilder builder) throws IOException {
-            builder.field(CommonFields.KEY.getPreferredName(), term);
-            if (format != DocValueFormat.RAW) {
-                builder.field(CommonFields.KEY_AS_STRING.getPreferredName(), format.format(term));
-            }
-            return builder;
+            return builder.field(CommonFields.KEY.getPreferredName(), getKeyAsString());
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return super.equals(obj) && Objects.equals(termBytes, ((Bucket) obj).termBytes);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(super.hashCode(), termBytes);
         }
     }
 
-    public LongRareTerms(String name, BucketOrder order, int requiredSize, List<PipelineAggregator> pipelineAggregators,
-                         Map<String, Object> metaData, DocValueFormat format, int shardSize,
-                         List<Bucket> buckets, long maxDocCount, BloomFilter bloom) {
-        super(name, order, requiredSize, pipelineAggregators, metaData, format, shardSize, buckets, maxDocCount, bloom);
+    public StringRareTerms(String name, BucketOrder order, int requiredSize, List<PipelineAggregator> pipelineAggregators,
+                       Map<String, Object> metaData, DocValueFormat format, int shardSize,
+                       List<Bucket> buckets, long maxDocCount, BloomFilter bloom) {
+        super(name, order, requiredSize, pipelineAggregators, metaData, format,
+            shardSize, buckets, maxDocCount, bloom);
     }
 
     /**
      * Read from a stream.
      */
-    public LongRareTerms(StreamInput in) throws IOException {
+    public StringRareTerms(StreamInput in) throws IOException {
         super(in, Bucket::new);
     }
-
 
     @Override
     public String getWriteableName() {
@@ -123,20 +123,20 @@ public class LongRareTerms extends InternalMappedRareTerms<LongRareTerms, LongRa
     }
 
     @Override
-    public LongRareTerms create(List<Bucket> buckets) {
-        return new LongRareTerms(name, order, requiredSize, pipelineAggregators(), metaData, format, shardSize,
+    public StringRareTerms create(List<Bucket> buckets) {
+        return new StringRareTerms(name, order, requiredSize, pipelineAggregators(), metaData, format, shardSize,
             buckets, maxDocCount, bloom);
     }
 
     @Override
     public Bucket createBucket(InternalAggregations aggregations, Bucket prototype) {
-        return new Bucket(prototype.term, prototype.getDocCount(), aggregations, prototype.showDocCountError,
+        return new Bucket(prototype.termBytes, prototype.getDocCount(), aggregations, false,
             prototype.docCountError, prototype.format);
     }
 
     @Override
-    protected LongRareTerms create(String name, List<Bucket> buckets, long docCountError, long otherDocCount) {
-        return new LongRareTerms(name, order, requiredSize, pipelineAggregators(), getMetaData(), format, shardSize,
+    protected StringRareTerms create(String name, List<Bucket> buckets, long docCountError, long otherDocCount) {
+        return new StringRareTerms(name, order, requiredSize, pipelineAggregators(), metaData, format, shardSize,
             buckets, maxDocCount, bloom);
     }
 
@@ -147,13 +147,6 @@ public class LongRareTerms extends InternalMappedRareTerms<LongRareTerms, LongRa
 
     @Override
     public InternalAggregation doReduce(List<InternalAggregation> aggregations, ReduceContext reduceContext) {
-        for (InternalAggregation agg : aggregations) {
-            if (agg instanceof DoubleTerms) {
-                return agg.doReduce(aggregations, reduceContext);
-            }
-        }
-        return super.doReduce(aggregations, reduceContext,
-            (LongRareTerms.Bucket b) -> new BytesRef(Numbers.longToBytes(b.term)));
+        return super.doReduce(aggregations, reduceContext, (StringRareTerms.Bucket b) -> b.termBytes);
     }
-
 }

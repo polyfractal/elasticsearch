@@ -133,6 +133,10 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
                 // global ordinals to keep the bucket ords dense.
                 // Additionally, if using partitioned terms the regular global
                 // ordinals would be sparse so we opt for hash
+                //TODO norelease: fix these
+                execution = ExecutionMode.MAP;
+
+                /*
                 if (Aggregator.descendsFromBucketAggregator(parent) ||
                     (includeExclude != null && includeExclude.isPartitionBased())) {
                     execution = ExecutionMode.GLOBAL_ORDINALS_HASH;
@@ -152,6 +156,8 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
                         execution = ExecutionMode.GLOBAL_ORDINALS;
                     }
                 }
+                */
+
             }
             SubAggCollectionMode cm = collectMode;
             if (cm == null) {
@@ -239,7 +245,7 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
                 return false;
             }
 
-        },
+        };/*,
         GLOBAL_ORDINALS(new ParseField("global_ordinals")) {
 
             @Override
@@ -279,6 +285,7 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
                 return true;
             }
         },
+
         GLOBAL_ORDINALS_LOW_CARDINALITY(new ParseField("global_ordinals_low_cardinality")) {
 
             @Override
@@ -303,7 +310,7 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
             boolean needsGlobalOrdinals() {
                 return true;
             }
-        };
+        };*/
 
         public static ExecutionMode fromString(String value) {
             for (ExecutionMode mode : values()) {

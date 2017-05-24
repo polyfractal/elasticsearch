@@ -18,11 +18,12 @@
  */
 package org.elasticsearch.search.aggregations.bucket.terms;
 
+import com.carrotsearch.hppc.ObjectLongHashMap;
+import com.carrotsearch.hppc.cursors.ObjectLongCursor;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefBuilder;
-import org.elasticsearch.common.lease.Releasables;
-import org.elasticsearch.common.util.BytesRefHash;
+import org.elasticsearch.common.util.BloomFilter;
 import org.elasticsearch.index.fielddata.SortedBinaryDocValues;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregator;
@@ -31,43 +32,42 @@ import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.LeafBucketCollector;
 import org.elasticsearch.search.aggregations.LeafBucketCollectorBase;
-import org.elasticsearch.search.aggregations.bucket.terms.support.BucketPriorityQueue;
 import org.elasticsearch.search.aggregations.bucket.terms.support.IncludeExclude;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
 import org.elasticsearch.search.aggregations.support.ValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 /**
  * An aggregator of string values.
  */
-public class StringRareTermsAggregator extends AbstractStringTermsAggregator {
-
+public class StringRareTermsAggregator extends StringTermsAggregator {
     private final ValuesSource valuesSource;
-    protected final BytesRefHash bucketOrds;
     private final IncludeExclude.StringFilter includeExclude;
+
+    // TODO norelease: is there equivalent to LongObjectPagedHashMap like used in LongRareTerms?
+    protected final ObjectLongHashMap<BytesRef> map;
+    protected final BloomFilter bloom;
+    private final long maxDocCount;
 
     public StringRareTermsAggregator(String name, AggregatorFactories factories, ValuesSource valuesSource,
                                      BucketOrder order, DocValueFormat format, BucketCountThresholds bucketCountThresholds,
-                                     IncludeExclude.StringFilter includeExclude, SearchContext context,
-                                     Aggregator parent, SubAggCollectionMode collectionMode,
-                                     List<PipelineAggregator> pipelineAggregators, Map<String, Object> metaData,
-                                     long maxDocCount) throws IOException {
-
-        super(name, factories, context, parent, order, format, bucketCountThresholds, collectionMode,
-            false, pipelineAggregators, metaData);
+                                     IncludeExclude.StringFilter includeExclude, SearchContext context, Aggregator parent,
+                                     SubAggCollectionMode collectionMode, List<PipelineAggregator> pipelineAggregators,
+                                     Map<String, Object> metaData, long maxDocCount) throws IOException {
+        super(name, factories, valuesSource, order, format, bucketCountThresholds, includeExclude, context, parent,
+            collectionMode, false, pipelineAggregators, metaData);
+        this.maxDocCount = maxDocCount;
         this.valuesSource = valuesSource;
         this.includeExclude = includeExclude;
-        bucketOrds = new BytesRefHash(1, context.bigArrays());
-    }
-
-    @Override
-    public boolean needsScores() {
-        return (valuesSource != null && valuesSource.needsScores()) || super.needsScores();
+        this.map = new ObjectLongHashMap<>();
+        this.bloom = BloomFilter.Factory.DEFAULT.createFilter(10000000);
     }
 
     @Override
@@ -80,27 +80,41 @@ public class StringRareTermsAggregator extends AbstractStringTermsAggregator {
             @Override
             public void collect(int doc, long bucket) throws IOException {
                 assert bucket == 0;
-                values.setDocument(doc);
-                final int valuesCount = values.count();
+                if (values.advanceExact(doc)) {
+                    final int valuesCount = values.docValueCount();
 
-                // SortedBinaryDocValues don't guarantee uniqueness so we need to take care of dups
-                previous.clear();
-                for (int i = 0; i < valuesCount; ++i) {
-                    final BytesRef bytes = values.valueAt(i);
-                    if (includeExclude != null && !includeExclude.accept(bytes)) {
-                        continue;
+                    // SortedBinaryDocValues don't guarantee uniqueness so we
+                    // need to take care of dups
+                    previous.clear();
+                    for (int i = 0; i < valuesCount; ++i) {
+                        final BytesRef bytes = values.nextValue();
+                        if (includeExclude != null && !includeExclude.accept(bytes)) {
+                            continue;
+                        }
+                        if (previous.get().equals(bytes)) {
+                            continue;
+                        }
+
+                        if (bloom.mightContain(bytes) == false) {
+                            Long valueCount = map.get(bytes);
+                            if (valueCount == 0) {
+                                // Brand new term, save into map
+                                map.put(bytes, 1L);
+                            } else {
+                                // We've seen this term before, but less than the threshold
+                                // so just increment its counter
+                                if (valueCount < maxDocCount) {
+                                    map.put(bytes, valueCount + 1);
+                                } else {
+                                    // Otherwise we've breached the threshold, remove from
+                                    // the map and add to the bloom filter
+                                    map.remove(bytes);
+                                    bloom.put(bytes);
+                                }
+                            }
+                        }
+                        previous.copyBytes(bytes);
                     }
-                    if (previous.get().equals(bytes)) {
-                        continue;
-                    }
-                    long bucketOrdinal = bucketOrds.add(bytes);
-                    if (bucketOrdinal < 0) { // already seen
-                        bucketOrdinal = - 1 - bucketOrdinal;
-                        collectExistingBucket(sub, doc, bucketOrdinal);
-                    } else {
-                        collectBucket(sub, doc, bucketOrdinal);
-                    }
-                    previous.copyBytes(bytes);
                 }
             }
         };
@@ -110,71 +124,55 @@ public class StringRareTermsAggregator extends AbstractStringTermsAggregator {
     public InternalAggregation buildAggregation(long owningBucketOrdinal) throws IOException {
         assert owningBucketOrdinal == 0;
 
-        if (bucketCountThresholds.getMinDocCount() == 0 && (order != InternalOrder.COUNT_DESC || bucketOrds.size() < bucketCountThresholds.getRequiredSize())) {
-            // we need to fill-in the blanks
-            for (LeafReaderContext ctx : context.searcher().getTopReaderContext().leaves()) {
-                final SortedBinaryDocValues values = valuesSource.bytesValues(ctx);
-                // brute force
-                for (int docId = 0; docId < ctx.reader().maxDoc(); ++docId) {
-                    values.setDocument(docId);
-                    final int valueCount = values.count();
-                    for (int i = 0; i < valueCount; ++i) {
-                        final BytesRef term = values.valueAt(i);
-                        if (includeExclude == null || includeExclude.accept(term)) {
-                            bucketOrds.add(term);
-                        }
-                    }
-                }
-            }
-        }
+        final int size = Math.min(map.size(), bucketCountThresholds.getShardSize());
 
-        final int size = (int) Math.min(bucketOrds.size(), bucketCountThresholds.getShardSize());
+        //TODO norelease: it feels like a priorityqueue isn't needed here, hence the list.  But what to
+        // do about the shard sizes, etc?  Are those needed anymore?
+        List<StringRareTerms.Bucket> buckets = new ArrayList<>(size);
 
-        long otherDocCount = 0;
-        BucketPriorityQueue<StringTerms.Bucket> ordered = new BucketPriorityQueue<>(size, order.comparator(this));
-        StringTerms.Bucket spare = null;
-        for (int i = 0; i < bucketOrds.size(); i++) {
-            if (spare == null) {
-                spare = new StringTerms.Bucket(new BytesRef(), 0, null, showTermDocCountError, 0, format);
+
+        Iterator<ObjectLongCursor<BytesRef>> iter = map.iterator();
+        while (iter.hasNext()) {
+            ObjectLongCursor<BytesRef> cursor = iter.next();
+
+            StringRareTerms.Bucket bucket = new StringRareTerms.Bucket(new BytesRef(), 0, null, false, 0, format);
+
+
+            // We have to replay our map into a LongHash map because downstream
+            // methods expect the same hashing layout.
+            long bucketOrdinal = bucketOrds.add(cursor.key);
+            if (bucketOrdinal < 0) { // already seen
+                bucketOrdinal = - 1 - bucketOrdinal;
             }
-            bucketOrds.get(i, spare.termBytes);
-            spare.docCount = bucketDocCount(i);
-            otherDocCount += spare.docCount;
-            spare.bucketOrd = i;
-            if (bucketCountThresholds.getShardMinDocCount() <= spare.docCount) {
-                spare = ordered.insertWithOverflow(spare);
-            }
+
+            bucket.termBytes = cursor.key;
+            bucket.docCount = cursor.value;
+            bucket.bucketOrd = bucketOrdinal;
+            buckets.add(bucket);
         }
 
         // Get the top buckets
-        final StringTerms.Bucket[] list = new StringTerms.Bucket[ordered.size()];
-        long survivingBucketOrds[] = new long[ordered.size()];
-        for (int i = ordered.size() - 1; i >= 0; --i) {
-            final StringTerms.Bucket bucket = (StringTerms.Bucket) ordered.pop();
+        final StringRareTerms.Bucket[] list = new StringRareTerms.Bucket[buckets.size()];
+        long survivingBucketOrds[] = new long[buckets.size()];
+        for (int i = buckets.size() - 1; i >= 0; --i) {
+            final StringRareTerms.Bucket bucket = buckets.get(i);
             survivingBucketOrds[i] = bucket.bucketOrd;
             list[i] = bucket;
-            otherDocCount -= bucket.docCount;
         }
         // replay any deferred collections
         runDeferredCollections(survivingBucketOrds);
 
         // Now build the aggs
         for (int i = 0; i < list.length; i++) {
-            final StringTerms.Bucket bucket = (StringTerms.Bucket)list[i];
+            final StringRareTerms.Bucket bucket = list[i];
             bucket.termBytes = BytesRef.deepCopyOf(bucket.termBytes);
             bucket.aggregations = bucketAggregations(bucket.bucketOrd);
             bucket.docCountError = 0;
         }
 
-        return new StringTerms(name, order, bucketCountThresholds.getRequiredSize(), bucketCountThresholds.getMinDocCount(),
-            pipelineAggregators(), metaData(), format, bucketCountThresholds.getShardSize(), showTermDocCountError, otherDocCount,
-            Arrays.asList(list), 0);
+        return new StringRareTerms(name, order, bucketCountThresholds.getRequiredSize(),
+            pipelineAggregators(), metaData(), format, bucketCountThresholds.getShardSize(),
+            Arrays.asList(list), maxDocCount, bloom);
     }
-
-    @Override
-    public void doClose() {
-        Releasables.close(bucketOrds);
-    }
-
 }
 

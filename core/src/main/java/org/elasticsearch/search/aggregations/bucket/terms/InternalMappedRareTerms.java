@@ -1,6 +1,7 @@
 package org.elasticsearch.search.aggregations.bucket.terms;
 
 
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.BloomFilter;
@@ -54,7 +55,7 @@ public abstract class InternalMappedRareTerms<A extends InternalTerms<A, B>, B e
     }
 
     public InternalAggregation doReduce(List<InternalAggregation> aggregations, ReduceContext reduceContext,
-                                        Function<B, Long> termConverter) {
+                                        Function<B, BytesRef> termConverter) {
         Map<Object, List<B>> buckets = new HashMap<>();
         InternalTerms<A, B> referenceTerms = null;
         BloomFilter bloomFilter = null;
@@ -87,20 +88,22 @@ public abstract class InternalMappedRareTerms<A extends InternalTerms<A, B>, B e
         }
 
         final int size = reduceContext.isFinalReduce() == false ? buckets.size() : Math.min(requiredSize, buckets.size());
-        final BucketPriorityQueue<B> ordered = new BucketPriorityQueue<>(size, order.comparator(null));
+        final List<B> rare = new ArrayList<>(size);
         for (List<B> sameTermBuckets : buckets.values()) {
             final B b = sameTermBuckets.get(0).reduce(sameTermBuckets, reduceContext);
-            if (b.getDocCount() <= maxDocCount && !(bloom != null && bloom.mightContain(termConverter.apply(b)))) {
-                ordered.insertWithOverflow(b);
+            if (b.getDocCount() <= maxDocCount && bloom.mightContain(termConverter.apply(b)) == false) {
+                rare.add(b);
             }
         }
+        /*
         B[] list = createBucketsArray(ordered.size());
         for (int i = ordered.size() - 1; i >= 0; i--) {
             list[i] = ordered.pop();
         }
+        */
 
         //todo norelease: doc count error, don't really need these...
-        return create(name, Arrays.asList(list), 0, 0);
+        return create(name, rare, 0, 0);
     }
 
     /*

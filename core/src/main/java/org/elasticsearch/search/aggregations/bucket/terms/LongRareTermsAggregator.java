@@ -40,6 +40,7 @@ import org.elasticsearch.search.aggregations.support.ValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -131,9 +132,10 @@ public class LongRareTermsAggregator extends TermsAggregator {
 
         final int size = (int) Math.min(map.size(), bucketCountThresholds.getShardSize());
 
-        long otherDocCount = 0;
-        BucketPriorityQueue<LongRareTerms.Bucket> ordered = new BucketPriorityQueue<>(size, order.comparator(this));
-        LongRareTerms.Bucket spare = null;
+        //TODO norelease: it feels like a priorityqueue isn't needed here, hence the list.  But what to
+        // do about the shard sizes, etc?  Are those needed anymore?
+        List<LongRareTerms.Bucket> buckets = new ArrayList<>(size);
+
         for (LongObjectPagedHashMap.Cursor<Long> cursor : map) {
 
             // We have to replay our map into a LongHash map because downstream
@@ -143,26 +145,20 @@ public class LongRareTermsAggregator extends TermsAggregator {
                 bucketOrdinal = - 1 - bucketOrdinal;
             }
 
-            if (spare == null) {
-                spare = new LongRareTerms.Bucket(0, 0, null, false, 0, format);
-            }
-            spare.term = cursor.key;
-            spare.docCount = cursor.value;
-            otherDocCount += spare.docCount;
-            spare.bucketOrd = bucketOrdinal;
-            if (bucketCountThresholds.getShardMinDocCount() <= spare.docCount) {
-                spare = ordered.insertWithOverflow(spare);
-            }
+            LongRareTerms.Bucket bucket = new LongRareTerms.Bucket(0, 0, null, false, 0, format);
+            bucket.term = cursor.key;
+            bucket.docCount = cursor.value;
+            bucket.bucketOrd = bucketOrdinal;
+            buckets.add(bucket);
         }
 
         // Get the top buckets
-        final LongRareTerms.Bucket[] list = new LongRareTerms.Bucket[ordered.size()];
-        long survivingBucketOrds[] = new long[ordered.size()];
-        for (int i = ordered.size() - 1; i >= 0; --i) {
-            final LongRareTerms.Bucket bucket = (LongRareTerms.Bucket) ordered.pop();
+        final LongRareTerms.Bucket[] list = new LongRareTerms.Bucket[buckets.size()];
+        long survivingBucketOrds[] = new long[buckets.size()];
+        for (int i = buckets.size() - 1; i >= 0; --i) {
+            final LongRareTerms.Bucket bucket = buckets.get(i);
             survivingBucketOrds[i] = bucket.bucketOrd;
             list[i] = bucket;
-            otherDocCount -= bucket.docCount;
         }
 
         runDeferredCollections(survivingBucketOrds);

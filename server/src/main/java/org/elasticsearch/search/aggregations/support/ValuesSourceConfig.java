@@ -44,13 +44,13 @@ public class ValuesSourceConfig<VS extends ValuesSource> {
     /**
      * Resolve a {@link ValuesSourceConfig} given configuration parameters.
      */
-    public static <VS extends ValuesSource> ValuesSourceConfig<VS> resolve(
-            QueryShardContext context,
-            ValueType valueType,
-            String field, Script script,
-            Object missing,
-            DateTimeZone timeZone,
-            String format) {
+    public static <VS extends ValuesSource> ValuesSourceConfig<VS> resolve(QueryShardContext context, ValueType valueType, String field,
+                                                                           Script script, Script valueScript, Object missing,
+                                                                           DateTimeZone timeZone, String format) {
+
+        assert (valueScript != null && script == null)  // only value script
+            || (valueScript == null && script != null)  // only script
+            || (valueScript == null && script == null); // neither
 
         if (field == null) {
             if (script == null) {
@@ -109,7 +109,9 @@ public class ValuesSourceConfig<VS extends ValuesSource> {
         config.fieldContext(new FieldContext(field, indexFieldData, fieldType));
         config.missing(missing);
         config.timezone(timeZone);
-        config.script(createScript(script, context));
+
+        // We set a valueScript here, since we are operating with a field context
+        config.valueScript(createScript(script, context));
         config.format(fieldType.docValueFormat(format, timeZone));
         return config;
     }
@@ -137,6 +139,7 @@ public class ValuesSourceConfig<VS extends ValuesSource> {
     private final ValuesSourceType valueSourceType;
     private FieldContext fieldContext;
     private SearchScript.LeafFactory script;
+    private SearchScript.LeafFactory valueScript;
     private ValueType scriptValueType;
     private boolean unmapped = false;
     private DocValueFormat format = DocValueFormat.RAW;
@@ -173,7 +176,22 @@ public class ValuesSourceConfig<VS extends ValuesSource> {
     }
 
     public ValuesSourceConfig<VS> script(SearchScript.LeafFactory script) {
+        if (valueScript != null) {
+            throw new IllegalArgumentException("Cannot set both a script and a valueScript.");
+        }
         this.script = script;
+        return this;
+    }
+
+    public SearchScript.LeafFactory valueScript() {
+        return valueScript;
+    }
+
+    public ValuesSourceConfig<VS> valueScript(SearchScript.LeafFactory valueScript) {
+        if (script != null) {
+            throw new IllegalArgumentException("Cannot set both a script and a valueScript.");
+        }
+        this.valueScript = valueScript;
         return this;
     }
 
@@ -225,6 +243,12 @@ public class ValuesSourceConfig<VS extends ValuesSource> {
         if (!valid()) {
             throw new IllegalStateException(
                     "value source config is invalid; must have either a field context or a script or marked as unwrapped");
+        }
+
+        // Although this is allowed in the REST api until 8.0, internally we forbid  field + script.  The REST api
+        // translates field + script into field + valueScript
+        if (fieldContext != null && script != null) {
+            throw new IllegalStateException("Cannot set both a fieldContext and a script");
         }
 
         final VS vs;
@@ -306,8 +330,8 @@ public class ValuesSourceConfig<VS extends ValuesSource> {
         }
 
         ValuesSource.Numeric dataSource = new ValuesSource.Numeric.FieldData((IndexNumericFieldData)fieldContext().indexFieldData());
-        if (script() != null) {
-            dataSource = new ValuesSource.Numeric.WithScript(dataSource, script());
+        if (valueScript() != null) {
+            dataSource = new ValuesSource.Numeric.WithScript(dataSource, valueScript());
         }
         return dataSource;
     }
@@ -320,8 +344,8 @@ public class ValuesSourceConfig<VS extends ValuesSource> {
         } else {
             dataSource = new ValuesSource.Bytes.FieldData(indexFieldData);
         }
-        if (script() != null) {
-            dataSource = new ValuesSource.WithScript(dataSource, script());
+        if (valueScript() != null) {
+            dataSource = new ValuesSource.WithScript(dataSource, valueScript());
         }
         return dataSource;
     }

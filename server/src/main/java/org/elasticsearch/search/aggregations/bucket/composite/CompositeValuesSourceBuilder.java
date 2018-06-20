@@ -44,6 +44,7 @@ public abstract class CompositeValuesSourceBuilder<AB extends CompositeValuesSou
     protected final String name;
     private String field = null;
     private Script script = null;
+    private Script valueScript = null;
     private ValueType valueType = null;
     private boolean missingBucket = false;
     private SortOrder order = SortOrder.ASC;
@@ -82,6 +83,11 @@ public abstract class CompositeValuesSourceBuilder<AB extends CompositeValuesSou
         } else {
             this.format = null;
         }
+        if (in.getVersion().onOrAfter(Version.V_6_4_0)) {
+            if (in.readBoolean()) {
+                this.valueScript = new Script(in);
+            }
+        }
     }
 
     @Override
@@ -109,6 +115,13 @@ public abstract class CompositeValuesSourceBuilder<AB extends CompositeValuesSou
         if (out.getVersion().onOrAfter(Version.V_6_3_0)) {
             out.writeOptionalString(format);
         }
+        if (out.getVersion().onOrAfter(Version.V_6_4_0)) {
+            boolean hasValueScript = valueScript != null;
+            out.writeBoolean(hasValueScript);
+            if (hasValueScript) {
+                valueScript.writeTo(out);
+            }
+        }
         innerWriteTo(out);
     }
 
@@ -124,6 +137,9 @@ public abstract class CompositeValuesSourceBuilder<AB extends CompositeValuesSou
         }
         if (script != null) {
             builder.field("script", script);
+        }
+        if (valueScript != null) {
+            builder.field("value_script", valueScript);
         }
         builder.field("missing_bucket", missingBucket);
         if (valueType != null) {
@@ -158,6 +174,7 @@ public abstract class CompositeValuesSourceBuilder<AB extends CompositeValuesSou
             Objects.equals(missingBucket, that.missingBucket()) &&
             Objects.equals(order, that.order()) &&
             Objects.equals(format, that.format()) &&
+            Objects.equals(valueScript, that.valueScript()) &&
             innerEquals(that);
     }
 
@@ -196,6 +213,9 @@ public abstract class CompositeValuesSourceBuilder<AB extends CompositeValuesSou
         if (script == null) {
             throw new IllegalArgumentException("[script] must not be null");
         }
+        if (valueScript != null) {
+            throw new IllegalArgumentException("[script] and [valueScript] cannot both be set.");
+        }
         this.script = script;
         return (AB) this;
     }
@@ -205,6 +225,29 @@ public abstract class CompositeValuesSourceBuilder<AB extends CompositeValuesSou
      */
     public Script script() {
         return script;
+    }
+
+    /**
+     * Sets the value script to use for this source, e.g. applying the script to the
+     * values in a multi-valued field
+     */
+    @SuppressWarnings("unchecked")
+    public AB valueScript(Script script) {
+        if (valueScript == null) {
+            throw new IllegalArgumentException("[valueScript] must not be null");
+        }
+        if (script != null) {
+            throw new IllegalArgumentException("[script] and [valueScript] cannot both be set.");
+        }
+        this.valueScript = valueScript;
+        return (AB) this;
+    }
+
+    /**
+     * Gets the value script to use for this source
+     */
+    public Script valueScript() {
+        return valueScript;
     }
 
     /**
@@ -303,7 +346,7 @@ public abstract class CompositeValuesSourceBuilder<AB extends CompositeValuesSou
 
     public final CompositeValuesSourceConfig build(SearchContext context) throws IOException {
         ValuesSourceConfig<?> config = ValuesSourceConfig.resolve(context.getQueryShardContext(),
-            valueType, field, script, null,null, format);
+            valueType, field, script, valueScript, null, null, format);
 
         if (config.unmapped() && field != null && missingBucket == false) {
             // this source cannot produce any values so we refuse to build

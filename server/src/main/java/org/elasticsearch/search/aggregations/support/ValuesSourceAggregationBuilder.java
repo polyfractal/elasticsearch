@@ -18,8 +18,12 @@
  */
 package org.elasticsearch.search.aggregations.support;
 
+import org.elasticsearch.Version;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.logging.DeprecationLogger;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.search.aggregations.AbstractAggregationBuilder;
@@ -36,6 +40,8 @@ import java.util.Objects;
 
 public abstract class ValuesSourceAggregationBuilder<VS extends ValuesSource, AB extends ValuesSourceAggregationBuilder<VS, AB>>
         extends AbstractAggregationBuilder<AB> {
+
+    private static final DeprecationLogger deprecationLogger = new DeprecationLogger(ESLoggerFactory.getLogger("deprecation"));
 
     public abstract static class LeafOnly<VS extends ValuesSource, AB extends ValuesSourceAggregationBuilder<VS, AB>>
             extends ValuesSourceAggregationBuilder<VS, AB> {
@@ -78,6 +84,7 @@ public abstract class ValuesSourceAggregationBuilder<VS extends ValuesSource, AB
     private final ValueType targetValueType;
     private String field = null;
     private Script script = null;
+    private Script valueScript = null;
     private ValueType valueType = null;
     private String format = null;
     private Object missing = null;
@@ -105,6 +112,7 @@ public abstract class ValuesSourceAggregationBuilder<VS extends ValuesSource, AB
         this.timeZone = clone.timeZone;
         this.config = clone.config;
         this.script = clone.script;
+        this.valueScript = clone.valueScript;
     }
 
     /**
@@ -147,6 +155,11 @@ public abstract class ValuesSourceAggregationBuilder<VS extends ValuesSource, AB
         if (in.readBoolean()) {
             timeZone = DateTimeZone.forID(in.readString());
         }
+        if (in.getVersion().onOrAfter(Version.V_6_4_0)) {
+            if (in.readBoolean()) {
+                valueScript = new Script(in);
+            }
+        }
     }
 
     @Override
@@ -171,6 +184,13 @@ public abstract class ValuesSourceAggregationBuilder<VS extends ValuesSource, AB
         out.writeBoolean(hasTimeZone);
         if (hasTimeZone) {
             out.writeString(timeZone.getID());
+        }
+        if (out.getVersion().onOrAfter(Version.V_6_4_0)) {
+            boolean hasValueScript = valueScript != null;
+            out.writeBoolean(hasValueScript);
+            if (hasValueScript) {
+                valueScript.writeTo(out);
+            }
         }
         innerWriteTo(out);
     }
@@ -215,6 +235,9 @@ public abstract class ValuesSourceAggregationBuilder<VS extends ValuesSource, AB
         if (script == null) {
             throw new IllegalArgumentException("[script] must not be null: [" + name + "]");
         }
+        if (valueScript != null) {
+            throw new IllegalArgumentException("[script] and [valueScript] cannot both be set.");
+        }
         this.script = script;
         return (AB) this;
     }
@@ -224,6 +247,30 @@ public abstract class ValuesSourceAggregationBuilder<VS extends ValuesSource, AB
      */
     public Script script() {
         return script;
+    }
+
+    /**
+     * Sets the script to use for this aggregation.
+     */
+    @SuppressWarnings("unchecked")
+    public AB valueScript(Script script) {
+        if (script == null) {
+            throw new IllegalArgumentException("[valueScript] must not be null: [" + name + "]");
+        }
+        if (script != null) {
+            throw new IllegalArgumentException("[script] and [valueScript] cannot both be set.");
+        }
+        this.valueScript = script;
+        return (AB) this;
+    }
+
+    /**
+     * Gets the valueScript to use for this aggregation.  This is a script that operates on the values in a multi-valued field,
+     * which is different from {@link ValuesSourceAggregationBuilder#script} which operates on documents.
+     *
+     */
+    public Script valueScript() {
+        return valueScript;
     }
 
     /**
@@ -307,6 +354,23 @@ public abstract class ValuesSourceAggregationBuilder<VS extends ValuesSource, AB
     @Override
     protected final ValuesSourceAggregatorFactory<VS, ?> doBuild(SearchContext context, AggregatorFactory<?> parent,
             AggregatorFactories.Builder subFactoriesBuilder) throws IOException {
+        // The builders and REST parsers should prevent this from happening
+        assert (valueScript != null && script == null)  // only value script
+            || (valueScript == null && script != null)  // only script
+            || (valueScript == null && script == null); // neither
+
+        if (Strings.isNullOrEmpty(field) && valueScript != null) {
+            throw new IllegalArgumentException("Cannot specify a value_script without a field.");
+        }
+
+        // Legacy, convert field + script into field + valueScript.  This will go away in 8.0
+        if (Strings.isNullOrEmpty(field) == false && script != null) {
+            deprecationLogger.deprecated("Specifying a value script with [field] + [script] is deprecated and will be removed in 8.0. " +
+                "Specify a value script with [field] + [value_script] instead.");
+            valueScript = script;
+            script = null;
+        }
+
         ValuesSourceConfig<VS> config = resolveConfig(context);
         ValuesSourceAggregatorFactory<VS, ?> factory = innerBuild(context, config, parent, subFactoriesBuilder);
         return factory;
@@ -315,7 +379,7 @@ public abstract class ValuesSourceAggregationBuilder<VS extends ValuesSource, AB
     protected ValuesSourceConfig<VS> resolveConfig(SearchContext context) {
         ValueType valueType = this.valueType != null ? this.valueType : targetValueType;
         return ValuesSourceConfig.resolve(context.getQueryShardContext(),
-                valueType, field, script, missing, timeZone, format);
+                valueType, field, script, valueScript, missing, timeZone, format);
     }
 
     protected abstract ValuesSourceAggregatorFactory<VS, ?> innerBuild(SearchContext context, ValuesSourceConfig<VS> config,
@@ -329,6 +393,9 @@ public abstract class ValuesSourceAggregationBuilder<VS extends ValuesSource, AB
         }
         if (script != null) {
             builder.field("script", script);
+        }
+        if (valueScript != null) {
+            builder.field("value_script", valueScript);
         }
         if (missing != null) {
             builder.field("missing", missing);
@@ -360,23 +427,16 @@ public abstract class ValuesSourceAggregationBuilder<VS extends ValuesSource, AB
     @Override
     protected final boolean doEquals(Object obj) {
         ValuesSourceAggregationBuilder<?, ?> other = (ValuesSourceAggregationBuilder<?, ?>) obj;
-        if (!Objects.equals(field, other.field))
-            return false;
-        if (!Objects.equals(format, other.format))
-            return false;
-        if (!Objects.equals(missing, other.missing))
-            return false;
-        if (!Objects.equals(script, other.script))
-            return false;
-        if (!Objects.equals(targetValueType, other.targetValueType))
-            return false;
-        if (!Objects.equals(timeZone, other.timeZone))
-            return false;
-        if (!Objects.equals(valueType, other.valueType))
-            return false;
-        if (!Objects.equals(valuesSourceType, other.valuesSourceType))
-            return false;
-        return innerEquals(obj);
+        return Objects.equals(field, other.field)
+            && Objects.equals(format, other.format)
+            && Objects.equals(missing, other.missing)
+            && Objects.equals(script, other.script)
+            && Objects.equals(targetValueType, other.targetValueType)
+            && Objects.equals(timeZone, other.timeZone)
+            && Objects.equals(valueType, other.valueType)
+            && Objects.equals(valuesSourceType, other.valuesSourceType)
+            && Objects.equals(valueScript, other.valueScript)
+            && innerEquals(obj);
     }
 
     protected abstract boolean innerEquals(Object obj);

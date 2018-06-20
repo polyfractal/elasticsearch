@@ -29,6 +29,7 @@ import org.joda.time.DateTimeZone;
 
 public final class ValuesSourceParserHelper {
     static final ParseField TIME_ZONE = new ParseField("time_zone");
+    static final ParseField VALUE_SCRIPT_PARSE_FIELD = new ParseField("value_script");
 
     private ValuesSourceParserHelper() {} // utility class, no instantiation
 
@@ -87,6 +88,10 @@ public final class ValuesSourceParserHelper {
             objectParser.declareField(ValuesSourceAggregationBuilder::script,
                     (parser, context) -> Script.parse(parser),
                     Script.SCRIPT_PARSE_FIELD, ObjectParser.ValueType.OBJECT_OR_STRING);
+
+            objectParser.declareField(ValuesSourceAggregationBuilder::valueScript,
+                (parser, context) -> Script.parse(parser),
+                VALUE_SCRIPT_PARSE_FIELD, ObjectParser.ValueType.OBJECT_OR_STRING);
         }
 
         if (timezoneAware) {

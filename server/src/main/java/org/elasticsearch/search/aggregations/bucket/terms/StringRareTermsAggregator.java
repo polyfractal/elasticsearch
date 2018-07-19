@@ -32,7 +32,6 @@ import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.LeafBucketCollector;
 import org.elasticsearch.search.aggregations.LeafBucketCollectorBase;
-import org.elasticsearch.search.aggregations.bucket.terms.support.IncludeExclude;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
 import org.elasticsearch.search.aggregations.support.ValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
@@ -40,7 +39,6 @@ import org.elasticsearch.search.internal.SearchContext;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -128,21 +126,16 @@ public class StringRareTermsAggregator extends StringTermsAggregator {
 
         //TODO norelease: it feels like a priorityqueue isn't needed here, hence the list.  But what to
         // do about the shard sizes, etc?  Are those needed anymore?
-        List<StringRareTerms.Bucket> buckets = new ArrayList<>(size);
+        List<StringTerms.Bucket> buckets = new ArrayList<>(size);
 
-
-        Iterator<ObjectLongCursor<BytesRef>> iter = map.iterator();
-        while (iter.hasNext()) {
-            ObjectLongCursor<BytesRef> cursor = iter.next();
-
-            StringRareTerms.Bucket bucket = new StringRareTerms.Bucket(new BytesRef(), 0, null, false, 0, format);
-
+        for (ObjectLongCursor<BytesRef> cursor : map) {
+            StringTerms.Bucket bucket = new StringTerms.Bucket(new BytesRef(), 0, null, false, 0, format);
 
             // We have to replay our map into a LongHash map because downstream
             // methods expect the same hashing layout.
             long bucketOrdinal = bucketOrds.add(cursor.key);
             if (bucketOrdinal < 0) { // already seen
-                bucketOrdinal = - 1 - bucketOrdinal;
+                bucketOrdinal = -1 - bucketOrdinal;
             }
 
             bucket.termBytes = cursor.key;
@@ -152,10 +145,10 @@ public class StringRareTermsAggregator extends StringTermsAggregator {
         }
 
         // Get the top buckets
-        final StringRareTerms.Bucket[] list = new StringRareTerms.Bucket[buckets.size()];
+        final StringTerms.Bucket[] list = new StringTerms.Bucket[buckets.size()];
         long survivingBucketOrds[] = new long[buckets.size()];
         for (int i = buckets.size() - 1; i >= 0; --i) {
-            final StringRareTerms.Bucket bucket = buckets.get(i);
+            final StringTerms.Bucket bucket = buckets.get(i);
             survivingBucketOrds[i] = bucket.bucketOrd;
             list[i] = bucket;
         }
@@ -163,8 +156,7 @@ public class StringRareTermsAggregator extends StringTermsAggregator {
         runDeferredCollections(survivingBucketOrds);
 
         // Now build the aggs
-        for (int i = 0; i < list.length; i++) {
-            final StringRareTerms.Bucket bucket = list[i];
+        for (final StringTerms.Bucket bucket : list) {
             bucket.termBytes = BytesRef.deepCopyOf(bucket.termBytes);
             bucket.aggregations = bucketAggregations(bucket.bucketOrd);
             bucket.docCountError = 0;

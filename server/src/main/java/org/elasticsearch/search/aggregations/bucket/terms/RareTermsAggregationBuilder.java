@@ -21,14 +21,14 @@ package org.elasticsearch.search.aggregations.bucket.terms;
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.ObjectParser;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.index.query.QueryParseContext;
+import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.Aggregator.SubAggCollectionMode;
 import org.elasticsearch.search.aggregations.AggregatorFactories.Builder;
 import org.elasticsearch.search.aggregations.AggregatorFactory;
-import org.elasticsearch.search.aggregations.bucket.terms.support.IncludeExclude;
 import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalOrder;
 import org.elasticsearch.search.aggregations.InternalOrder.CompoundOrder;
@@ -43,6 +43,7 @@ import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<ValuesSource, RareTermsAggregationBuilder> {
@@ -58,7 +59,7 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
         -1);
     public static final ParseField ORDER_FIELD = new ParseField("order");
 
-    private static final ObjectParser<RareTermsAggregationBuilder, QueryParseContext> PARSER;
+    private static final ObjectParser<RareTermsAggregationBuilder, Void> PARSER;
     static {
         PARSER = new ObjectParser<>(RareTermsAggregationBuilder.NAME);
         ValuesSourceParserHelper.declareAnyFields(PARSER, true, true);
@@ -74,11 +75,11 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
         PARSER.declareString(RareTermsAggregationBuilder::executionHint, EXECUTION_HINT_FIELD_NAME);
 
         PARSER.declareField(RareTermsAggregationBuilder::collectMode,
-            (p, c) -> SubAggCollectionMode.parse(p.text()),
+            (p, c) -> SubAggCollectionMode.parse(p.text(), LoggingDeprecationHandler.INSTANCE),
             SubAggCollectionMode.KEY, ObjectParser.ValueType.STRING);
 
-        PARSER.declareObjectArray(RareTermsAggregationBuilder::order, InternalOrder.Parser::parseOrderParam,
-            RareTermsAggregationBuilder.ORDER_FIELD);
+        PARSER.declareObjectArray(RareTermsAggregationBuilder::order, (p, c) -> InternalOrder.Parser.parseOrderParam(p),
+            TermsAggregationBuilder.ORDER_FIELD);
 
         PARSER.declareField((b, v) -> b.includeExclude(IncludeExclude.merge(v, b.includeExclude())),
             IncludeExclude::parseInclude, IncludeExclude.INCLUDE_FIELD, ObjectParser.ValueType.OBJECT_ARRAY_OR_STRING);
@@ -87,8 +88,8 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
             IncludeExclude::parseExclude, IncludeExclude.EXCLUDE_FIELD, ObjectParser.ValueType.STRING_ARRAY);
     }
 
-    public static AggregationBuilder parse(String aggregationName, QueryParseContext context) throws IOException {
-        return PARSER.parse(context.parser(), new RareTermsAggregationBuilder(aggregationName, null), context);
+    public static AggregationBuilder parse(String aggregationName, XContentParser parser) throws IOException {
+        return PARSER.parse(parser, new RareTermsAggregationBuilder(aggregationName, null), null);
     }
 
     private BucketOrder order = BucketOrder.compound(BucketOrder.count(false)); // automatically adds tie-breaker key asc order
@@ -101,6 +102,20 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
 
     public RareTermsAggregationBuilder(String name, ValueType valueType) {
         super(name, ValuesSourceType.ANY, valueType);
+    }
+
+    protected RareTermsAggregationBuilder(RareTermsAggregationBuilder clone, Builder factoriesBuilder, Map<String, Object> metaData) {
+        super(clone, factoriesBuilder, metaData);
+        this.order = clone.order;
+        this.executionHint = clone.executionHint;
+        this.includeExclude = clone.includeExclude;
+        this.collectMode = clone.collectMode;
+        this.bucketCountThresholds = new TermsAggregator.BucketCountThresholds(clone.bucketCountThresholds);
+    }
+
+    @Override
+    protected AggregationBuilder shallowCopy(Builder factoriesBuilder, Map<String, Object> metaData) {
+        return new RareTermsAggregationBuilder(this, factoriesBuilder, metaData);
     }
 
     /**

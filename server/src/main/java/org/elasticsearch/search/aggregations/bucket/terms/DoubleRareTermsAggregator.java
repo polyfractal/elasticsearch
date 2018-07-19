@@ -26,7 +26,6 @@ import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
 import org.elasticsearch.search.aggregations.BucketOrder;
-import org.elasticsearch.search.aggregations.bucket.terms.support.IncludeExclude;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
 import org.elasticsearch.search.aggregations.support.ValuesSource;
 import org.elasticsearch.search.aggregations.support.ValuesSource.Numeric;
@@ -54,24 +53,24 @@ public class DoubleRareTermsAggregator extends LongRareTermsAggregator {
 
     @Override
     public DoubleTerms buildAggregation(long owningBucketOrdinal) throws IOException {
-        final LongRareTerms terms = (LongRareTerms) super.buildAggregation(owningBucketOrdinal);
+        final LongTerms terms = (LongTerms) super.buildAggregation(owningBucketOrdinal);
         return convertToDouble(terms);
     }
 
     @Override
     public DoubleTerms buildEmptyAggregation() {
-        final LongRareTerms terms = (LongRareTerms) super.buildEmptyAggregation();
+        final LongTerms terms = (LongTerms) super.buildEmptyAggregation();
         return convertToDouble(terms);
     }
 
-    private static DoubleTerms convertToDouble(LongRareTerms terms) {
+    private static DoubleTerms convertToDouble(LongTerms terms) {
         List<DoubleTerms.Bucket> buckets = terms.buckets.stream().map(DoubleRareTermsAggregator::convertToDouble).collect(Collectors.toList());
         return new DoubleTerms(terms.getName(), terms.order, terms.requiredSize, terms.minDocCount, terms.pipelineAggregators(),
             terms.getMetaData(), terms.format, terms.shardSize, terms.showTermDocCountError, terms.otherDocCount, buckets,
             terms.docCountError);
     }
 
-    private static DoubleTerms.Bucket convertToDouble(LongRareTerms.Bucket bucket) {
+    private static DoubleTerms.Bucket convertToDouble(LongTerms.Bucket bucket) {
         double value = NumericUtils.sortableLongToDouble(bucket.term);
         return new DoubleTerms.Bucket(value, bucket.docCount, bucket.aggregations, bucket.showDocCountError, bucket.docCountError,
             bucket.format);

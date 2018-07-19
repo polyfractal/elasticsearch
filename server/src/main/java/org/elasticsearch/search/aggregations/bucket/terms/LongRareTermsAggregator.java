@@ -32,9 +32,6 @@ import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.LeafBucketCollector;
 import org.elasticsearch.search.aggregations.LeafBucketCollectorBase;
-import org.elasticsearch.search.aggregations.bucket.terms.support.BucketPriorityQueue;
-import org.elasticsearch.search.aggregations.bucket.terms.support.IncludeExclude;
-import org.elasticsearch.search.aggregations.bucket.terms.support.IncludeExclude.LongFilter;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
 import org.elasticsearch.search.aggregations.support.ValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
@@ -55,7 +52,7 @@ public class LongRareTermsAggregator extends TermsAggregator {
     protected final LongObjectPagedHashMap<Long> map;
     protected final BloomFilter bloom;
 
-    private final LongFilter longFilter;
+    private final IncludeExclude.LongFilter longFilter;
     private final long maxDocCount;
     private final BigArrays bigArrays;
 
@@ -134,7 +131,7 @@ public class LongRareTermsAggregator extends TermsAggregator {
 
         //TODO norelease: it feels like a priorityqueue isn't needed here, hence the list.  But what to
         // do about the shard sizes, etc?  Are those needed anymore?
-        List<LongRareTerms.Bucket> buckets = new ArrayList<>(size);
+        List<LongTerms.Bucket> buckets = new ArrayList<>(size);
 
         for (LongObjectPagedHashMap.Cursor<Long> cursor : map) {
 
@@ -145,7 +142,7 @@ public class LongRareTermsAggregator extends TermsAggregator {
                 bucketOrdinal = - 1 - bucketOrdinal;
             }
 
-            LongRareTerms.Bucket bucket = new LongRareTerms.Bucket(0, 0, null, false, 0, format);
+            LongTerms.Bucket bucket = new LongTerms.Bucket(0, 0, null, false, 0, format);
             bucket.term = cursor.key;
             bucket.docCount = cursor.value;
             bucket.bucketOrd = bucketOrdinal;
@@ -153,10 +150,10 @@ public class LongRareTermsAggregator extends TermsAggregator {
         }
 
         // Get the top buckets
-        final LongRareTerms.Bucket[] list = new LongRareTerms.Bucket[buckets.size()];
+        final LongTerms.Bucket[] list = new LongTerms.Bucket[buckets.size()];
         long survivingBucketOrds[] = new long[buckets.size()];
         for (int i = buckets.size() - 1; i >= 0; --i) {
-            final LongRareTerms.Bucket bucket = buckets.get(i);
+            final LongTerms.Bucket bucket = buckets.get(i);
             survivingBucketOrds[i] = bucket.bucketOrd;
             list[i] = bucket;
         }
@@ -164,21 +161,20 @@ public class LongRareTermsAggregator extends TermsAggregator {
         runDeferredCollections(survivingBucketOrds);
 
         // Now build the aggs
-        for (LongRareTerms.Bucket aList : list) {
+        for (LongTerms.Bucket aList : list) {
             aList.aggregations = bucketAggregations(aList.bucketOrd);
             aList.docCountError = 0;
         }
 
         return new LongRareTerms(name, order, bucketCountThresholds.getRequiredSize(),
-            pipelineAggregators(), metaData(), format, bucketCountThresholds.getShardSize(),
-            Arrays.asList(list), maxDocCount, bloom);
+                pipelineAggregators(), metaData(), format, bucketCountThresholds.getShardSize(),
+                Arrays.asList(list), 0, bloom);
     }
 
     @Override
     public InternalAggregation buildEmptyAggregation() {
         return new LongRareTerms(name, order, bucketCountThresholds.getRequiredSize(),
-            pipelineAggregators(), metaData(), format, bucketCountThresholds.getShardSize(), emptyList(),
-            maxDocCount, bloom);
+            pipelineAggregators(), metaData(), format, bucketCountThresholds.getShardSize(), emptyList(), 0, bloom);
     }
 
     @Override

@@ -9,13 +9,10 @@ import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.InternalOrder;
-import org.elasticsearch.search.aggregations.bucket.terms.support.BucketPriorityQueue;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +33,9 @@ public abstract class InternalMappedRareTerms<A extends InternalTerms<A, B>, B e
         //todo norelease: doc count errors
         this.maxDocCount = maxDocCount;
         this.bloom = bloom;
+
+        //,
+        //                                        Function<B, BytesRef> termConverter
     }
 
     /**
@@ -54,8 +54,7 @@ public abstract class InternalMappedRareTerms<A extends InternalTerms<A, B>, B e
         bloom.writeTo(out);
     }
 
-    public InternalAggregation doReduce(List<InternalAggregation> aggregations, ReduceContext reduceContext,
-                                        Function<B, BytesRef> termConverter) {
+    public InternalAggregation doReduce(List<InternalAggregation> aggregations, ReduceContext reduceContext) {
         Map<Object, List<B>> buckets = new HashMap<>();
         InternalTerms<A, B> referenceTerms = null;
         BloomFilter bloomFilter = null;
@@ -91,7 +90,7 @@ public abstract class InternalMappedRareTerms<A extends InternalTerms<A, B>, B e
         final List<B> rare = new ArrayList<>(size);
         for (List<B> sameTermBuckets : buckets.values()) {
             final B b = sameTermBuckets.get(0).reduce(sameTermBuckets, reduceContext);
-            if (b.getDocCount() <= maxDocCount && bloom.mightContain(termConverter.apply(b)) == false) {
+            if (b.getDocCount() <= maxDocCount && containsTerm(bloom, b) == false) {
                 rare.add(b);
             }
         }
@@ -105,6 +104,8 @@ public abstract class InternalMappedRareTerms<A extends InternalTerms<A, B>, B e
         //todo norelease: doc count error, don't really need these...
         return create(name, rare, 0, 0);
     }
+
+    public abstract boolean containsTerm(BloomFilter bloom, B b);
 
     /*
     @Override

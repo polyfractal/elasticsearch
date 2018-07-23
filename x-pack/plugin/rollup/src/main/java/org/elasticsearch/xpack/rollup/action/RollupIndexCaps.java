@@ -37,8 +37,8 @@ public class RollupIndexCaps implements Writeable, ToXContentFragment {
 
     //TODO find a way to make this parsing less hacky :(
     // Note: we ignore unknown fields since there may be unrelated metadata
-    private static final ObjectParser<RollupIndexCaps, Void> METADATA_PARSER
-            = new ObjectParser<>(GetRollupCapsAction.NAME, true, RollupIndexCaps::new);
+    private static final ObjectParser<List<RollupJobConfig>, Void> METADATA_PARSER
+            = new ObjectParser<>(GetRollupCapsAction.NAME, true, ArrayList::new);
     static {
         /*
             Rollup index metadata layout is:
@@ -57,11 +57,10 @@ public class RollupIndexCaps implements Writeable, ToXContentFragment {
               }
             }
          */
-        METADATA_PARSER.declareField((parser, rollupIndexCaps, aVoid) -> {
+        METADATA_PARSER.declareField((parser, jobs, aVoid) -> {
             // "_doc"
             if (parser.currentName().equals(RollupField.TYPE_NAME) && parser.currentToken().equals(XContentParser.Token.START_OBJECT)) {
                 parser.nextToken();// START_OBJECT
-                List<RollupJobConfig> jobs = new ArrayList<>();
 
                 // "meta"
                 if (parser.currentName().equals("_meta") && parser.currentToken().equals(XContentParser.Token.FIELD_NAME)) {
@@ -79,7 +78,6 @@ public class RollupIndexCaps implements Writeable, ToXContentFragment {
                         }
                     }
                 }
-                rollupIndexCaps.setJobs(jobs);
             }
         }, INDEX_NAME, ObjectParser.ValueType.OBJECT);
     }
@@ -121,7 +119,7 @@ public class RollupIndexCaps implements Writeable, ToXContentFragment {
         return jobCaps.stream().map(RollupJobCaps::getRollupIndex).collect(Collectors.toList());
     }
 
-    static RollupIndexCaps parseMetadataXContent(BytesReference source, String indexName) {
+    public static List<RollupJobConfig> parseMetadataXContentToRawJobs(BytesReference source, String indexName) {
         XContentParser parser;
         try {
             parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, LoggingDeprecationHandler.INSTANCE,
@@ -131,6 +129,10 @@ public class RollupIndexCaps implements Writeable, ToXContentFragment {
                     + indexName + "]", e);
         }
         return METADATA_PARSER.apply(parser, null);
+    }
+
+    static RollupIndexCaps parseMetadataXContent(BytesReference source, String indexName) {
+        return new RollupIndexCaps(indexName, parseMetadataXContentToRawJobs(source, indexName));
     }
 
     @Override

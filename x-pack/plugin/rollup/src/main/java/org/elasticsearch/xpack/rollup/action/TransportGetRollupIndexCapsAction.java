@@ -51,8 +51,8 @@ public class TransportGetRollupIndexCapsAction extends HandledTransportAction<Ge
         listener.onResponse(new GetRollupIndexCapsAction.Response(allCaps));
     }
 
-    static Map<String, RollableIndexCaps> getCapsByRollupIndex(List<String> resolvedIndexNames,
-                                                               ImmutableOpenMap<String, IndexMetaData> indices) {
+    static Map<String, RollableIndexCaps> getCapsByRollupIndex(List<String> resolvedIndexNames,ImmutableOpenMap<String, IndexMetaData> indices
+                                                               ) {
         Map<String, RollableIndexCaps> allCaps = new TreeMap<>();
 
         StreamSupport.stream(indices.spliterator(), false)

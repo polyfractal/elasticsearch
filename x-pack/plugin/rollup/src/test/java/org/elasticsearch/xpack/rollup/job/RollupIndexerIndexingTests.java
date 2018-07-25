@@ -488,7 +488,7 @@ public class RollupIndexerIndexingTests extends AggregatorTestCase {
         String dateHistoField = config.getGroupConfig().getDateHisto().getField();
         final ExecutorService executor = Executors.newFixedThreadPool(1);
         try {
-            RollupJob job = new RollupJob(config, Collections.emptyMap());
+            RollupJob job = new RollupJob(config, Collections.emptyMap(), randomBoolean());
             final SyncRollupIndexer action = new SyncRollupIndexer(executor, job, searcher,
                     fieldTypeLookup.values().toArray(new MappedFieldType[0]), fieldTypeLookup.get(dateHistoField));
             rollupConsumer.accept(action.triggerAndWaitForCompletion(now));

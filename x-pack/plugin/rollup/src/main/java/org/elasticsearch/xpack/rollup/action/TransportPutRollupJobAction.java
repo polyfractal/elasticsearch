@@ -120,7 +120,7 @@ public class TransportPutRollupJobAction extends TransportMasterNodeAction<PutRo
         Map<String, String> filteredHeaders = threadPool.getThreadContext().getHeaders().entrySet().stream()
                 .filter(e -> Rollup.HEADER_FILTERS.contains(e.getKey()))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        return new RollupJob(config, filteredHeaders);
+        return new RollupJob(config, filteredHeaders, true);
     }
 
     static void createIndex(RollupJob job, ActionListener<PutRollupJobAction.Response> listener,

@@ -58,7 +58,8 @@ public class RollupJobTaskTests extends ESTestCase {
     }
 
     public void testInitialStatusStopped() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(),
+            Collections.emptyMap(), randomBoolean());
         RollupJobStatus status = new RollupJobStatus(IndexerState.STOPPED, Collections.singletonMap("foo", "bar"));
         Client client = mock(Client.class);
         when(client.settings()).thenReturn(Settings.EMPTY);
@@ -71,7 +72,8 @@ public class RollupJobTaskTests extends ESTestCase {
     }
 
     public void testInitialStatusAborting() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(),
+            Collections.emptyMap(), randomBoolean());
         RollupJobStatus status = new RollupJobStatus(IndexerState.ABORTING, Collections.singletonMap("foo", "bar"));
         Client client = mock(Client.class);
         when(client.settings()).thenReturn(Settings.EMPTY);
@@ -84,7 +86,8 @@ public class RollupJobTaskTests extends ESTestCase {
     }
 
     public void testInitialStatusStopping() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(),
+            Collections.emptyMap(), randomBoolean());
         RollupJobStatus status = new RollupJobStatus(IndexerState.STOPPING, Collections.singletonMap("foo", "bar"));
         Client client = mock(Client.class);
         when(client.settings()).thenReturn(Settings.EMPTY);
@@ -97,7 +100,8 @@ public class RollupJobTaskTests extends ESTestCase {
     }
 
     public void testInitialStatusStarted() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(),
+            Collections.emptyMap(), randomBoolean());
         RollupJobStatus status = new RollupJobStatus(IndexerState.STARTED, Collections.singletonMap("foo", "bar"));
         Client client = mock(Client.class);
         when(client.settings()).thenReturn(Settings.EMPTY);
@@ -110,7 +114,8 @@ public class RollupJobTaskTests extends ESTestCase {
     }
 
     public void testInitialStatusIndexing() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(),
+            Collections.emptyMap(), randomBoolean());
         RollupJobStatus status = new RollupJobStatus(IndexerState.INDEXING, Collections.singletonMap("foo", "bar"));
         Client client = mock(Client.class);
         when(client.settings()).thenReturn(Settings.EMPTY);
@@ -123,7 +128,8 @@ public class RollupJobTaskTests extends ESTestCase {
     }
 
     public void testNoInitialStatus() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(),
+            Collections.emptyMap(), randomBoolean());
         Client client = mock(Client.class);
         when(client.settings()).thenReturn(Settings.EMPTY);
         SchedulerEngine schedulerEngine = new SchedulerEngine(Clock.systemUTC());
@@ -134,7 +140,8 @@ public class RollupJobTaskTests extends ESTestCase {
     }
 
     public void testStartWhenStarted() throws InterruptedException {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(),
+            Collections.emptyMap(), randomBoolean());
         RollupJobStatus status = new RollupJobStatus(IndexerState.STARTED, Collections.singletonMap("foo", "bar"));
         Client client = mock(Client.class);
         when(client.settings()).thenReturn(Settings.EMPTY);
@@ -163,7 +170,8 @@ public class RollupJobTaskTests extends ESTestCase {
     }
 
     public void testStartWhenStopping() throws InterruptedException {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(),
+            Collections.emptyMap(), randomBoolean());
         Client client = mock(Client.class);
         when(client.settings()).thenReturn(Settings.EMPTY);
         when(client.threadPool()).thenReturn(pool);
@@ -242,7 +250,8 @@ public class RollupJobTaskTests extends ESTestCase {
     }
 
     public void testStartWhenStopped() throws InterruptedException {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(),
+            Collections.emptyMap(), randomBoolean());
         RollupJobStatus status = new RollupJobStatus(IndexerState.STOPPED, Collections.singletonMap("foo", "bar"));
         Client client = mock(Client.class);
         when(client.settings()).thenReturn(Settings.EMPTY);
@@ -280,7 +289,8 @@ public class RollupJobTaskTests extends ESTestCase {
     }
 
     public void testTriggerUnrelated() throws InterruptedException {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(),
+            Collections.emptyMap(), randomBoolean());
         RollupJobStatus status = new RollupJobStatus(IndexerState.STOPPED, Collections.singletonMap("foo", "bar"));
         Client client = mock(Client.class);
         when(client.settings()).thenReturn(Settings.EMPTY);
@@ -321,7 +331,8 @@ public class RollupJobTaskTests extends ESTestCase {
     }
 
     public void testTrigger() throws InterruptedException {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(),
+            Collections.emptyMap(), randomBoolean());
         Client client = mock(Client.class);
         when(client.settings()).thenReturn(Settings.EMPTY);
         when(client.threadPool()).thenReturn(pool);
@@ -364,7 +375,8 @@ public class RollupJobTaskTests extends ESTestCase {
     @SuppressWarnings("unchecked")
     public void testTriggerWithoutHeaders() throws InterruptedException {
         final ThreadContext threadContext = new ThreadContext(Settings.EMPTY);
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(),
+            Collections.emptyMap(), randomBoolean());
         Client client = mock(Client.class);
         when(client.settings()).thenReturn(Settings.EMPTY);
 
@@ -445,7 +457,8 @@ public class RollupJobTaskTests extends ESTestCase {
         Map<String, String> headers = new HashMap<>(1);
         headers.put("es-security-runas-user", "foo");
         headers.put("_xpack_security_authentication", "bar");
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), headers);
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(),
+            headers, randomBoolean());
         Client client = mock(Client.class);
         when(client.settings()).thenReturn(Settings.EMPTY);
 
@@ -524,7 +537,8 @@ public class RollupJobTaskTests extends ESTestCase {
     }
 
     public void testStopWhenStopped() throws InterruptedException {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(),
+            Collections.emptyMap(), randomBoolean());
         RollupJobStatus status = new RollupJobStatus(IndexerState.STOPPED, null);
         Client client = mock(Client.class);
         when(client.settings()).thenReturn(Settings.EMPTY);
@@ -550,7 +564,8 @@ public class RollupJobTaskTests extends ESTestCase {
     }
 
     public void testStopWhenStopping() throws InterruptedException {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(),
+            Collections.emptyMap(), randomBoolean());
         Client client = mock(Client.class);
         when(client.settings()).thenReturn(Settings.EMPTY);
         when(client.threadPool()).thenReturn(pool);
@@ -631,7 +646,8 @@ public class RollupJobTaskTests extends ESTestCase {
     }
 
     public void testStopWhenAborting() throws InterruptedException {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(),
+            Collections.emptyMap(), randomBoolean());
         RollupJobStatus status = new RollupJobStatus(IndexerState.STOPPED, null);
         Client client = mock(Client.class);
         when(client.settings()).thenReturn(Settings.EMPTY);

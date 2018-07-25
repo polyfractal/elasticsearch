@@ -33,26 +33,42 @@ public class RollupJob extends AbstractDiffable<RollupJob> implements XPackPlugi
     private final Map<String, String> headers;
     private final RollupJobConfig config;
 
+    // Flag holds the state of the ID scheme, e.g. if it has been upgraded to the
+    // concatenation scheme.  See #32372 for more details
+    private boolean upgradedDocumentID;
+
     private static final ParseField CONFIG = new ParseField("config");
     private static final ParseField HEADERS = new ParseField("headers");
+    private static final ParseField UPGRADED_DOC_ID = new ParseField("upgraded_doc_id");
 
     @SuppressWarnings("unchecked")
     public static final ConstructingObjectParser<RollupJob, Void> PARSER
-            = new ConstructingObjectParser<>(NAME, a -> new RollupJob((RollupJobConfig) a[0], (Map<String, String>) a[1]));
+            = new ConstructingObjectParser<>(NAME, true, a -> new RollupJob((RollupJobConfig) a[0],
+                (Map<String, String>) a[1], (Boolean)a[2]));
 
     static {
         PARSER.declareObject(ConstructingObjectParser.constructorArg(), (p, c) -> RollupJobConfig.PARSER.apply(p,c).build(), CONFIG);
         PARSER.declareObject(ConstructingObjectParser.constructorArg(), (p, c) -> p.mapStrings(), HEADERS);
+        // Optional to accommodate old versions of state
+        PARSER.declareBoolean(ConstructingObjectParser.optionalConstructorArg(), UPGRADED_DOC_ID);
     }
 
-    public RollupJob(RollupJobConfig config, Map<String, String> headers) {
+    public RollupJob(RollupJobConfig config, Map<String, String> headers, Boolean upgradedDocumentID) {
         this.config = Objects.requireNonNull(config);
         this.headers = headers == null ? Collections.emptyMap() : headers;
+        this.upgradedDocumentID = upgradedDocumentID != null ? upgradedDocumentID : false;
     }
 
     public RollupJob(StreamInput in) throws IOException {
         this.config = new RollupJobConfig(in);
         headers = in.readMap(StreamInput::readString, StreamInput::readString);
+        if (in.getVersion().onOrAfter(Version.V_6_4_0)) {
+            upgradedDocumentID = in.readBoolean();
+        } else {
+            // If we're getting this job from a pre-6.4.0 node,
+            // it is using the old ID scheme
+            upgradedDocumentID = false;
+        }
     }
 
     public RollupJobConfig getConfig() {
@@ -63,11 +79,16 @@ public class RollupJob extends AbstractDiffable<RollupJob> implements XPackPlugi
         return headers;
     }
 
+    public boolean isUpgradedDocumentID() {
+        return upgradedDocumentID;
+    }
+
     @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject();
         builder.field(CONFIG.getPreferredName(), config);
         builder.field(HEADERS.getPreferredName(), headers);
+        builder.field(UPGRADED_DOC_ID.getPreferredName(), upgradedDocumentID);
         builder.endObject();
         return builder;
     }
@@ -81,6 +102,9 @@ public class RollupJob extends AbstractDiffable<RollupJob> implements XPackPlugi
     public void writeTo(StreamOutput out) throws IOException {
         config.writeTo(out);
         out.writeMap(headers, StreamOutput::writeString, StreamOutput::writeString);
+        if (out.getVersion().onOrAfter(Version.V_6_4_0)) {
+            out.writeBoolean(upgradedDocumentID);
+        }
     }
 
     static Diff<RollupJob> readJobDiffFrom(StreamInput in) throws IOException {
@@ -104,12 +128,13 @@ public class RollupJob extends AbstractDiffable<RollupJob> implements XPackPlugi
         RollupJob that = (RollupJob) other;
 
         return Objects.equals(this.config, that.config)
-                && Objects.equals(this.headers, that.headers);
+                && Objects.equals(this.headers, that.headers)
+                && Objects.equals(this.upgradedDocumentID, that.upgradedDocumentID);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(config, headers);
+        return Objects.hash(config, headers, upgradedDocumentID);
     }
 
     @Override

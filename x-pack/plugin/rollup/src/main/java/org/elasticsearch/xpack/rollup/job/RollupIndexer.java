@@ -313,7 +313,7 @@ public abstract class RollupIndexer {
 
             final BulkRequest bulkRequest = new BulkRequest();
             final List<IndexRequest> docs = IndexerUtils.processBuckets(response, job.getConfig().getRollupIndex(),
-                    stats, job.getConfig().getGroupConfig(), job.getConfig().getId());
+                    stats, job.getConfig().getGroupConfig(), job.getConfig().getId(), job.isUpgradedDocumentID());
             docs.forEach(bulkRequest::add);
             assert bulkRequest.requests().size() > 0;
             doNextBulk(bulkRequest,

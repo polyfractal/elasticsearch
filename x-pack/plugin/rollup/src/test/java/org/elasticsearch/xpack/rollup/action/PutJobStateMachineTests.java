@@ -50,7 +50,8 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testCreateIndexException() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
+            Collections.emptyMap(), randomBoolean());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
@@ -76,7 +77,8 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testIndexAlreadyExists() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
+            Collections.emptyMap(), randomBoolean());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
@@ -108,7 +110,8 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testIndexMetaData() throws InterruptedException {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
+            Collections.emptyMap(), randomBoolean());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
@@ -151,7 +154,8 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testGetMappingFails() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
+            Collections.emptyMap(), randomBoolean());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
@@ -175,7 +179,8 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testNoMetadataInMapping() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
+            Collections.emptyMap(), randomBoolean());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
@@ -208,7 +213,8 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testNoMappingVersion() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
+            Collections.emptyMap(), randomBoolean());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
@@ -245,7 +251,8 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testJobAlreadyInMapping() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
+            Collections.emptyMap(), randomBoolean());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
@@ -287,7 +294,7 @@ public class PutJobStateMachineTests extends ESTestCase {
         RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo")
                 .setIndexPattern("foo")
                 .setRollupIndex("rollup_index_foo")
-                .build(), Collections.emptyMap());
+                .build(), Collections.emptyMap(), randomBoolean());
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
         }, e -> {
@@ -331,7 +338,8 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testTaskAlreadyExists() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
+            Collections.emptyMap(), randomBoolean());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
@@ -354,7 +362,8 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testStartTask() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
+            Collections.emptyMap(), randomBoolean());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");

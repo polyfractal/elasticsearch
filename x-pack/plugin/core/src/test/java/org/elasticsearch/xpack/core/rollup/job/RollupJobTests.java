@@ -37,7 +37,7 @@ public class RollupJobTests extends AbstractDiffableSerializationTestCase {
     @Override
     protected Writeable createTestInstance() {
         if (randomBoolean()) {
-            return new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), null, randomBoolean());
+            return new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), null);
         }
 
         Map<String, String> headers = Collections.emptyMap();
@@ -45,7 +45,7 @@ public class RollupJobTests extends AbstractDiffableSerializationTestCase {
             headers = new HashMap<>(1);
             headers.put("foo", "bar");
         }
-        return new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), headers, randomBoolean());
+        return new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), headers);
     }
 
     @Override
@@ -55,13 +55,12 @@ public class RollupJobTests extends AbstractDiffableSerializationTestCase {
             if (other.getHeaders().isEmpty()) {
                 Map<String, String> headers = new HashMap<>(1);
                 headers.put("foo", "bar");
-                return new RollupJob(other.getConfig(), headers, other.isUpgradedDocumentID());
+                return new RollupJob(other.getConfig(), headers);
             } else {
-                return new RollupJob(other.getConfig(), null, other.isUpgradedDocumentID());
+                return new RollupJob(other.getConfig(), null);
             }
         } else {
-            return new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), other.getHeaders(),
-                other.isUpgradedDocumentID());
+            return new RollupJob(ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build(), other.getHeaders());
         }
     }
 }

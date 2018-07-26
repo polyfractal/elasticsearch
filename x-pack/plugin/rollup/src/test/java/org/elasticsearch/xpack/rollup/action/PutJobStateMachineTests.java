@@ -50,8 +50,7 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testCreateIndexException() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
-            Collections.emptyMap(), randomBoolean());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
@@ -77,8 +76,7 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testIndexAlreadyExists() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
-            Collections.emptyMap(), randomBoolean());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
@@ -110,8 +108,7 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testIndexMetaData() throws InterruptedException {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
-            Collections.emptyMap(), randomBoolean());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
@@ -154,8 +151,7 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testGetMappingFails() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
-            Collections.emptyMap(), randomBoolean());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
@@ -179,14 +175,13 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testNoMetadataInMapping() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
-            Collections.emptyMap(), randomBoolean());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
         }, e -> {
             assertThat(e.getMessage(), equalTo("Expected to find _meta key in mapping of rollup index ["
-                    + job.getConfig().getRollupIndex() + "] but not found."));
+                + job.getConfig().getRollupIndex() + "] but not found."));
         });
 
         Logger logger = mock(Logger.class);
@@ -213,8 +208,7 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testNoMappingVersion() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
-            Collections.emptyMap(), randomBoolean());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
@@ -251,8 +245,7 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testJobAlreadyInMapping() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
-            Collections.emptyMap(), randomBoolean());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
@@ -290,11 +283,11 @@ public class PutJobStateMachineTests extends ESTestCase {
     @SuppressWarnings("unchecked")
     public void testAddJobToMapping() {
         RollupJobConfig unrelatedJob = ConfigTestHelpers.getRollupJob(ESTestCase.randomAlphaOfLength(10))
-                .setIndexPattern("foo").setRollupIndex("rollup_index_foo").build();
+            .setIndexPattern("foo").setRollupIndex("rollup_index_foo").build();
         RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo")
-                .setIndexPattern("foo")
-                .setRollupIndex("rollup_index_foo")
-                .build(), Collections.emptyMap(), randomBoolean());
+            .setIndexPattern("foo")
+            .setRollupIndex("rollup_index_foo")
+            .build(), Collections.emptyMap());
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
         }, e -> {
@@ -338,8 +331,7 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testTaskAlreadyExists() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
-            Collections.emptyMap(), randomBoolean());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
@@ -354,7 +346,7 @@ public class PutJobStateMachineTests extends ESTestCase {
             requestCaptor.getValue().onFailure(new ResourceAlreadyExistsException(job.getConfig().getRollupIndex()));
             return null;
         }).when(tasksService).sendStartRequest(eq(job.getConfig().getId()),
-                eq(RollupField.TASK_NAME), eq(job), requestCaptor.capture());
+            eq(RollupField.TASK_NAME), eq(job), requestCaptor.capture());
 
         TransportPutRollupJobAction.startPersistentTask(job, testListener, tasksService);
         verify(tasksService).sendStartRequest(eq(job.getConfig().getId()), eq(RollupField.TASK_NAME), eq(job), any());
@@ -362,8 +354,7 @@ public class PutJobStateMachineTests extends ESTestCase {
 
     @SuppressWarnings("unchecked")
     public void testStartTask() {
-        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(),
-            Collections.emptyMap(), randomBoolean());
+        RollupJob job = new RollupJob(ConfigTestHelpers.getRollupJob("foo").build(), Collections.emptyMap());
 
         ActionListener<PutRollupJobAction.Response> testListener = ActionListener.wrap(response -> {
             fail("Listener success should not have been triggered.");
@@ -376,14 +367,14 @@ public class PutJobStateMachineTests extends ESTestCase {
         ArgumentCaptor<ActionListener> requestCaptor = ArgumentCaptor.forClass(ActionListener.class);
         doAnswer(invocation -> {
             PersistentTasksCustomMetaData.PersistentTask<RollupJob> response
-                    = new PersistentTasksCustomMetaData.PersistentTask<>(job.getConfig().getId(), RollupField.TASK_NAME, job, 123,
-                    mock(PersistentTasksCustomMetaData.Assignment.class));
+                = new PersistentTasksCustomMetaData.PersistentTask<>(job.getConfig().getId(), RollupField.TASK_NAME, job, 123,
+                mock(PersistentTasksCustomMetaData.Assignment.class));
             requestCaptor.getValue().onResponse(response);
             return null;
         }).when(tasksService).sendStartRequest(eq(job.getConfig().getId()), eq(RollupField.TASK_NAME), eq(job), requestCaptor.capture());
 
         ArgumentCaptor<PersistentTasksService.WaitForPersistentTaskListener> requestCaptor2
-                = ArgumentCaptor.forClass(PersistentTasksService.WaitForPersistentTaskListener.class);
+            = ArgumentCaptor.forClass(PersistentTasksService.WaitForPersistentTaskListener.class);
         doAnswer(invocation -> {
             // Bail here with an error, further testing will happen through tests of #startPersistentTask
             requestCaptor2.getValue().onFailure(new RuntimeException("Ending"));

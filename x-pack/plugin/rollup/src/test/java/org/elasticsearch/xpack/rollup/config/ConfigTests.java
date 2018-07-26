@@ -238,7 +238,7 @@ public class ConfigTests extends ESTestCase {
         headers.put("es-security-runas-user", "foo");
         headers.put("_xpack_security_authentication", "bar");
         RollupJobConfig config = ConfigTestHelpers.getRollupJob(randomAlphaOfLength(5)).build();
-        RollupJob job = new RollupJob(config, headers, randomBoolean());
+        RollupJob job = new RollupJob(config, headers);
         String json = job.toString();
         assertFalse(json.contains("authentication"));
         assertFalse(json.contains("security"));

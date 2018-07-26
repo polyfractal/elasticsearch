@@ -8,7 +8,6 @@ package org.elasticsearch.xpack.rollup.job;
 import org.apache.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.common.Numbers;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.bucket.composite.CompositeAggregation;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
@@ -21,15 +20,13 @@ import org.elasticsearch.xpack.core.rollup.job.GroupConfig;
 import org.elasticsearch.xpack.core.rollup.job.RollupJobStats;
 import org.elasticsearch.xpack.rollup.Rollup;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.function.Consumer;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-import java.util.zip.CRC32;
 
 /**
  * These utilities are used to convert agg responses into a set of rollup documents.
@@ -51,7 +48,7 @@ class IndexerUtils {
      * @return             A list of rolled documents derived from the response
      */
     static List<IndexRequest> processBuckets(CompositeAggregation agg, String rollupIndex, RollupJobStats stats,
-                                             GroupConfig groupConfig, String jobId, boolean isUpgradedDocID) {
+                                             GroupConfig groupConfig, String jobId, AtomicBoolean isUpgradedDocID) {
 
         logger.debug("Buckets: [" + agg.getBuckets().size() + "][" + jobId + "]");
         return agg.getBuckets().stream().map(b ->{
@@ -63,8 +60,8 @@ class IndexerUtils {
             List<Aggregation> metrics = b.getAggregations().asList();
 
             RollupIDGenerator idGenerator;
-            if (isUpgradedDocID) {
-                idGenerator = new RollupIDGenerator.Concat();
+            if (isUpgradedDocID.get()) {
+                idGenerator = new RollupIDGenerator.Murmur3(jobId);
             } else  {
                 idGenerator = new RollupIDGenerator.CRC();
             }
@@ -99,16 +96,14 @@ class IndexerUtils {
                 doc.put(k + "." + RollupField.VALUE, v);
                 doc.put(k + "." + RollupField.INTERVAL, groupConfig.getHisto().getInterval());
                 if (v == null) {
-                    // Arbitrary value to update the doc ID with nulls
-                    idGenerator.add(19);
+                    idGenerator.addNull();
                 } else {
                     idGenerator.add((Double) v);
                 }
             } else if (k.endsWith("." + TermsAggregationBuilder.NAME)) {
                 doc.put(k + "." + RollupField.VALUE, v);
                 if (v == null) {
-                    // Arbitrary value to update the doc ID with for nulls
-                    idGenerator.add(19);
+                    idGenerator.addNull();
                 } else if (v instanceof String) {
                     idGenerator.add((String)v);
                 } else if (v instanceof Long) {
@@ -116,7 +111,8 @@ class IndexerUtils {
                 } else if (v instanceof Double) {
                     idGenerator.add((Double)v);
                 } else {
-                    throw new RuntimeException("Encountered value of type [" + v.getClass() + "], which was unable to be processed.");
+                    throw new RuntimeException("Encountered value of type ["
+                        + v.getClass() + "], which was unable to be processed.");
                 }
             } else {
                 throw new ElasticsearchException("Could not identify key in agg [" + k + "]");

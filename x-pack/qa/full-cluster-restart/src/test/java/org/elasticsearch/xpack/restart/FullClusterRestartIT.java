@@ -13,6 +13,7 @@ import org.elasticsearch.client.Request;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.common.Booleans;
+import org.elasticsearch.common.CheckedRunnable;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.common.xcontent.XContentHelper;
@@ -36,6 +37,11 @@ import org.junit.Before;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -43,12 +49,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.elasticsearch.common.unit.TimeValue.timeValueSeconds;
 import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.everyItem;
@@ -319,6 +327,226 @@ public class FullClusterRestartIT extends ESRestTestCase {
             assertThat(clusterHealthResponse.get("timed_out"), equalTo(Boolean.FALSE));
 
             assertRollUpJob("rollup-job-test");
+        }
+    }
+
+    public void testRollupIDSchemeAfterRestart() throws Exception {
+        assumeTrue("Rollup can be tested with 6.3.0 and onwards", oldClusterVersion.onOrAfter(Version.V_6_3_0));
+        if (runningAgainstOldCluster) {
+
+            final Request indexRequest = new Request("POST", "/id-test-rollup/_doc/1");
+            indexRequest.setJsonEntity("{\"timestamp\":\"2018-01-01T00:00:01\",\"value\":123}");
+            client().performRequest(indexRequest);
+
+            // create the rollup job
+            final Request createRollupJobRequest = new Request("PUT", "/_xpack/rollup/job/rollup-id-test");
+            createRollupJobRequest.setJsonEntity("{"
+                + "\"index_pattern\":\"id-test-rollup\","
+                + "\"rollup_index\":\"id-test-results-rollup\","
+                + "\"cron\":\"*/1 * * * * ?\","
+                + "\"page_size\":100,"
+                + "\"groups\":{"
+                + "    \"date_histogram\":{"
+                + "        \"field\":\"timestamp\","
+                + "        \"interval\":\"5m\""
+                + "      },"
+                +       "\"histogram\":{"
+                + "        \"fields\": [\"value\"],"
+                + "        \"interval\":1"
+                + "      },"
+                +       "\"terms\":{"
+                + "        \"fields\": [\"value\"]"
+                + "      }"
+                + "},"
+                + "\"metrics\":["
+                + "    {\"field\":\"value\",\"metrics\":[\"min\",\"max\",\"sum\"]}"
+                + "]"
+                + "}");
+
+            Map<String, Object> createRollupJobResponse = toMap(client().performRequest(createRollupJobRequest));
+            assertThat(createRollupJobResponse.get("acknowledged"), equalTo(Boolean.TRUE));
+
+            // start the rollup job
+            final Request startRollupJobRequest = new Request("POST", "_xpack/rollup/job/rollup-id-test/_start");
+            Map<String, Object> startRollupJobResponse = toMap(client().performRequest(startRollupJobRequest));
+            assertThat(startRollupJobResponse.get("started"), equalTo(Boolean.TRUE));
+
+            assertRollUpJob("rollup-id-test");
+
+            assertBusy(() -> {
+                client().performRequest(new Request("POST", "id-test-results-rollup/_refresh"));
+                final Request searchRequest = new Request("GET", "id-test-results-rollup/_search");
+                try {
+                    Map<String, Object> searchResponse = toMap(client().performRequest(searchRequest));
+                    assertNotNull(ObjectPath.eval("hits.total", searchResponse));
+                    assertThat(ObjectPath.eval("hits.total", searchResponse), equalTo(1));
+                    assertThat(ObjectPath.eval("hits.hits.0._id", searchResponse), equalTo("3310683722"));
+                } catch (IOException e) {
+                    fail();
+                }
+            });
+
+        } else {
+
+            final Request indexRequest = new Request("POST", "/id-test-rollup/_doc/2");
+            indexRequest.setJsonEntity("{\"timestamp\":\"2018-01-02T00:00:01\",\"value\":345}");
+            client().performRequest(indexRequest);
+
+            assertRollUpJob("rollup-id-test");
+
+            assertBusy(() -> {
+                client().performRequest(new Request("POST", "id-test-results-rollup/_refresh"));
+                final Request searchRequest = new Request("GET", "id-test-results-rollup/_search");
+                try {
+                    Map<String, Object> searchResponse = toMap(client().performRequest(searchRequest));
+                    assertNotNull(ObjectPath.eval("hits.total", searchResponse));
+                    assertThat(ObjectPath.eval("hits.total", searchResponse), equalTo(2));
+                    List<String> ids = new ArrayList<>(2);
+                    ids.add(ObjectPath.eval("hits.hits.0._id", searchResponse));
+                    ids.add(ObjectPath.eval("hits.hits.1._id", searchResponse));
+
+                    // should have both old and new ID formats
+                    assertThat(ids, containsInAnyOrder("3310683722", "rollup-id-test$ehY4NAyVSy8xxUDZrNXXIA"));
+
+                    List<Double> values = new ArrayList<>(2);
+                    Map<String, Object> doc = ObjectPath.eval("hits.hits.0._source", searchResponse);
+                    values.add((Double)doc.get("value.min.value"));
+                    doc = ObjectPath.eval("hits.hits.1._source", searchResponse);
+                    values.add((Double)doc.get("value.min.value"));
+
+                    assertThat(values, containsInAnyOrder(123.0, 345.0));
+                } catch (IOException e) {
+                    fail();
+                }
+            });
+        }
+    }
+
+    public void testRollupIDSchemeIndexingAfterRestart() throws Exception {
+        assumeTrue("Rollup can be tested with 6.3.0 and onwards", oldClusterVersion.onOrAfter(Version.V_6_3_0));
+        if (runningAgainstOldCluster) {
+
+            final int numDocs = 1000;
+
+            // index documents for the rollup job
+            final StringBuilder bulk = new StringBuilder();
+            for (int i = 0; i < numDocs; i++) {
+                bulk.append("{\"index\":{\"_index\":\"id-test-rollup2\",\"_type\":\"_doc\"}}\n");
+                ZonedDateTime zdt = ZonedDateTime.ofInstant(Instant.ofEpochSecond(1531221196 + (60*i)), ZoneId.of("UTC"));
+                String date = zdt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+                bulk.append("{\"timestamp\":\"").append(date).append("\",\"value\":").append(i).append("}\n");
+            }
+            bulk.append("\r\n");
+
+            final Request bulkRequest = new Request("POST", "/_bulk");
+            bulkRequest.addParameter("refresh", "true");
+            bulkRequest.setJsonEntity(bulk.toString());
+            client().performRequest(bulkRequest);
+
+            // create the rollup job
+            final Request createRollupJobRequest = new Request("PUT", "/_xpack/rollup/job/rollup-id-test2");
+            createRollupJobRequest.setJsonEntity("{"
+                + "\"index_pattern\":\"id-test-rollup2\","
+                + "\"rollup_index\":\"id-test-results-rollup2\","
+                + "\"cron\":\"*/1 * * * * ?\","
+                + "\"page_size\":10," // small page to make it take long
+                + "\"groups\":{"
+                + "    \"date_histogram\":{"
+                + "        \"field\":\"timestamp\","
+                + "        \"interval\":\"5m\""
+                + "      },"
+                +       "\"histogram\":{"
+                + "        \"fields\": [\"value\"],"
+                + "        \"interval\":1"
+                + "      },"
+                +       "\"terms\":{"
+                + "        \"fields\": [\"value\"]"
+                + "      }"
+                + "},"
+                + "\"metrics\":["
+                + "    {\"field\":\"value\",\"metrics\":[\"min\",\"max\",\"sum\"]}"
+                + "]"
+                + "}");
+
+            Map<String, Object> createRollupJobResponse = toMap(client().performRequest(createRollupJobRequest));
+            assertThat(createRollupJobResponse.get("acknowledged"), equalTo(Boolean.TRUE));
+
+            // start the rollup job
+            final Request startRollupJobRequest = new Request("POST", "_xpack/rollup/job/rollup-id-test2/_start");
+            Map<String, Object> startRollupJobResponse = toMap(client().performRequest(startRollupJobRequest));
+            assertThat(startRollupJobResponse.get("started"), equalTo(Boolean.TRUE));
+
+            waitForRollUpJob("rollup-id-test2", equalTo("indexing"));
+
+            // once we're indexing, wait for some docs then restart
+            assertBusy(() -> {
+                client().performRequest(new Request("POST", "id-test-results-rollup2/_refresh"));
+                final Request searchRequest = new Request("GET", "id-test-results-rollup2/_search");
+                searchRequest.setJsonEntity("{\n" +
+                    "  \"query\": {\n" +
+                    "    \"term\": {\n" +
+                    "      \"_rollup.version\": 1\n" +
+                    "    }\n" +
+                    "  }\n" +
+                    "}");
+                try {
+                    Map<String, Object> searchResponse = toMap(client().performRequest(searchRequest));
+                    assertNotNull(ObjectPath.eval("hits.total", searchResponse));
+                    assertThat(ObjectPath.eval("hits.total", searchResponse), greaterThanOrEqualTo(1));
+
+                    logger.error(searchResponse);
+                } catch (IOException e) {
+                    fail();
+                }
+            });
+
+        } else {
+            assertRollUpJob("rollup-id-test2");
+
+            assertBusy(() -> {
+                client().performRequest(new Request("POST", "id-test-results-rollup2/_refresh"));
+                final Request searchRequest = new Request("GET", "id-test-results-rollup2/_search");
+                try {
+                    Map<String, Object> searchResponse = toMap(client().performRequest(searchRequest));
+                    assertNotNull(ObjectPath.eval("hits.total", searchResponse));
+                    assertThat(ObjectPath.eval("hits.total", searchResponse), equalTo(1000));
+                } catch (IOException e) {
+                    fail();
+                }
+            });
+
+            final Request oldIDsRequest = new Request("GET", "id-test-results-rollup2/_search");
+            oldIDsRequest.setJsonEntity("{\n" +
+                "  \"query\": {\n" +
+                "    \"term\": {\n" +
+                "      \"_rollup.version\": 1\n" +
+                "    }\n" +
+                "  }\n" +
+                "}");
+
+
+            Map<String, Object> oldSearchResponse = toMap(client().performRequest(oldIDsRequest));
+            assertNotNull(ObjectPath.eval("hits.total", oldSearchResponse));
+            assertThat(ObjectPath.eval("hits.total", oldSearchResponse), greaterThanOrEqualTo(1));
+
+            final Request newIDsRequest = new Request("GET", "id-test-results-rollup2/_search");
+            newIDsRequest.setJsonEntity("{\n" +
+                "  \"query\": {\n" +
+                "    \"term\": {\n" +
+                "      \"_rollup.version\": 2\n" +
+                "    }\n" +
+                "  }\n" +
+                "}");
+
+
+            Map<String, Object> newSearchResponse = toMap(client().performRequest(newIDsRequest));
+            assertNotNull(ObjectPath.eval("hits.total", newSearchResponse));
+            assertThat(ObjectPath.eval("hits.total", newSearchResponse), greaterThanOrEqualTo(1));
+
+            // spot check one of the IDs
+            String id = ObjectPath.eval("hits.hits.0._id", newSearchResponse);
+            assertThat(id, containsString("rollup-id-test2"));
+
         }
     }
 

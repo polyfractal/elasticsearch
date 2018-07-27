@@ -48,7 +48,7 @@ class IndexerUtils {
      * @return             A list of rolled documents derived from the response
      */
     static List<IndexRequest> processBuckets(CompositeAggregation agg, String rollupIndex, RollupJobStats stats,
-                                             GroupConfig groupConfig, String jobId, AtomicBoolean isUpgradedDocID) {
+                                             GroupConfig groupConfig, String jobId, boolean isUpgradedDocID) {
 
         logger.debug("Buckets: [" + agg.getBuckets().size() + "][" + jobId + "]");
         return agg.getBuckets().stream().map(b ->{
@@ -60,7 +60,7 @@ class IndexerUtils {
             List<Aggregation> metrics = b.getAggregations().asList();
 
             RollupIDGenerator idGenerator;
-            if (isUpgradedDocID.get()) {
+            if (isUpgradedDocID) {
                 idGenerator = new RollupIDGenerator.Murmur3(jobId);
             } else  {
                 idGenerator = new RollupIDGenerator.CRC();
@@ -71,7 +71,8 @@ class IndexerUtils {
             idGenerator.add(jobId);
             processMetrics(metrics, doc);
 
-            doc.put(RollupField.ROLLUP_META + "." + RollupField.VERSION_FIELD, Rollup.CURRENT_ROLLUP_VERSION);
+            doc.put(RollupField.ROLLUP_META + "." + RollupField.VERSION_FIELD,
+                isUpgradedDocID ? Rollup.CURRENT_ROLLUP_VERSION : Rollup.ROLLUP_VERSION_V1);
             doc.put(RollupField.ROLLUP_META + "." + RollupField.ID.getPreferredName(), jobId);
 
             IndexRequest request = new IndexRequest(rollupIndex, RollupField.TYPE_NAME, idGenerator.getID());

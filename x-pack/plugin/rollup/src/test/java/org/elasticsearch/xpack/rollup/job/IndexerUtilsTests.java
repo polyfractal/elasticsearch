@@ -117,7 +117,7 @@ public class IndexerUtilsTests extends AggregatorTestCase {
         directory.close();
 
         List<IndexRequest> docs = IndexerUtils.processBuckets(composite, indexName, stats,
-                ConfigTestHelpers.getGroupConfig().build(), "foo", new AtomicBoolean(randomBoolean()));
+                ConfigTestHelpers.getGroupConfig().build(), "foo", randomBoolean());
 
         assertThat(docs.size(), equalTo(numDocs));
         for (IndexRequest doc : docs) {
@@ -184,7 +184,7 @@ public class IndexerUtilsTests extends AggregatorTestCase {
         directory.close();
 
         List<IndexRequest> docs = IndexerUtils.processBuckets(composite, indexName, stats,
-                ConfigTestHelpers.getGroupConfig().build(), "foo", new AtomicBoolean(randomBoolean()));
+                ConfigTestHelpers.getGroupConfig().build(), "foo", randomBoolean());
 
         assertThat(docs.size(), equalTo(numDocs));
         for (IndexRequest doc : docs) {
@@ -240,7 +240,7 @@ public class IndexerUtilsTests extends AggregatorTestCase {
         directory.close();
 
         List<IndexRequest> docs = IndexerUtils.processBuckets(composite, indexName, stats,
-                ConfigTestHelpers.getGroupConfig().build(), "foo", new AtomicBoolean(randomBoolean()));
+                ConfigTestHelpers.getGroupConfig().build(), "foo", randomBoolean());
 
         assertThat(docs.size(), equalTo(numDocs));
         for (IndexRequest doc : docs) {
@@ -306,7 +306,7 @@ public class IndexerUtilsTests extends AggregatorTestCase {
         directory.close();
 
         List<IndexRequest> docs = IndexerUtils.processBuckets(composite, indexName, stats,
-                ConfigTestHelpers.getGroupConfig().build(), "foo", new AtomicBoolean(randomBoolean()));
+                ConfigTestHelpers.getGroupConfig().build(), "foo", randomBoolean());
 
         assertThat(docs.size(), equalTo(numDocs));
         for (IndexRequest doc : docs) {
@@ -359,7 +359,7 @@ public class IndexerUtilsTests extends AggregatorTestCase {
         groupConfig.setHisto(ConfigTestHelpers.getHisto().setFields(Collections.singletonList("abc")).build());
 
         List<IndexRequest> docs = IndexerUtils.processBuckets(composite, "foo", new RollupJobStats(),
-            groupConfig.build(), "foo", new AtomicBoolean(false));
+            groupConfig.build(), "foo", false);
         assertThat(docs.size(), equalTo(1));
         assertThat(docs.get(0).id(), equalTo("1237859798"));
     }
@@ -406,7 +406,7 @@ public class IndexerUtilsTests extends AggregatorTestCase {
         groupConfig.setHisto(ConfigTestHelpers.getHisto().setFields(Collections.singletonList("abc")).build());
 
         List<IndexRequest> docs = IndexerUtils.processBuckets(composite, "foo", new RollupJobStats(),
-            groupConfig.build(), "foo", new AtomicBoolean(true));
+            groupConfig.build(), "foo", true);
         assertThat(docs.size(), equalTo(1));
         assertThat(docs.get(0).id(), equalTo("foo$c9LcrFqeFW92uN_Z7sv1hA"));
     }
@@ -459,7 +459,7 @@ public class IndexerUtilsTests extends AggregatorTestCase {
         groupConfig.setHisto(ConfigTestHelpers.getHisto().setFields(Collections.singletonList("abc")).build());
 
         List<IndexRequest> docs = IndexerUtils.processBuckets(composite, "foo", new RollupJobStats(),
-            groupConfig.build(), "foo", new AtomicBoolean(true));
+            groupConfig.build(), "foo", true);
         assertThat(docs.size(), equalTo(1));
         assertThat(docs.get(0).id(), equalTo("foo$VAFKZpyaEqYRPLyic57_qw"));
     }
@@ -489,7 +489,7 @@ public class IndexerUtilsTests extends AggregatorTestCase {
         groupConfig.setHisto(ConfigTestHelpers.getHisto().setFields(Collections.singletonList("abc")).build());
 
         List<IndexRequest> docs = IndexerUtils.processBuckets(composite, "foo", new RollupJobStats(),
-            groupConfig.build(), "foo", new AtomicBoolean(randomBoolean()));
+            groupConfig.build(), "foo", randomBoolean());
         assertThat(docs.size(), equalTo(1));
         assertFalse(Strings.isNullOrEmpty(docs.get(0).id()));
     }
@@ -551,7 +551,7 @@ public class IndexerUtilsTests extends AggregatorTestCase {
         directory.close();
 
         List<IndexRequest> docs = IndexerUtils.processBuckets(composite, indexName, stats,
-            ConfigTestHelpers.getGroupConfig().build(), "foo", new AtomicBoolean(randomBoolean()));
+            ConfigTestHelpers.getGroupConfig().build(), "foo", randomBoolean());
 
         assertThat(docs.size(), equalTo(6));
         for (IndexRequest doc : docs) {

@@ -323,8 +323,10 @@ public abstract class RollupIndexer {
             }
 
             final BulkRequest bulkRequest = new BulkRequest();
+            // Indexer is single-threaded, and only place that the ID scheme can get upgraded is doSaveState(), so
+            // we can pass down the boolean value rather than the atomic here
             final List<IndexRequest> docs = IndexerUtils.processBuckets(response, job.getConfig().getRollupIndex(),
-                    stats, job.getConfig().getGroupConfig(), job.getConfig().getId(), upgradedDocumentID);
+                    stats, job.getConfig().getGroupConfig(), job.getConfig().getId(), upgradedDocumentID.get());
             docs.forEach(bulkRequest::add);
             assert bulkRequest.requests().size() > 0;
             doNextBulk(bulkRequest,

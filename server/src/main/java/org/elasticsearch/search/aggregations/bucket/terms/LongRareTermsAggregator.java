@@ -57,10 +57,10 @@ public class LongRareTermsAggregator extends TermsAggregator {
     private final BigArrays bigArrays;
 
     public LongRareTermsAggregator(String name, AggregatorFactories factories, ValuesSource.Numeric valuesSource, DocValueFormat format,
-                                   BucketOrder order, BucketCountThresholds bucketCountThresholds, SearchContext aggregationContext, Aggregator parent,
+                                   BucketOrder order, SearchContext aggregationContext, Aggregator parent,
                                    SubAggCollectionMode subAggCollectMode, IncludeExclude.LongFilter longFilter,
                                    long maxDocCount, List<PipelineAggregator> pipelineAggregators, Map<String, Object> metaData) throws IOException {
-        super(name, factories, aggregationContext, parent, bucketCountThresholds, order, format, subAggCollectMode, pipelineAggregators, metaData);
+        super(name, factories, aggregationContext, parent, null, order, format, subAggCollectMode, pipelineAggregators, metaData);
         this.valuesSource = valuesSource;
         this.longFilter = longFilter;
         this.maxDocCount = maxDocCount;

@@ -50,36 +50,21 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
     public static final String NAME = "rare_terms";
 
     public static final ParseField EXECUTION_HINT_FIELD_NAME = new ParseField("execution_hint");
-    public static final ParseField SHARD_SIZE_FIELD_NAME = new ParseField("shard_size");
     public static final ParseField MAX_DOC_COUNT_FIELD_NAME = new ParseField("max_doc_count");
-    public static final ParseField SHARD_MIN_DOC_COUNT_FIELD_NAME = new ParseField("shard_min_doc_count");
-    public static final ParseField REQUIRED_SIZE_FIELD_NAME = new ParseField("size");
 
-    static final TermsAggregator.BucketCountThresholds DEFAULT_BUCKET_COUNT_THRESHOLDS = new TermsAggregator.BucketCountThresholds(1, 0, 10,
-        -1);
     public static final ParseField ORDER_FIELD = new ParseField("order");
 
     private static final ObjectParser<RareTermsAggregationBuilder, Void> PARSER;
     static {
         PARSER = new ObjectParser<>(RareTermsAggregationBuilder.NAME);
         ValuesSourceParserHelper.declareAnyFields(PARSER, true, true);
-
-        PARSER.declareInt(RareTermsAggregationBuilder::shardSize, SHARD_SIZE_FIELD_NAME);
-
         PARSER.declareLong(RareTermsAggregationBuilder::maxDocCount, MAX_DOC_COUNT_FIELD_NAME);
-
-        PARSER.declareLong(RareTermsAggregationBuilder::shardMinDocCount, SHARD_MIN_DOC_COUNT_FIELD_NAME);
-
-        PARSER.declareInt(RareTermsAggregationBuilder::size, REQUIRED_SIZE_FIELD_NAME);
 
         PARSER.declareString(RareTermsAggregationBuilder::executionHint, EXECUTION_HINT_FIELD_NAME);
 
         PARSER.declareField(RareTermsAggregationBuilder::collectMode,
             (p, c) -> SubAggCollectionMode.parse(p.text(), LoggingDeprecationHandler.INSTANCE),
             SubAggCollectionMode.KEY, ObjectParser.ValueType.STRING);
-
-        PARSER.declareObjectArray(RareTermsAggregationBuilder::order, (p, c) -> InternalOrder.Parser.parseOrderParam(p),
-            TermsAggregationBuilder.ORDER_FIELD);
 
         PARSER.declareField((b, v) -> b.includeExclude(IncludeExclude.merge(v, b.includeExclude())),
             IncludeExclude::parseInclude, IncludeExclude.INCLUDE_FIELD, ObjectParser.ValueType.OBJECT_ARRAY_OR_STRING);
@@ -92,12 +77,10 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
         return PARSER.parse(parser, new RareTermsAggregationBuilder(aggregationName, null), null);
     }
 
-    private BucketOrder order = BucketOrder.compound(BucketOrder.count(false)); // automatically adds tie-breaker key asc order
+    private BucketOrder order = BucketOrder.compound(BucketOrder.count(true)); // sort by count ascending
     private IncludeExclude includeExclude = null;
     private String executionHint = null;
     private SubAggCollectionMode collectMode = null;
-    private TermsAggregator.BucketCountThresholds bucketCountThresholds = new TermsAggregator.BucketCountThresholds(
-        DEFAULT_BUCKET_COUNT_THRESHOLDS);
     private long maxDocCount = 1;
 
     public RareTermsAggregationBuilder(String name, ValueType valueType) {
@@ -110,7 +93,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
         this.executionHint = clone.executionHint;
         this.includeExclude = clone.includeExclude;
         this.collectMode = clone.collectMode;
-        this.bucketCountThresholds = new TermsAggregator.BucketCountThresholds(clone.bucketCountThresholds);
     }
 
     @Override
@@ -123,7 +105,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
      */
     public RareTermsAggregationBuilder(StreamInput in) throws IOException {
         super(in, ValuesSourceType.ANY);
-        bucketCountThresholds = new TermsAggregator.BucketCountThresholds(in);
         collectMode = in.readOptionalWriteable(SubAggCollectionMode::readFromStream);
         executionHint = in.readOptionalString();
         includeExclude = in.readOptionalWriteable(IncludeExclude::new);
@@ -138,7 +119,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
 
     @Override
     protected void innerWriteTo(StreamOutput out) throws IOException {
-        bucketCountThresholds.writeTo(out);
         out.writeOptionalWriteable(collectMode);
         out.writeOptionalString(executionHint);
         out.writeOptionalWriteable(includeExclude);
@@ -147,34 +127,7 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
     }
 
     /**
-     * Sets the size - indicating how many term buckets should be returned
-     * (defaults to 10)
-     */
-    public RareTermsAggregationBuilder size(int size) {
-        if (size <= 0) {
-            throw new IllegalArgumentException("[size] must be greater than 0. Found [" + size + "] in [" + name + "]");
-        }
-        bucketCountThresholds.setRequiredSize(size);
-        return this;
-    }
-
-    /**
-     * Sets the shard_size - indicating the number of term buckets each shard
-     * will return to the coordinating node (the node that coordinates the
-     * search execution). The higher the shard size is, the more accurate the
-     * results are.
-     */
-    public RareTermsAggregationBuilder shardSize(int shardSize) {
-        if (shardSize <= 0) {
-            throw new IllegalArgumentException(
-                "[shardSize] must be greater than 0. Found [" + shardSize + "] in [" + name + "]");
-        }
-        bucketCountThresholds.setShardSize(shardSize);
-        return this;
-    }
-
-    /**
-     * Set the minimum document count terms should have in order to appear in
+     * Set the maximum document count terms should have in order to appear in
      * the response.
      */
     public RareTermsAggregationBuilder maxDocCount(long maxDocCount) {
@@ -182,55 +135,8 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
             throw new IllegalArgumentException(
                 "[minDocCount] must be greater than or equal to 0. Found [" + maxDocCount + "] in [" + name + "]");
         }
-        bucketCountThresholds.setMinDocCount(maxDocCount);
+        this.maxDocCount = maxDocCount;
         return this;
-    }
-
-    /**
-     * Set the minimum document count terms should have on the shard in order to
-     * appear in the response.
-     */
-    public RareTermsAggregationBuilder shardMinDocCount(long shardMinDocCount) {
-        if (shardMinDocCount < 0) {
-            throw new IllegalArgumentException(
-                "[shardMinDocCount] must be greater than or equal to 0. Found [" + shardMinDocCount + "] in [" + name + "]");
-        }
-        bucketCountThresholds.setShardMinDocCount(shardMinDocCount);
-        return this;
-    }
-
-    /** Set a new order on this builder and return the builder so that calls
-     *  can be chained. A tie-breaker may be added to avoid non-deterministic ordering. */
-    public RareTermsAggregationBuilder order(BucketOrder order) {
-        if (order == null) {
-            throw new IllegalArgumentException("[order] must not be null: [" + name + "]");
-        }
-        if(order instanceof CompoundOrder || InternalOrder.isKeyOrder(order)) {
-            this.order = order; // if order already contains a tie-breaker we are good to go
-        } else { // otherwise add a tie-breaker by using a compound order
-            this.order = BucketOrder.compound(order);
-        }
-        return this;
-    }
-
-    /**
-     * Sets the order in which the buckets will be returned. A tie-breaker may be added to avoid non-deterministic
-     * ordering.
-     */
-    public RareTermsAggregationBuilder order(List<BucketOrder> orders) {
-        if (orders == null) {
-            throw new IllegalArgumentException("[orders] must not be null: [" + name + "]");
-        }
-        // if the list only contains one order use that to avoid inconsistent xcontent
-        order(orders.size() > 1 ? BucketOrder.compound(orders) : orders.get(0));
-        return this;
-    }
-
-    /**
-     * Gets the order in which the buckets will be returned.
-     */
-    public BucketOrder order() {
-        return order;
     }
 
     /**
@@ -285,12 +191,11 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
     protected ValuesSourceAggregatorFactory<ValuesSource, ?> innerBuild(SearchContext context, ValuesSourceConfig<ValuesSource> config,
                                                                         AggregatorFactory<?> parent, Builder subFactoriesBuilder) throws IOException {
         return new RareTermsAggregatorFactory(name, config, order, includeExclude, executionHint, collectMode,
-            bucketCountThresholds, context, parent, subFactoriesBuilder, metaData, maxDocCount);
+            context, parent, subFactoriesBuilder, metaData, maxDocCount);
     }
 
     @Override
     protected XContentBuilder doXContentBody(XContentBuilder builder, Params params) throws IOException {
-        bucketCountThresholds.toXContent(builder, params);
         if (executionHint != null) {
             builder.field(RareTermsAggregationBuilder.EXECUTION_HINT_FIELD_NAME.getPreferredName(), executionHint);
         }
@@ -302,22 +207,23 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
         if (includeExclude != null) {
             includeExclude.toXContent(builder, params);
         }
+        builder.field(MAX_DOC_COUNT_FIELD_NAME.getPreferredName(), maxDocCount);
         return builder;
     }
 
     @Override
     protected int innerHashCode() {
-        return Objects.hash(bucketCountThresholds, collectMode, executionHint, includeExclude, order);
+        return Objects.hash(collectMode, executionHint, includeExclude, order, maxDocCount);
     }
 
     @Override
     protected boolean innerEquals(Object obj) {
         RareTermsAggregationBuilder other = (RareTermsAggregationBuilder) obj;
-        return Objects.equals(bucketCountThresholds, other.bucketCountThresholds)
-            && Objects.equals(collectMode, other.collectMode)
+        return Objects.equals(collectMode, other.collectMode)
             && Objects.equals(executionHint, other.executionHint)
             && Objects.equals(includeExclude, other.includeExclude)
-            && Objects.equals(order, other.order);
+            && Objects.equals(order, other.order)
+            && Objects.equals(maxDocCount, other.maxDocCount);
     }
 
     @Override

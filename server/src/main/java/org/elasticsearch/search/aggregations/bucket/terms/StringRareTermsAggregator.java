@@ -49,17 +49,17 @@ public class StringRareTermsAggregator extends StringTermsAggregator {
     private final ValuesSource valuesSource;
     private final IncludeExclude.StringFilter includeExclude;
 
-    // TODO norelease: is there equivalent to LongObjectPagedHashMap like used in LongRareTerms?
+    // TODO: is there equivalent to LongObjectPagedHashMap like used in LongRareTerms?
     protected final ObjectLongHashMap<BytesRef> map;
     protected final BloomFilter bloom;
     private final long maxDocCount;
 
     public StringRareTermsAggregator(String name, AggregatorFactories factories, ValuesSource valuesSource,
-                                     BucketOrder order, DocValueFormat format, BucketCountThresholds bucketCountThresholds,
+                                     BucketOrder order, DocValueFormat format,
                                      IncludeExclude.StringFilter includeExclude, SearchContext context, Aggregator parent,
                                      SubAggCollectionMode collectionMode, List<PipelineAggregator> pipelineAggregators,
                                      Map<String, Object> metaData, long maxDocCount) throws IOException {
-        super(name, factories, valuesSource, order, format, bucketCountThresholds, includeExclude, context, parent,
+        super(name, factories, valuesSource, order, format, null, includeExclude, context, parent,
             collectionMode, false, pipelineAggregators, metaData);
         this.maxDocCount = maxDocCount;
         this.valuesSource = valuesSource;
@@ -124,8 +124,6 @@ public class StringRareTermsAggregator extends StringTermsAggregator {
 
         final int size = Math.min(map.size(), bucketCountThresholds.getShardSize());
 
-        //TODO norelease: it feels like a priorityqueue isn't needed here, hence the list.  But what to
-        // do about the shard sizes, etc?  Are those needed anymore?
         List<StringTerms.Bucket> buckets = new ArrayList<>(size);
 
         for (ObjectLongCursor<BytesRef> cursor : map) {

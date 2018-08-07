@@ -38,11 +38,14 @@ import java.util.stream.Collectors;
 
 public class DoubleRareTermsAggregator extends LongRareTermsAggregator {
 
-    public DoubleRareTermsAggregator(String name, AggregatorFactories factories, ValuesSource.Numeric valuesSource, DocValueFormat format,
-                                     BucketOrder order, BucketCountThresholds bucketCountThresholds, SearchContext aggregationContext, Aggregator parent,
-                                     SubAggCollectionMode collectionMode, IncludeExclude.LongFilter longFilter,
-                                     long maxDocCount, List<PipelineAggregator> pipelineAggregators, Map<String, Object> metaData) throws IOException {
-        super(name, factories, valuesSource, format, order, bucketCountThresholds, aggregationContext, parent, collectionMode,
+    public DoubleRareTermsAggregator(String name, AggregatorFactories factories, ValuesSource.Numeric valuesSource,
+                                     DocValueFormat format, BucketOrder order,
+                                     SearchContext aggregationContext,
+                                     Aggregator parent, SubAggCollectionMode collectionMode,
+                                     IncludeExclude.LongFilter longFilter, long maxDocCount,
+                                     List<PipelineAggregator> pipelineAggregators,
+                                     Map<String, Object> metaData) throws IOException {
+        super(name, factories, valuesSource, format, order, aggregationContext, parent, collectionMode,
             longFilter, maxDocCount, pipelineAggregators, metaData);
     }
 
@@ -52,22 +55,22 @@ public class DoubleRareTermsAggregator extends LongRareTermsAggregator {
     }
 
     @Override
-    public DoubleTerms buildAggregation(long owningBucketOrdinal) throws IOException {
-        final LongTerms terms = (LongTerms) super.buildAggregation(owningBucketOrdinal);
+    public DoubleRareTerms buildAggregation(long owningBucketOrdinal) throws IOException {
+        final LongRareTerms terms = (LongRareTerms) super.buildAggregation(owningBucketOrdinal);
         return convertToDouble(terms);
     }
 
     @Override
-    public DoubleTerms buildEmptyAggregation() {
-        final LongTerms terms = (LongTerms) super.buildEmptyAggregation();
+    public DoubleRareTerms buildEmptyAggregation() {
+        final LongRareTerms terms = (LongRareTerms) super.buildEmptyAggregation();
         return convertToDouble(terms);
     }
 
-    private static DoubleTerms convertToDouble(LongTerms terms) {
-        List<DoubleTerms.Bucket> buckets = terms.buckets.stream().map(DoubleRareTermsAggregator::convertToDouble).collect(Collectors.toList());
-        return new DoubleTerms(terms.getName(), terms.order, terms.requiredSize, terms.minDocCount, terms.pipelineAggregators(),
-            terms.getMetaData(), terms.format, terms.shardSize, terms.showTermDocCountError, terms.otherDocCount, buckets,
-            terms.docCountError);
+    private static DoubleRareTerms convertToDouble(LongRareTerms terms) {
+        List<DoubleTerms.Bucket> buckets = terms.buckets.stream().map(DoubleRareTermsAggregator::convertToDouble)
+            .collect(Collectors.toList());
+        return new DoubleRareTerms(terms.getName(), terms.order, terms.requiredSize, terms.pipelineAggregators(),
+            terms.getMetaData(), terms.format, terms.shardSize, buckets, terms.getMaxDocCount(), terms.getBloom());
     }
 
     private static DoubleTerms.Bucket convertToDouble(LongTerms.Bucket bucket) {

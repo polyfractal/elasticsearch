@@ -41,10 +41,10 @@ import java.util.Objects;
 public class DoubleRareTerms extends InternalMappedRareTerms<DoubleRareTerms, DoubleTerms.Bucket> {
     public static final String NAME = "drareterms";
 
-    public DoubleRareTerms(String name, BucketOrder order, int requiredSize, List<PipelineAggregator> pipelineAggregators,
-                           Map<String, Object> metaData, DocValueFormat format, int shardSize,
+    public DoubleRareTerms(String name, BucketOrder order, List<PipelineAggregator> pipelineAggregators,
+                           Map<String, Object> metaData, DocValueFormat format,
                            List<DoubleTerms.Bucket> buckets, long maxDocCount, BloomFilter bloom) {
-        super(name, order, requiredSize, pipelineAggregators, metaData, format, shardSize, buckets, maxDocCount, bloom);
+        super(name, order, pipelineAggregators, metaData, format, buckets, maxDocCount, bloom);
     }
 
     /**
@@ -61,8 +61,7 @@ public class DoubleRareTerms extends InternalMappedRareTerms<DoubleRareTerms, Do
 
     @Override
     public DoubleRareTerms create(List<DoubleTerms.Bucket> buckets) {
-        return new DoubleRareTerms(name, order, requiredSize, pipelineAggregators(), metaData, format, shardSize,
-            buckets, maxDocCount, bloom);
+        return new DoubleRareTerms(name, order, pipelineAggregators(), metaData, format, buckets, maxDocCount, bloom);
     }
 
     @Override
@@ -73,7 +72,7 @@ public class DoubleRareTerms extends InternalMappedRareTerms<DoubleRareTerms, Do
 
     @Override
     protected DoubleRareTerms create(String name, List<DoubleTerms.Bucket> buckets, long docCountError, long otherDocCount) {
-        return new DoubleRareTerms(name, order, requiredSize, pipelineAggregators(), getMetaData(), format, shardSize,
+        return new DoubleRareTerms(name, order, pipelineAggregators(), getMetaData(), format,
             buckets, maxDocCount, bloom);
     }
 

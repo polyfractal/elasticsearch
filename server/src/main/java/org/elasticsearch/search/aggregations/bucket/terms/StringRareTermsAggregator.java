@@ -23,6 +23,7 @@ import com.carrotsearch.hppc.cursors.ObjectLongCursor;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefBuilder;
+import org.apache.lucene.util.CollectionUtil;
 import org.elasticsearch.common.util.BloomFilter;
 import org.elasticsearch.index.fielddata.SortedBinaryDocValues;
 import org.elasticsearch.search.DocValueFormat;
@@ -97,7 +98,7 @@ public class StringRareTermsAggregator extends StringTermsAggregator {
                             Long valueCount = map.get(bytes);
                             if (valueCount == 0) {
                                 // Brand new term, save into map
-                                map.put(bytes, 1L);
+                                map.put(BytesRef.deepCopyOf(bytes), 1L);
                             } else {
                                 // We've seen this term before, but less than the threshold
                                 // so just increment its counter
@@ -122,9 +123,7 @@ public class StringRareTermsAggregator extends StringTermsAggregator {
     public InternalAggregation buildAggregation(long owningBucketOrdinal) throws IOException {
         assert owningBucketOrdinal == 0;
 
-        final int size = Math.min(map.size(), bucketCountThresholds.getShardSize());
-
-        List<StringTerms.Bucket> buckets = new ArrayList<>(size);
+        List<StringTerms.Bucket> buckets = new ArrayList<>(map.size());
 
         for (ObjectLongCursor<BytesRef> cursor : map) {
             StringTerms.Bucket bucket = new StringTerms.Bucket(new BytesRef(), 0, null, false, 0, format);
@@ -159,10 +158,11 @@ public class StringRareTermsAggregator extends StringTermsAggregator {
             bucket.aggregations = bucketAggregations(bucket.bucketOrd);
             bucket.docCountError = 0;
         }
+        List<StringTerms.Bucket> finalList = Arrays.asList(list);
+        CollectionUtil.introSort(finalList, order.comparator(this));
 
-        return new StringRareTerms(name, order, bucketCountThresholds.getRequiredSize(),
-            pipelineAggregators(), metaData(), format, bucketCountThresholds.getShardSize(),
-            Arrays.asList(list), maxDocCount, bloom);
+        return new StringRareTerms(name, order, pipelineAggregators(), metaData(),
+            format, finalList, maxDocCount, bloom);
     }
 }
 

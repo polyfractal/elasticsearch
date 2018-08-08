@@ -33,11 +33,10 @@ import java.util.Map;
 public class StringRareTerms extends InternalMappedRareTerms<StringRareTerms, StringTerms.Bucket> {
     public static final String NAME = "srareterms";
 
-    public StringRareTerms(String name, BucketOrder order, int requiredSize, List<PipelineAggregator> pipelineAggregators,
-                           Map<String, Object> metaData, DocValueFormat format, int shardSize,
+    public StringRareTerms(String name, BucketOrder order, List<PipelineAggregator> pipelineAggregators,
+                           Map<String, Object> metaData, DocValueFormat format,
                            List<StringTerms.Bucket> buckets, long maxDocCount, BloomFilter bloom) {
-        super(name, order, requiredSize, pipelineAggregators, metaData, format,
-            shardSize, buckets, maxDocCount, bloom);
+        super(name, order, pipelineAggregators, metaData, format, buckets, maxDocCount, bloom);
     }
 
     /**
@@ -54,8 +53,7 @@ public class StringRareTerms extends InternalMappedRareTerms<StringRareTerms, St
 
     @Override
     public StringRareTerms create(List<StringTerms.Bucket> buckets) {
-        return new StringRareTerms(name, order, requiredSize, pipelineAggregators(), metaData, format, shardSize,
-            buckets, maxDocCount, bloom);
+        return new StringRareTerms(name, order, pipelineAggregators(), metaData, format, buckets, maxDocCount, bloom);
     }
 
     @Override
@@ -66,7 +64,7 @@ public class StringRareTerms extends InternalMappedRareTerms<StringRareTerms, St
 
     @Override
     protected StringRareTerms create(String name, List<StringTerms.Bucket> buckets, long docCountError, long otherDocCount) {
-        return new StringRareTerms(name, order, requiredSize, pipelineAggregators(), metaData, format, shardSize,
+        return new StringRareTerms(name, order, pipelineAggregators(), metaData, format,
             buckets, maxDocCount, bloom);
     }
 

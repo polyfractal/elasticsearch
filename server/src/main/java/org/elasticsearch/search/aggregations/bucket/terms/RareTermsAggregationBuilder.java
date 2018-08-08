@@ -31,7 +31,6 @@ import org.elasticsearch.search.aggregations.AggregatorFactories.Builder;
 import org.elasticsearch.search.aggregations.AggregatorFactory;
 import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalOrder;
-import org.elasticsearch.search.aggregations.InternalOrder.CompoundOrder;
 import org.elasticsearch.search.aggregations.support.ValueType;
 import org.elasticsearch.search.aggregations.support.ValuesSource;
 import org.elasticsearch.search.aggregations.support.ValuesSourceAggregationBuilder;
@@ -42,7 +41,6 @@ import org.elasticsearch.search.aggregations.support.ValuesSourceType;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -77,7 +75,7 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
         return PARSER.parse(parser, new RareTermsAggregationBuilder(aggregationName, null), null);
     }
 
-    private BucketOrder order = BucketOrder.compound(BucketOrder.count(true)); // sort by count ascending
+    private BucketOrder order = BucketOrder.compound(BucketOrder.count(true), BucketOrder.key(true)); // sort by count ascending
     private IncludeExclude includeExclude = null;
     private String executionHint = null;
     private SubAggCollectionMode collectMode = null;
@@ -131,9 +129,9 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
      * the response.
      */
     public RareTermsAggregationBuilder maxDocCount(long maxDocCount) {
-        if (maxDocCount < 0) {
+        if (maxDocCount <= 0) {
             throw new IllegalArgumentException(
-                "[minDocCount] must be greater than or equal to 0. Found [" + maxDocCount + "] in [" + name + "]");
+                "[minDocCount] must be greater than 0. Found [" + maxDocCount + "] in [" + name + "]");
         }
         this.maxDocCount = maxDocCount;
         return this;
@@ -199,8 +197,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
         if (executionHint != null) {
             builder.field(RareTermsAggregationBuilder.EXECUTION_HINT_FIELD_NAME.getPreferredName(), executionHint);
         }
-        builder.field(ORDER_FIELD.getPreferredName());
-        order.toXContent(builder, params);
         if (collectMode != null) {
             builder.field(SubAggCollectionMode.KEY.getPreferredName(), collectMode.parseField().getPreferredName());
         }

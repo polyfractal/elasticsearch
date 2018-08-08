@@ -20,6 +20,7 @@ package org.elasticsearch.search.aggregations.bucket.terms;
 
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SortedNumericDocValues;
+import org.apache.lucene.util.CollectionUtil;
 import org.elasticsearch.common.lease.Releasables;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.BloomFilter;
@@ -127,11 +128,7 @@ public class LongRareTermsAggregator extends TermsAggregator {
 
         LongHash bucketOrds = new LongHash(0, bigArrays);
 
-        final int size = (int) Math.min(map.size(), bucketCountThresholds.getShardSize());
-
-        //TODO norelease: it feels like a priorityqueue isn't needed here, hence the list.  But what to
-        // do about the shard sizes, etc?  Are those needed anymore?
-        List<LongTerms.Bucket> buckets = new ArrayList<>(size);
+        List<LongTerms.Bucket> buckets = new ArrayList<>((int)map.size());
 
         for (LongObjectPagedHashMap.Cursor<Long> cursor : map) {
 
@@ -165,16 +162,15 @@ public class LongRareTermsAggregator extends TermsAggregator {
             aList.aggregations = bucketAggregations(aList.bucketOrd);
             aList.docCountError = 0;
         }
+        List<LongTerms.Bucket> finalList = Arrays.asList(list);
+        CollectionUtil.introSort(finalList, order.comparator(this));
 
-        return new LongRareTerms(name, order, bucketCountThresholds.getRequiredSize(),
-                pipelineAggregators(), metaData(), format, bucketCountThresholds.getShardSize(),
-                Arrays.asList(list), 0, bloom);
+        return new LongRareTerms(name, order, pipelineAggregators(), metaData(), format, finalList, 0, bloom);
     }
 
     @Override
     public InternalAggregation buildEmptyAggregation() {
-        return new LongRareTerms(name, order, bucketCountThresholds.getRequiredSize(),
-            pipelineAggregators(), metaData(), format, bucketCountThresholds.getShardSize(), emptyList(), 0, bloom);
+        return new LongRareTerms(name, order, pipelineAggregators(), metaData(), format, emptyList(), 0, bloom);
     }
 
     @Override

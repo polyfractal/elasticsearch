@@ -38,10 +38,10 @@ import java.util.Map;
 public class LongRareTerms extends InternalMappedRareTerms<LongRareTerms, LongTerms.Bucket> {
     public static final String NAME = "lrareterms";
 
-    public LongRareTerms(String name, BucketOrder order, int requiredSize, List<PipelineAggregator> pipelineAggregators,
-                         Map<String, Object> metaData, DocValueFormat format, int shardSize,
+    public LongRareTerms(String name, BucketOrder order, List<PipelineAggregator> pipelineAggregators,
+                         Map<String, Object> metaData, DocValueFormat format,
                          List<LongTerms.Bucket> buckets, long maxDocCount, BloomFilter bloom) {
-        super(name, order, requiredSize, pipelineAggregators, metaData, format, shardSize, buckets, maxDocCount, bloom);
+        super(name, order, pipelineAggregators, metaData, format, buckets, maxDocCount, bloom);
     }
 
     /**
@@ -58,7 +58,7 @@ public class LongRareTerms extends InternalMappedRareTerms<LongRareTerms, LongTe
 
     @Override
     public LongRareTerms create(List<LongTerms.Bucket> buckets) {
-        return new LongRareTerms(name, order, requiredSize, pipelineAggregators(), metaData, format, shardSize,
+        return new LongRareTerms(name, order, pipelineAggregators(), metaData, format,
             buckets, maxDocCount, bloom);
     }
 
@@ -70,7 +70,7 @@ public class LongRareTerms extends InternalMappedRareTerms<LongRareTerms, LongTe
 
     @Override
     protected LongRareTerms create(String name, List<LongTerms.Bucket> buckets, long docCountError, long otherDocCount) {
-        return new LongRareTerms(name, order, requiredSize, pipelineAggregators(), getMetaData(), format, shardSize,
+        return new LongRareTerms(name, order, pipelineAggregators(), getMetaData(), format,
             buckets, maxDocCount, bloom);
     }
 
@@ -106,9 +106,9 @@ public class LongRareTerms extends InternalMappedRareTerms<LongRareTerms, LongTe
                 bucket.getDocCount(), (InternalAggregations) bucket.getAggregations(), longTerms.showTermDocCountError,
                 longTerms.showTermDocCountError ? bucket.getDocCountError() : 0, decimalFormat));
         }
-        return new DoubleRareTerms(longTerms.getName(), longTerms.order, longTerms.requiredSize,
+        return new DoubleRareTerms(longTerms.getName(), longTerms.order,
             longTerms.pipelineAggregators(),
-            longTerms.metaData, longTerms.format, longTerms.shardSize,
+            longTerms.metaData, longTerms.format,
             newBuckets, longTerms.getMaxDocCount(), longTerms.getBloom());
     }
 }

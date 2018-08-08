@@ -69,8 +69,8 @@ public class DoubleRareTermsAggregator extends LongRareTermsAggregator {
     private static DoubleRareTerms convertToDouble(LongRareTerms terms) {
         List<DoubleTerms.Bucket> buckets = terms.buckets.stream().map(DoubleRareTermsAggregator::convertToDouble)
             .collect(Collectors.toList());
-        return new DoubleRareTerms(terms.getName(), terms.order, terms.requiredSize, terms.pipelineAggregators(),
-            terms.getMetaData(), terms.format, terms.shardSize, buckets, terms.getMaxDocCount(), terms.getBloom());
+        return new DoubleRareTerms(terms.getName(), terms.order, terms.pipelineAggregators(),
+            terms.getMetaData(), terms.format, buckets, terms.getMaxDocCount(), terms.getBloom());
     }
 
     private static DoubleTerms.Bucket convertToDouble(LongTerms.Bucket bucket) {

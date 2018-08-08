@@ -1,9 +1,11 @@
 package org.elasticsearch.search.aggregations.bucket.terms;
 
 
+import org.apache.lucene.util.CollectionUtil;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.BloomFilter;
+import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.BucketOrder;
@@ -22,12 +24,10 @@ public abstract class InternalMappedRareTerms<A extends InternalTerms<A, B>, B e
     final long maxDocCount;
     final BloomFilter bloom;
 
-    InternalMappedRareTerms(String name, BucketOrder order, int requiredSize,
-                                      List<PipelineAggregator> pipelineAggregators, Map<String, Object> metaData,
-                                      DocValueFormat format, int shardSize, List<B> buckets,
-                                      long maxDocCount, BloomFilter bloom) {
-        super(name, order, requiredSize, 1, pipelineAggregators, metaData, format, shardSize, false,
-            0, buckets, 0);
+    InternalMappedRareTerms(String name, BucketOrder order, List<PipelineAggregator> pipelineAggregators,
+                            Map<String, Object> metaData, DocValueFormat format,
+                            List<B> buckets, long maxDocCount, BloomFilter bloom) {
+        super(name, order, 0, 1, pipelineAggregators, metaData, format, 0, false, 0, buckets, 0);
         //todo: doc count errors
         this.maxDocCount = maxDocCount;
         this.bloom = bloom;
@@ -99,8 +99,8 @@ public abstract class InternalMappedRareTerms<A extends InternalTerms<A, B>, B e
                 rare.add(b);
             }
         }
+        CollectionUtil.introSort(rare, order.comparator(null));
 
-        //todo: doc count error, don't really need these...
         return create(name, rare, 0, 0);
     }
 

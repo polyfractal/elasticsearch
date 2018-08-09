@@ -42,7 +42,7 @@ public class DoubleRareTermsAggregator extends LongRareTermsAggregator {
                                      DocValueFormat format, BucketOrder order,
                                      SearchContext aggregationContext,
                                      Aggregator parent, SubAggCollectionMode collectionMode,
-                                     IncludeExclude.LongFilter longFilter, long maxDocCount,
+                                     IncludeExclude.LongFilter longFilter, int maxDocCount,
                                      List<PipelineAggregator> pipelineAggregators,
                                      Map<String, Object> metaData) throws IOException {
         super(name, factories, valuesSource, format, order, aggregationContext, parent, collectionMode,

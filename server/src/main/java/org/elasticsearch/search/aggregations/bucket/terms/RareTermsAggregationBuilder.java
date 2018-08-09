@@ -21,7 +21,6 @@ package org.elasticsearch.search.aggregations.bucket.terms;
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.xcontent.LoggingDeprecationHandler;
 import org.elasticsearch.common.xcontent.ObjectParser;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
@@ -60,10 +59,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
 
         PARSER.declareString(RareTermsAggregationBuilder::executionHint, EXECUTION_HINT_FIELD_NAME);
 
-        PARSER.declareField(RareTermsAggregationBuilder::collectMode,
-            (p, c) -> SubAggCollectionMode.parse(p.text(), LoggingDeprecationHandler.INSTANCE),
-            SubAggCollectionMode.KEY, ObjectParser.ValueType.STRING);
-
         PARSER.declareField((b, v) -> b.includeExclude(IncludeExclude.merge(v, b.includeExclude())),
             IncludeExclude::parseInclude, IncludeExclude.INCLUDE_FIELD, ObjectParser.ValueType.OBJECT_ARRAY_OR_STRING);
 
@@ -78,8 +73,7 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
     private BucketOrder order = BucketOrder.compound(BucketOrder.count(true), BucketOrder.key(true)); // sort by count ascending
     private IncludeExclude includeExclude = null;
     private String executionHint = null;
-    private SubAggCollectionMode collectMode = null;
-    private long maxDocCount = 1;
+    private int maxDocCount = 1;
 
     public RareTermsAggregationBuilder(String name, ValueType valueType) {
         super(name, ValuesSourceType.ANY, valueType);
@@ -90,7 +84,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
         this.order = clone.order;
         this.executionHint = clone.executionHint;
         this.includeExclude = clone.includeExclude;
-        this.collectMode = clone.collectMode;
     }
 
     @Override
@@ -103,11 +96,10 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
      */
     public RareTermsAggregationBuilder(StreamInput in) throws IOException {
         super(in, ValuesSourceType.ANY);
-        collectMode = in.readOptionalWriteable(SubAggCollectionMode::readFromStream);
         executionHint = in.readOptionalString();
         includeExclude = in.readOptionalWriteable(IncludeExclude::new);
         order = InternalOrder.Streams.readOrder(in);
-        maxDocCount = in.readLong();
+        maxDocCount = in.readVInt();
     }
 
     @Override
@@ -117,11 +109,10 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
 
     @Override
     protected void innerWriteTo(StreamOutput out) throws IOException {
-        out.writeOptionalWriteable(collectMode);
         out.writeOptionalString(executionHint);
         out.writeOptionalWriteable(includeExclude);
         order.writeTo(out);
-        out.writeLong(maxDocCount);
+        out.writeVInt(maxDocCount);
     }
 
     /**
@@ -131,9 +122,14 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
     public RareTermsAggregationBuilder maxDocCount(long maxDocCount) {
         if (maxDocCount <= 0) {
             throw new IllegalArgumentException(
-                "[minDocCount] must be greater than 0. Found [" + maxDocCount + "] in [" + name + "]");
+                "[" + MAX_DOC_COUNT_FIELD_NAME.getPreferredName() + "] must be greater than 0. Found ["
+                    + maxDocCount + "] in [" + name + "]");
         }
-        this.maxDocCount = maxDocCount;
+        if (maxDocCount > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("[" + MAX_DOC_COUNT_FIELD_NAME.getPreferredName() + "] must be smaller" +
+                "than " + Integer.MAX_VALUE + "in [" + name + "]");
+        }
+        this.maxDocCount = (int) maxDocCount;
         return this;
     }
 
@@ -150,24 +146,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
      */
     public String executionHint() {
         return executionHint;
-    }
-
-    /**
-     * Expert: set the collection mode.
-     */
-    public RareTermsAggregationBuilder collectMode(SubAggCollectionMode collectMode) {
-        if (collectMode == null) {
-            throw new IllegalArgumentException("[collectMode] must not be null: [" + name + "]");
-        }
-        this.collectMode = collectMode;
-        return this;
-    }
-
-    /**
-     * Expert: get the collection mode.
-     */
-    public SubAggCollectionMode collectMode() {
-        return collectMode;
     }
 
     /**
@@ -188,7 +166,7 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
     @Override
     protected ValuesSourceAggregatorFactory<ValuesSource, ?> innerBuild(SearchContext context, ValuesSourceConfig<ValuesSource> config,
                                                                         AggregatorFactory<?> parent, Builder subFactoriesBuilder) throws IOException {
-        return new RareTermsAggregatorFactory(name, config, order, includeExclude, executionHint, collectMode,
+        return new RareTermsAggregatorFactory(name, config, order, includeExclude, executionHint,
             context, parent, subFactoriesBuilder, metaData, maxDocCount);
     }
 
@@ -196,9 +174,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
     protected XContentBuilder doXContentBody(XContentBuilder builder, Params params) throws IOException {
         if (executionHint != null) {
             builder.field(RareTermsAggregationBuilder.EXECUTION_HINT_FIELD_NAME.getPreferredName(), executionHint);
-        }
-        if (collectMode != null) {
-            builder.field(SubAggCollectionMode.KEY.getPreferredName(), collectMode.parseField().getPreferredName());
         }
         if (includeExclude != null) {
             includeExclude.toXContent(builder, params);
@@ -209,14 +184,13 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
 
     @Override
     protected int innerHashCode() {
-        return Objects.hash(collectMode, executionHint, includeExclude, order, maxDocCount);
+        return Objects.hash(executionHint, includeExclude, order, maxDocCount);
     }
 
     @Override
     protected boolean innerEquals(Object obj) {
         RareTermsAggregationBuilder other = (RareTermsAggregationBuilder) obj;
-        return Objects.equals(collectMode, other.collectMode)
-            && Objects.equals(executionHint, other.executionHint)
+        return Objects.equals(executionHint, other.executionHint)
             && Objects.equals(includeExclude, other.includeExclude)
             && Objects.equals(order, other.order)
             && Objects.equals(maxDocCount, other.maxDocCount);

@@ -52,19 +52,18 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
     private final BucketOrder order;
     private final IncludeExclude includeExclude;
     private final String executionHint;
-    private final SubAggCollectionMode collectMode;
-    private final long maxDocCount;
+    private final SubAggCollectionMode collectMode = SubAggCollectionMode.BREADTH_FIRST;
+    private final int maxDocCount;
 
     public RareTermsAggregatorFactory(String name, ValuesSourceConfig<ValuesSource> config, BucketOrder order,
                                       IncludeExclude includeExclude, String executionHint,
-                                      SubAggCollectionMode collectMode, SearchContext context,
+                                      SearchContext context,
                                       AggregatorFactory<?> parent, AggregatorFactories.Builder subFactoriesBuilder,
-                                      Map<String, Object> metaData, long maxDocCount) throws IOException {
+                                      Map<String, Object> metaData, int maxDocCount) throws IOException {
         super(name, config, context, parent, subFactoriesBuilder, metaData);
         this.order = order;
         this.includeExclude = includeExclude;
         this.executionHint = executionHint;
-        this.collectMode = collectMode;
         this.maxDocCount = maxDocCount;
     }
 
@@ -104,10 +103,6 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
             if (execution == null) {
                 execution = ExecutionMode.MAP; //TODO global ords not implemented yet
             }
-            SubAggCollectionMode cm = collectMode;
-            if (cm == null) {
-                cm = SubAggCollectionMode.BREADTH_FIRST;
-            }
 
             DocValueFormat format = config.format();
             if ((includeExclude != null) && (includeExclude.isRegexBased()) && format != DocValueFormat.RAW) {
@@ -116,7 +111,7 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
             }
 
             return execution.create(name, factories, valuesSource, order, format,
-                includeExclude, context, parent, cm, pipelineAggregators, metaData, maxDocCount);
+                includeExclude, context, parent, collectMode, pipelineAggregators, metaData, maxDocCount);
         }
 
         if ((includeExclude != null) && (includeExclude.isRegexBased())) {
@@ -126,43 +121,24 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
 
         if (valuesSource instanceof ValuesSource.Numeric) {
             IncludeExclude.LongFilter longFilter = null;
-            SubAggCollectionMode cm = collectMode;
-            if (cm == null) {
-                // RareTerms is inherently high cardinality, so default to breadth first
-                cm = SubAggCollectionMode.BREADTH_FIRST;
-            }
             if (((ValuesSource.Numeric) valuesSource).isFloatingPoint()) {
                 if (includeExclude != null) {
                     longFilter = includeExclude.convertToDoubleFilter();
                 }
                 return new DoubleRareTermsAggregator(name, factories, (ValuesSource.Numeric) valuesSource,
-                    config.format(), order, context, parent, cm, longFilter,
+                    config.format(), order, context, parent, collectMode, longFilter,
                     maxDocCount, pipelineAggregators, metaData);
             }
             if (includeExclude != null) {
                 longFilter = includeExclude.convertToLongFilter(config.format());
             }
             return new LongRareTermsAggregator(name, factories, (ValuesSource.Numeric) valuesSource, config.format(), order,
-                context, parent, cm, longFilter, maxDocCount, pipelineAggregators,
+                context, parent, collectMode, longFilter, maxDocCount, pipelineAggregators,
                 metaData);
         }
 
         throw new AggregationExecutionException("terms aggregation cannot be applied to field [" + config.fieldContext().field()
             + "]. It can only be applied to numeric or string fields.");
-    }
-
-    // return the SubAggCollectionMode that this aggregation should use based on the expected size
-    // and the cardinality of the field
-    static SubAggCollectionMode subAggCollectionMode(int expectedSize, long maxOrd) {
-        if (expectedSize == Integer.MAX_VALUE) {
-            // return all buckets
-            return SubAggCollectionMode.DEPTH_FIRST;
-        }
-        if (maxOrd == -1 || maxOrd > expectedSize) {
-            // use breadth_first if the cardinality is bigger than the expected size or unknown (-1)
-            return SubAggCollectionMode.BREADTH_FIRST;
-        }
-        return SubAggCollectionMode.DEPTH_FIRST;
     }
 
     public enum ExecutionMode {

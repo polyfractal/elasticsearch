@@ -35,9 +35,11 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.CollectionUtil;
 import org.apache.lucene.util.NumericUtils;
 import org.elasticsearch.common.network.InetAddresses;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.common.util.MockBigArrays;
 import org.elasticsearch.common.util.MockPageCacheRecycler;
 import org.elasticsearch.index.mapper.IdFieldMapper;
@@ -81,6 +83,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import static org.elasticsearch.index.mapper.SeqNoFieldMapper.PRIMARY_TERM_NAME;
 import static org.hamcrest.Matchers.equalTo;
@@ -169,9 +173,7 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     fieldType.setName("mv_field");
                     fieldType.setHasDocValues(true);
 
-                    String executionHint = randomFrom(TermsAggregatorFactory.ExecutionMode.values()).toString();
                     RareTermsAggregationBuilder aggregationBuilder = new RareTermsAggregationBuilder("_name", ValueType.STRING)
-                        .executionHint(executionHint)
                         .includeExclude(new IncludeExclude("val00.+", null))
                         .field("mv_field");
 
@@ -206,7 +208,6 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     fieldType2.setName("sv_field");
                     fieldType2.setHasDocValues(true);
                     aggregationBuilder = new RareTermsAggregationBuilder("_name", ValueType.STRING)
-                        .executionHint(executionHint)
                         .includeExclude(new IncludeExclude("val00.+", null))
                         .field("sv_field");
 
@@ -228,7 +229,6 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     assertEquals(1L, result.getBuckets().get(4).getDocCount());
 
                     aggregationBuilder = new RareTermsAggregationBuilder("_name", ValueType.STRING)
-                        .executionHint(executionHint)
                         .includeExclude(new IncludeExclude("val00.+", "(val000|val001)"))
                         .field("mv_field");
 
@@ -256,7 +256,6 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     assertEquals(1L, result.getBuckets().get(7).getDocCount());
 
                     aggregationBuilder = new RareTermsAggregationBuilder("_name", ValueType.STRING)
-                        .executionHint(executionHint)
                         .includeExclude(new IncludeExclude(null, "val00.+"))
                         .field("mv_field");
                     aggregator = createAggregator(aggregationBuilder, indexSearcher, fieldType);
@@ -271,7 +270,6 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     assertEquals(1L, result.getBuckets().get(1).getDocCount());
 
                     aggregationBuilder = new RareTermsAggregationBuilder("_name", ValueType.STRING)
-                        .executionHint(executionHint)
                         .includeExclude(new IncludeExclude(new String[]{"val000", "val010"}, null))
                         .field("mv_field");
                     aggregator = createAggregator(aggregationBuilder, indexSearcher, fieldType);
@@ -286,7 +284,6 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     assertEquals(1L, result.getBuckets().get(1).getDocCount());
 
                     aggregationBuilder = new RareTermsAggregationBuilder("_name", ValueType.STRING)
-                        .executionHint(executionHint)
                         .includeExclude(new IncludeExclude(null, new String[]{"val001", "val002", "val003", "val004",
                             "val005", "val006", "val007", "val008", "val009", "val011"}))
                         .field("mv_field");
@@ -338,9 +335,8 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     fieldType.setName("long_field");
                     fieldType.setHasDocValues(true );
 
-                    String executionHint = randomFrom(TermsAggregatorFactory.ExecutionMode.values()).toString();
+
                     RareTermsAggregationBuilder aggregationBuilder = new RareTermsAggregationBuilder("_name", ValueType.LONG)
-                        .executionHint(executionHint)
                         .includeExclude(new IncludeExclude(new long[]{0, 5}, null))
                         .field("long_field");
                     Aggregator aggregator = createAggregator(aggregationBuilder, indexSearcher, fieldType);
@@ -355,7 +351,6 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     assertEquals(1L, result.getBuckets().get(1).getDocCount());
 
                     aggregationBuilder = new RareTermsAggregationBuilder("_name", ValueType.LONG)
-                        .executionHint(executionHint)
                         .includeExclude(new IncludeExclude(null, new long[]{0, 5}))
                         .field("long_field");
                     aggregator = createAggregator(aggregationBuilder, indexSearcher, fieldType);
@@ -377,7 +372,7 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     fieldType.setName("double_field");
                     fieldType.setHasDocValues(true );
                     aggregationBuilder = new RareTermsAggregationBuilder("_name", ValueType.DOUBLE)
-                        .executionHint(executionHint)
+
                         .includeExclude(new IncludeExclude(new double[]{0.0, 5.0}, null))
                         .field("double_field");
                     aggregator = createAggregator(aggregationBuilder, indexSearcher, fieldType);
@@ -392,7 +387,7 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     assertEquals(1L, result.getBuckets().get(1).getDocCount());
 
                     aggregationBuilder = new RareTermsAggregationBuilder("_name", ValueType.DOUBLE)
-                        .executionHint(executionHint)
+
                         .includeExclude(new IncludeExclude(null, new double[]{0.0, 5.0}))
                         .field("double_field");
                     aggregator = createAggregator(aggregationBuilder, indexSearcher, fieldType);
@@ -481,7 +476,7 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
         final Map<T, Integer> filteredCounts = new HashMap<>();
         int numTerms = scaledRandomIntBetween(8, 128);
         for (int i = 0; i < numTerms; i++) {
-            int numDocs = scaledRandomIntBetween(2, 32);
+            int numDocs = scaledRandomIntBetween(1, 32);
             T key = valueFactory.apply(i);
             counts.put(key, numDocs);
             filteredCounts.put(key, 0);
@@ -527,25 +522,10 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     }
                 }
                 try (IndexReader indexReader = maybeWrapReaderEs(indexWriter.getReader())) {
-                    boolean order = randomBoolean();
-                    List<Map.Entry<T, Integer>> expectedBuckets = new ArrayList<>();
-                    expectedBuckets.addAll(counts.entrySet());
-                    BucketOrder bucketOrder;
-                    Comparator<Map.Entry<T, Integer>> comparator;
-                    if (randomBoolean()) {
-                        bucketOrder = BucketOrder.key(order);
-                        comparator = Comparator.comparing(Map.Entry::getKey, keyComparator);
-                    } else {
-                        // if order by count then we need to use compound so that we can also sort by key as tie breaker:
-                        bucketOrder = BucketOrder.compound(BucketOrder.count(order), BucketOrder.key(order));
-                        comparator = Comparator.comparing(Map.Entry::getValue);
-                        comparator = comparator.thenComparing(Comparator.comparing(Map.Entry::getKey, keyComparator));
-                    }
-                    if (order == false) {
-                        comparator = comparator.reversed();
-                    }
-                    expectedBuckets.sort(comparator);
-                    int size = randomIntBetween(1, counts.size());
+                    List<Map.Entry<T, Integer>> expectedBuckets = counts.entrySet()
+                        .stream()
+                        .filter(tIntegerEntry -> tIntegerEntry.getValue() == 1)
+                        .collect(Collectors.toList());
 
                     IndexSearcher indexSearcher = newIndexSearcher(indexReader);
                     AggregationBuilder aggregationBuilder = new RareTermsAggregationBuilder("_name", valueType)
@@ -558,8 +538,8 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     indexSearcher.search(new MatchAllDocsQuery(), aggregator);
                     aggregator.postCollection();
                     Terms result = (Terms) aggregator.buildAggregation(0L);
-                    assertEquals(size, result.getBuckets().size());
-                    for (int i = 0; i < size; i++) {
+                    assertEquals(expectedBuckets.size(), result.getBuckets().size());
+                    for (int i = 0; i < expectedBuckets.size(); i++) {
                         Map.Entry<T, Integer>  expected = expectedBuckets.get(i);
                         Terms.Bucket actual = result.getBuckets().get(i);
                         if (valueType == ValueType.IP) {
@@ -573,7 +553,6 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     if (multiValued == false) {
                         aggregationBuilder = new FilterAggregationBuilder("_name1", QueryBuilders.termQuery("include", "yes"));
                         aggregationBuilder.subAggregation(new RareTermsAggregationBuilder("_name2", valueType)
-                            .collectMode(randomFrom(Aggregator.SubAggCollectionMode.values()))
                             .field("field"));
                         aggregator = createAggregator(aggregationBuilder, indexSearcher, fieldType);
                         aggregator.preCollection();
@@ -582,7 +561,7 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                         result = ((Filter) aggregator.buildAggregation(0L)).getAggregations().get("_name2");
                         int expectedFilteredCounts = 0;
                         for (Integer count : filteredCounts.values()) {
-                            if (count > 0) {
+                            if (count == 1) {
                                 expectedFilteredCounts++;
                             }
                         }
@@ -620,22 +599,13 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     indexWriter.addDocument(document);
                 }
                 try (IndexReader indexReader = maybeWrapReaderEs(indexWriter.getReader())) {
-                    boolean order = randomBoolean();
-                    List<Map.Entry<T, Long>> expectedBuckets = new ArrayList<>();
-                    expectedBuckets.addAll(counts.entrySet());
-                    BucketOrder bucketOrder = BucketOrder.aggregation("_max", order);
+
+                    List<Map.Entry<T, Long>> expectedBuckets = new ArrayList<>(counts.entrySet());
                     Comparator<Map.Entry<T, Long>> comparator = Comparator.comparing(Map.Entry::getValue, Long::compareTo);
-                    if (order == false) {
-                        comparator = comparator.reversed();
-                    }
                     expectedBuckets.sort(comparator);
-                    int size = randomIntBetween(1, counts.size());
 
-
-                    Aggregator.SubAggCollectionMode collectionMode = randomFrom(Aggregator.SubAggCollectionMode.values());
                     IndexSearcher indexSearcher = newIndexSearcher(indexReader);
                     AggregationBuilder aggregationBuilder = new RareTermsAggregationBuilder("_name", valueType)
-                        .collectMode(collectionMode)
                         .field("field")
                         .subAggregation(AggregationBuilders.max("_max").field("value"));
                     fieldType.setName("field");
@@ -649,8 +619,8 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     indexSearcher.search(new MatchAllDocsQuery(), aggregator);
                     aggregator.postCollection();
                     Terms result = (Terms) aggregator.buildAggregation(0L);
-                    assertEquals(size, result.getBuckets().size());
-                    for (int i = 0; i < size; i++) {
+                    assertEquals(expectedBuckets.size(), result.getBuckets().size());
+                    for (int i = 0; i < expectedBuckets.size(); i++) {
                         Map.Entry<T, Long>  expected = expectedBuckets.get(i);
                         Terms.Bucket actual = result.getBuckets().get(i);
                         assertEquals(expected.getKey(), actual.getKey());
@@ -768,10 +738,8 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     IndexSearcher indexSearcher = newIndexSearcher(indexReader);
                     Aggregator.SubAggCollectionMode collectionMode = randomFrom(Aggregator.SubAggCollectionMode.values());
                     RareTermsAggregationBuilder aggregationBuilder = new RareTermsAggregationBuilder("_name1", ValueType.STRING)
-                        .collectMode(collectionMode)
                         .field("field1")
                         .subAggregation(new RareTermsAggregationBuilder("_name2", ValueType.STRING)
-                            .collectMode(collectionMode)
                             .field("field2")
                         );
                     MappedFieldType fieldType1 = new KeywordFieldMapper.KeywordFieldType();
@@ -874,11 +842,9 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     GlobalAggregationBuilder globalBuilder = new GlobalAggregationBuilder("global")
                         .subAggregation(
                             new RareTermsAggregationBuilder("terms", ValueType.STRING)
-                                .collectMode(collectionMode)
                                 .field("keyword")
                                 .subAggregation(
                                     new RareTermsAggregationBuilder("sub_terms", ValueType.STRING)
-                                        .collectMode(collectionMode)
                                         .field("keyword")
                                         .subAggregation(
                                             new TopHitsAggregationBuilder("top_hits")

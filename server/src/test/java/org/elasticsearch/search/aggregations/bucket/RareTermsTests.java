@@ -43,9 +43,6 @@ public class RareTermsTests extends BaseAggregationTestCase<RareTermsAggregation
             factory.missing("MISSING");
         }
         if (randomBoolean()) {
-            factory.collectMode(randomFrom(SubAggCollectionMode.values()));
-        }
-        if (randomBoolean()) {
             factory.executionHint(randomFrom(executionHints));
         }
         if (randomBoolean()) {

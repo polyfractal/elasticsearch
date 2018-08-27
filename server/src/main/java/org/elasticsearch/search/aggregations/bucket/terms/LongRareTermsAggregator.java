@@ -35,53 +35,66 @@ import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.LeafBucketCollector;
 import org.elasticsearch.search.aggregations.LeafBucketCollectorBase;
+import org.elasticsearch.search.aggregations.bucket.DeferableBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.DeferringBucketCollector;
+import org.elasticsearch.search.aggregations.bucket.MergingBucketsDeferringCollector;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
 import org.elasticsearch.search.aggregations.support.ValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 
-public class LongRareTermsAggregator extends TermsAggregator {
+public class LongRareTermsAggregator extends DeferableBucketAggregator {
 
+    static final BucketOrder ORDER = BucketOrder.compound(BucketOrder.count(true), BucketOrder.key(true)); // sort by count ascending
     private static final Logger logger = Logger.getLogger(LongRareTermsAggregator.class.getName());
-
-    protected final ValuesSource.Numeric valuesSource;
 
     //TODO better way to do this?
     protected final LongObjectPagedHashMap<IntArray> map;
     protected final LongHash bucketOrds;
     protected LeafBucketCollector subCollectors;
     protected final BloomFilter bloom;
+    protected final ValuesSource.Numeric valuesSource;
 
     private final IncludeExclude.LongFilter longFilter;
     private final int maxDocCount;
     private final BigArrays bigArrays;
-
+    private final DocValueFormat format;
+    private MergingBucketsDeferringCollector deferringCollector;
 
     public LongRareTermsAggregator(String name, AggregatorFactories factories, ValuesSource.Numeric valuesSource, DocValueFormat format,
-                                   BucketOrder order, SearchContext aggregationContext, Aggregator parent,
-                                   SubAggCollectionMode subAggCollectMode, IncludeExclude.LongFilter longFilter,
+                                   SearchContext aggregationContext, Aggregator parent, IncludeExclude.LongFilter longFilter,
                                    int maxDocCount, List<PipelineAggregator> pipelineAggregators, Map<String, Object> metaData) throws IOException {
-        super(name, factories, aggregationContext, parent, null, order, format, subAggCollectMode, pipelineAggregators, metaData);
+        super(name, factories, aggregationContext, parent, pipelineAggregators, metaData);
         this.valuesSource = valuesSource;
         this.longFilter = longFilter;
         this.maxDocCount = maxDocCount;
-        map = new LongObjectPagedHashMap<>(16, aggregationContext.bigArrays());
-        bloom = BloomFilter.Factory.DEFAULT.createFilter(10000000);
-        bigArrays = aggregationContext.bigArrays();
-        bucketOrds = new LongHash(1, aggregationContext.bigArrays());
+        this.map = new LongObjectPagedHashMap<>(16, aggregationContext.bigArrays());
+        this.bloom = BloomFilter.Factory.DEFAULT.createFilter(10000000);
+        this.bigArrays = aggregationContext.bigArrays();
+        this.bucketOrds = new LongHash(1, aggregationContext.bigArrays());
+        this.format = format;
     }
 
     @Override
     public boolean needsScores() {
         return (valuesSource != null && valuesSource.needsScores()) || super.needsScores();
+    }
+
+    @Override
+    protected boolean shouldDefer(Aggregator aggregator) {
+        return true;
+    }
+
+    @Override
+    public DeferringBucketCollector getDeferringCollector() {
+        deferringCollector = new MergingBucketsDeferringCollector(context);
+        return deferringCollector;
     }
 
     protected SortedNumericDocValues getValues(ValuesSource.Numeric valuesSource, LeafReaderContext ctx) throws IOException {
@@ -116,6 +129,13 @@ public class LongRareTermsAggregator extends TermsAggregator {
                                         docs = bigArrays.newIntArray(1, false);
                                         docs.set(0, docId);
                                         map.put(val, docs);
+                                        long bucketOrdinal = bucketOrds.add(val);
+                                        if (bucketOrdinal < 0) { // already seen
+                                            bucketOrdinal = - 1 - bucketOrdinal;
+                                            collectExistingBucket(subCollectors, docId, bucketOrdinal);
+                                        } else {
+                                            collectBucket(subCollectors, docId, bucketOrdinal);
+                                        }
                                     } else {
                                         // We've seen this term before, but less than the threshold
                                         // so just increment its counter
@@ -200,13 +220,13 @@ public class LongRareTermsAggregator extends TermsAggregator {
             bucket.docCountError = 0;
         }
 
-        CollectionUtil.introSort(buckets, order.comparator(this));
-        return new LongRareTerms(name, order, pipelineAggregators(), metaData(), format, buckets, 0, bloom);
+        CollectionUtil.introSort(buckets, ORDER.comparator(this));
+        return new LongRareTerms(name, ORDER, pipelineAggregators(), metaData(), format, buckets, 0, bloom);
     }
 
     @Override
     public InternalAggregation buildEmptyAggregation() {
-        return new LongRareTerms(name, order, pipelineAggregators(), metaData(), format, emptyList(), 0, bloom);
+        return new LongRareTerms(name, ORDER, pipelineAggregators(), metaData(), format, emptyList(), 0, bloom);
     }
 
     @Override

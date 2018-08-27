@@ -21,7 +21,6 @@ package org.elasticsearch.search.aggregations.bucket.terms;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
@@ -39,9 +38,9 @@ import static java.util.Collections.emptyList;
 public class UnmappedRareTerms extends InternalTerms<UnmappedRareTerms, UnmappedTerms.Bucket> {
     public static final String NAME = "umrareterms";
 
-    public UnmappedRareTerms(String name, BucketOrder order, List<PipelineAggregator> pipelineAggregators,
+    public UnmappedRareTerms(String name, List<PipelineAggregator> pipelineAggregators,
                              Map<String, Object> metaData) {
-        super(name, order, 0, 0, pipelineAggregators, metaData);
+        super(name, LongRareTermsAggregator.ORDER, 0, 0, pipelineAggregators, metaData);
     }
 
     /**
@@ -68,7 +67,7 @@ public class UnmappedRareTerms extends InternalTerms<UnmappedRareTerms, Unmapped
 
     @Override
     public UnmappedRareTerms create(List<UnmappedTerms.Bucket> buckets) {
-        return new UnmappedRareTerms(name, order, pipelineAggregators(), metaData);
+        return new UnmappedRareTerms(name, pipelineAggregators(), metaData);
     }
 
     @Override

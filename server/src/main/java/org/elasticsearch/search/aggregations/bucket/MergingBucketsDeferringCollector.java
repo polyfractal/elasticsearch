@@ -114,7 +114,9 @@ public class MergingBucketsDeferringCollector extends DeferringBucketCollector {
             PackedLongValues.Builder newBuckets = PackedLongValues.packedBuilder(PackedInts.DEFAULT);
             for (PackedLongValues.Iterator itr = sourceEntry.buckets.iterator(); itr.hasNext();) {
                 long bucket = itr.next();
-                newBuckets.add(mergeMap[Math.toIntExact(bucket)]);
+                if (bucket > 0) {
+                    newBuckets.add(mergeMap[Math.toIntExact(bucket)]);
+                }
             }
             newEntries.add(new Entry(sourceEntry.context, sourceEntry.docDeltas, newBuckets.build()));
         }
@@ -127,7 +129,9 @@ public class MergingBucketsDeferringCollector extends DeferringBucketCollector {
             PackedLongValues.Builder newBuckets = PackedLongValues.packedBuilder(PackedInts.DEFAULT);
             for (PackedLongValues.Iterator itr = currentBuckets.iterator(); itr.hasNext();) {
                 long bucket = itr.next();
-                newBuckets.add(mergeMap[Math.toIntExact(bucket)]);
+                if (bucket > 0) {
+                    newBuckets.add(mergeMap[Math.toIntExact(bucket)]);
+                }
             }
             buckets = newBuckets;
         }

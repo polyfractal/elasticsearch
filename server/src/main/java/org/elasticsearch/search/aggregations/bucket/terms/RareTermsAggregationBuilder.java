@@ -49,8 +49,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
     public static final ParseField EXECUTION_HINT_FIELD_NAME = new ParseField("execution_hint");
     public static final ParseField MAX_DOC_COUNT_FIELD_NAME = new ParseField("max_doc_count");
 
-    public static final ParseField ORDER_FIELD = new ParseField("order");
-
     private static final ObjectParser<RareTermsAggregationBuilder, Void> PARSER;
     static {
         PARSER = new ObjectParser<>(RareTermsAggregationBuilder.NAME);
@@ -70,7 +68,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
         return PARSER.parse(parser, new RareTermsAggregationBuilder(aggregationName, null), null);
     }
 
-    private BucketOrder order = BucketOrder.compound(BucketOrder.count(true), BucketOrder.key(true)); // sort by count ascending
     private IncludeExclude includeExclude = null;
     private String executionHint = null;
     private int maxDocCount = 1;
@@ -81,7 +78,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
 
     protected RareTermsAggregationBuilder(RareTermsAggregationBuilder clone, Builder factoriesBuilder, Map<String, Object> metaData) {
         super(clone, factoriesBuilder, metaData);
-        this.order = clone.order;
         this.executionHint = clone.executionHint;
         this.includeExclude = clone.includeExclude;
     }
@@ -98,7 +94,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
         super(in, ValuesSourceType.ANY);
         executionHint = in.readOptionalString();
         includeExclude = in.readOptionalWriteable(IncludeExclude::new);
-        order = InternalOrder.Streams.readOrder(in);
         maxDocCount = in.readVInt();
     }
 
@@ -111,7 +106,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
     protected void innerWriteTo(StreamOutput out) throws IOException {
         out.writeOptionalString(executionHint);
         out.writeOptionalWriteable(includeExclude);
-        order.writeTo(out);
         out.writeVInt(maxDocCount);
     }
 
@@ -166,7 +160,7 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
     @Override
     protected ValuesSourceAggregatorFactory<ValuesSource, ?> innerBuild(SearchContext context, ValuesSourceConfig<ValuesSource> config,
                                                                         AggregatorFactory<?> parent, Builder subFactoriesBuilder) throws IOException {
-        return new RareTermsAggregatorFactory(name, config, order, includeExclude, executionHint,
+        return new RareTermsAggregatorFactory(name, config, includeExclude, executionHint,
             context, parent, subFactoriesBuilder, metaData, maxDocCount);
     }
 
@@ -184,7 +178,7 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
 
     @Override
     protected int innerHashCode() {
-        return Objects.hash(executionHint, includeExclude, order, maxDocCount);
+        return Objects.hash(executionHint, includeExclude, maxDocCount);
     }
 
     @Override
@@ -192,7 +186,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
         RareTermsAggregationBuilder other = (RareTermsAggregationBuilder) obj;
         return Objects.equals(executionHint, other.executionHint)
             && Objects.equals(includeExclude, other.includeExclude)
-            && Objects.equals(order, other.order)
             && Objects.equals(maxDocCount, other.maxDocCount);
     }
 

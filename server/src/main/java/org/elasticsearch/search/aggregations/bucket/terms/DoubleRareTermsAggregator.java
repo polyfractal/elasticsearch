@@ -39,13 +39,10 @@ import java.util.stream.Collectors;
 public class DoubleRareTermsAggregator extends LongRareTermsAggregator {
 
     public DoubleRareTermsAggregator(String name, AggregatorFactories factories, ValuesSource.Numeric valuesSource,
-                                     DocValueFormat format, BucketOrder order,
-                                     SearchContext aggregationContext,
-                                     Aggregator parent, SubAggCollectionMode collectionMode,
-                                     IncludeExclude.LongFilter longFilter, int maxDocCount,
-                                     List<PipelineAggregator> pipelineAggregators,
+                                     DocValueFormat format, SearchContext aggregationContext, Aggregator parent,
+                                     IncludeExclude.LongFilter longFilter, int maxDocCount, List<PipelineAggregator> pipelineAggregators,
                                      Map<String, Object> metaData) throws IOException {
-        super(name, factories, valuesSource, format, order, aggregationContext, parent, collectionMode,
+        super(name, factories, valuesSource, format, aggregationContext, parent,
             longFilter, maxDocCount, pipelineAggregators, metaData);
     }
 

@@ -25,6 +25,7 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefBuilder;
 import org.apache.lucene.util.CollectionUtil;
 import org.elasticsearch.common.util.BloomFilter;
+import org.elasticsearch.common.util.BytesRefHash;
 import org.elasticsearch.index.fielddata.SortedBinaryDocValues;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregator;
@@ -33,6 +34,9 @@ import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.LeafBucketCollector;
 import org.elasticsearch.search.aggregations.LeafBucketCollectorBase;
+import org.elasticsearch.search.aggregations.bucket.DeferableBucketAggregator;
+import org.elasticsearch.search.aggregations.bucket.DeferringBucketCollector;
+import org.elasticsearch.search.aggregations.bucket.MergingBucketsDeferringCollector;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
 import org.elasticsearch.search.aggregations.support.ValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
@@ -43,31 +47,50 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import static java.util.Collections.emptyList;
+
 /**
  * An aggregator of string values.
  */
-public class StringRareTermsAggregator extends StringTermsAggregator {
+public class StringRareTermsAggregator extends DeferableBucketAggregator {
     private final ValuesSource valuesSource;
     private final IncludeExclude.StringFilter includeExclude;
 
     // TODO: is there equivalent to LongObjectPagedHashMap like used in LongRareTerms?
     protected final ObjectLongHashMap<BytesRef> map;
-    protected final BloomFilter bloom;
+    protected final BytesRefHash bucketOrds;
+
+    private final BloomFilter bloom;
     private final long maxDocCount;
+    private MergingBucketsDeferringCollector deferringCollector;
+    private final DocValueFormat format;
+
 
     public StringRareTermsAggregator(String name, AggregatorFactories factories, ValuesSource valuesSource,
-                                     BucketOrder order, DocValueFormat format,
-                                     IncludeExclude.StringFilter includeExclude, SearchContext context, Aggregator parent,
-                                     SubAggCollectionMode collectionMode, List<PipelineAggregator> pipelineAggregators,
+                                     DocValueFormat format,  IncludeExclude.StringFilter includeExclude,
+                                     SearchContext context, Aggregator parent, List<PipelineAggregator> pipelineAggregators,
                                      Map<String, Object> metaData, long maxDocCount) throws IOException {
-        super(name, factories, valuesSource, order, format, null, includeExclude, context, parent,
-            collectionMode, false, pipelineAggregators, metaData);
+        super(name, factories, context, parent, pipelineAggregators, metaData);
         this.maxDocCount = maxDocCount;
         this.valuesSource = valuesSource;
         this.includeExclude = includeExclude;
         this.map = new ObjectLongHashMap<>();
         this.bloom = BloomFilter.Factory.DEFAULT.createFilter(10000000);
+        this.format = format;
+        this.bucketOrds = new BytesRefHash(1, context.bigArrays());
     }
+
+    @Override
+    protected boolean shouldDefer(Aggregator aggregator) {
+        return true;
+    }
+
+    @Override
+    public DeferringBucketCollector getDeferringCollector() {
+        deferringCollector = new MergingBucketsDeferringCollector(context);
+        return deferringCollector;
+    }
+
 
     @Override
     public LeafBucketCollector getLeafCollector(LeafReaderContext ctx,
@@ -159,10 +182,15 @@ public class StringRareTermsAggregator extends StringTermsAggregator {
             bucket.docCountError = 0;
         }
         List<StringTerms.Bucket> finalList = Arrays.asList(list);
-        CollectionUtil.introSort(finalList, order.comparator(this));
+        CollectionUtil.introSort(finalList, LongRareTermsAggregator.ORDER.comparator(this));
 
-        return new StringRareTerms(name, order, pipelineAggregators(), metaData(),
+        return new StringRareTerms(name, LongRareTermsAggregator.ORDER, pipelineAggregators(), metaData(),
             format, finalList, maxDocCount, bloom);
+    }
+
+    @Override
+    public InternalAggregation buildEmptyAggregation() {
+        return new StringRareTerms(name, LongRareTermsAggregator.ORDER, pipelineAggregators(), metaData(), format, emptyList(), 0, bloom);
     }
 }
 

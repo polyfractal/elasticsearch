@@ -174,7 +174,6 @@ public class TransportRollupSearchAction extends TransportAction<SearchRequest, 
         List<String> jobIds = validatedCaps.stream().map(RollupJobCaps::getJobID).collect(Collectors.toList());
 
         for (AggregationBuilder agg : sourceAgg.getAggregatorFactories()) {
-
             List<QueryBuilder> filterConditions = new ArrayList<>(5);
 
             // Translate the agg tree, and collect any potential filtering clauses
@@ -188,8 +187,14 @@ public class TransportRollupSearchAction extends TransportAction<SearchRequest, 
             rolledSearchSource.aggregation(filterAgg);
         }
 
+        // Pipelines are executed at the end after all reductions (meaning we will have converted them back
+        // to the normal agg response convention) so we can add them as-is
+        //sourceAgg.getPipelineAggregatorFactories().forEach(rolledSearchSource::aggregation);
+
         // Rewrite the user's query to our internal conventions, checking against the validated job caps
         QueryBuilder rewritten = rewriteQuery(request.source().query(), validatedCaps);
+
+        msearch.add(new SearchRequest(context.getRollupIndices(), request.source()));
 
         for (String id : jobIds) {
             SearchSourceBuilder copiedSource;
@@ -210,6 +215,7 @@ public class TransportRollupSearchAction extends TransportAction<SearchRequest, 
             // And add a new msearch per JobID
             msearch.add(new SearchRequest(context.getRollupIndices(), copiedSource).types(request.types()));
         }
+
 
         return msearch;
     }

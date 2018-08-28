@@ -33,17 +33,27 @@ import org.elasticsearch.search.aggregations.metrics.max.InternalMax;
 import org.elasticsearch.search.aggregations.metrics.min.InternalMin;
 import org.elasticsearch.search.aggregations.metrics.sum.InternalSum;
 import org.elasticsearch.search.aggregations.metrics.sum.SumAggregationBuilder;
+import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
+import org.elasticsearch.search.aggregations.pipeline.SiblingPipelineAggregator;
+import org.elasticsearch.search.aggregations.pipeline.bucketmetrics.BucketMetricValue;
+import org.elasticsearch.search.aggregations.pipeline.bucketmetrics.InternalBucketMetricValue;
+import org.elasticsearch.search.aggregations.pipeline.bucketmetrics.max.MaxBucketPipelineAggregationBuilder;
+import org.elasticsearch.search.aggregations.pipeline.bucketmetrics.max.MaxBucketPipelineAggregator;
 import org.elasticsearch.search.internal.InternalSearchResponse;
 import org.elasticsearch.xpack.core.rollup.RollupField;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 
@@ -260,6 +270,9 @@ public class RollupResponseTranslator {
         // which means we can use aggregation's reduce method to combine, just as if
         // it was a result from another shard
         InternalAggregations currentTree = new InternalAggregations(Collections.emptyList());
+        int numReductions = rolledResponses.size() +liveAggs.asList().size();
+        int currentReduction = 0;
+        SearchResponse placeholderResponse = rolledResponses.remove(0);
         for (SearchResponse rolledResponse : rolledResponses) {
             List<InternalAggregation> unrolledAggs = new ArrayList<>(rolledResponse.getAggregations().asList().size());
             for (Aggregation agg : rolledResponse.getAggregations()) {
@@ -278,13 +291,53 @@ public class RollupResponseTranslator {
             // in the next round of unrolling
             InternalAggregations finalUnrolledAggs = new InternalAggregations(unrolledAggs);
             currentTree = InternalAggregations.reduce(Arrays.asList(currentTree, finalUnrolledAggs),
-                    new InternalAggregation.ReduceContext(reduceContext.bigArrays(), reduceContext.scriptService(), true));
+                    new InternalAggregation.ReduceContext(reduceContext.bigArrays(), reduceContext.scriptService(), false));
+            currentReduction += 1;
         }
 
         // Add in the live aggregations if they exist
         if (liveAggs.asList().size() != 0) {
             currentTree = InternalAggregations.reduce(Arrays.asList(currentTree, liveAggs),
-                    new InternalAggregation.ReduceContext(reduceContext.bigArrays(), reduceContext.scriptService(), true));
+                    new InternalAggregation.ReduceContext(reduceContext.bigArrays(), reduceContext.scriptService(), false));
+        }
+
+        // final reduction using the "empty" rollup response that we skipped earlier
+        List<InternalAggregation> placeholderAggs = new ArrayList<>();
+        List<SiblingPipelineAggregator> pipelineAggs = new ArrayList<>();
+        placeholderResponse.getAggregations().asList().forEach(agg -> {
+            logger.error(agg.getClass().getSimpleName() + "  " + agg.getName() +  "  " + agg.getType() + "  " + agg.toString());
+            if (agg instanceof InternalBucketMetricValue) {
+                if (agg.getType().equals(MaxBucketPipelineAggregationBuilder.NAME)) {
+                    try {
+                        pipelineAggs.add((SiblingPipelineAggregator) new MaxBucketPipelineAggregationBuilder(agg.getName(), "histo>the_max").create());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+            } else {
+                placeholderAggs.add((InternalAggregation) agg);
+            }
+        });
+
+        logger.error(pipelineAggs);
+        logger.error(placeholderAggs);
+
+        currentTree = InternalAggregations.reduce(Arrays.asList(currentTree, new InternalAggregations(placeholderAggs)),
+            new InternalAggregation.ReduceContext(reduceContext.bigArrays(), reduceContext.scriptService(), true));
+
+        if (pipelineAggs.isEmpty() == false) {
+            assert currentTree != null;
+            List<InternalAggregation> currentTreeAggs = currentTree.asList()
+                .stream()
+                .map((p) -> (InternalAggregation) p)
+                .collect(Collectors.toList());
+
+            for (SiblingPipelineAggregator pipelineAggregator : pipelineAggs) {
+                InternalAggregation newAgg = pipelineAggregator.doReduce(new InternalAggregations(currentTreeAggs), reduceContext);
+                currentTreeAggs.add(newAgg);
+            }
+            currentTree =  new InternalAggregations(currentTreeAggs);
         }
 
         return mergeFinalResponse(liveResponse, rolledResponses, currentTree);

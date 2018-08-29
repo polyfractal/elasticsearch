@@ -58,10 +58,7 @@ setup:
             partition.terms._count: 1
             price.max.value: 1
             "_rollup.id": "foo"
-            "_rollup.computed":
-              - "timestamp.date_histogram"
-              - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
           - index:
               _index: "foo_rollup"
@@ -74,10 +71,7 @@ setup:
             partition.terms._count: 2
             price.max.value: 2
             "_rollup.id": "foo"
-            "_rollup.computed":
-              - "timestamp.date_histogram"
-              - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
           - index:
               _index: "foo_rollup"
@@ -90,10 +84,7 @@ setup:
             partition.terms._count: 10
             price.max.value: 3
             "_rollup.id": "foo"
-            "_rollup.computed":
-              - "timestamp.date_histogram"
-              - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
           - index:
               _index: "foo_rollup"
@@ -106,10 +97,7 @@ setup:
             partition.terms._count: 10
             price.max.value: 4
             "_rollup.id": "foo"
-            "_rollup.computed":
-              - "timestamp.date_histogram"
-              - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
           - index:
               _index: "foo_rollup"
@@ -122,10 +110,7 @@ setup:
             partition.terms._count: 10
             price.max.value: 3
             "_rollup.id": "foo"
-            "_rollup.computed":
-              - "timestamp.date_histogram"
-              - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
 ---
 "Basic Search":
@@ -286,7 +271,7 @@ setup:
             "_rollup.computed":
               - "timestamp.date_histogram"
               - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
           - index:
               _index: "foo_rollup"
@@ -302,7 +287,7 @@ setup:
             "_rollup.computed":
               - "timestamp.date_histogram"
               - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
           - index:
               _index: "foo_rollup"
@@ -318,7 +303,7 @@ setup:
             "_rollup.computed":
               - "timestamp.date_histogram"
               - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
           - index:
               _index: "foo_rollup"
@@ -334,7 +319,7 @@ setup:
             "_rollup.computed":
               - "timestamp.date_histogram"
               - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
           - index:
               _index: "foo_rollup"
@@ -350,7 +335,7 @@ setup:
             "_rollup.computed":
               - "timestamp.date_histogram"
               - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
 
   - do:
@@ -431,10 +416,7 @@ setup:
             partition.terms._count: 1
             price.max.value: 1
             "_rollup.id": "foo2"
-            "_rollup.computed":
-              - "timestamp.date_histogram"
-              - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
           - index:
               _index: "foo_rollup"
@@ -447,10 +429,7 @@ setup:
             partition.terms._count: 2
             price.max.value: 2
             "_rollup.id": "foo2"
-            "_rollup.computed":
-              - "timestamp.date_histogram"
-              - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
           - index:
               _index: "foo_rollup"
@@ -463,10 +442,7 @@ setup:
             partition.terms._count: 10
             price.max.value: 3
             "_rollup.id": "foo2"
-            "_rollup.computed":
-              - "timestamp.date_histogram"
-              - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
           - index:
               _index: "foo_rollup"
@@ -479,10 +455,7 @@ setup:
             partition.terms._count: 10
             price.max.value: 4
             "_rollup.id": "foo2"
-            "_rollup.computed":
-              - "timestamp.date_histogram"
-              - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
           - index:
               _index: "foo_rollup"
@@ -495,10 +468,7 @@ setup:
             partition.terms._count: 10
             price.max.value: 3
             "_rollup.id": "foo2"
-            "_rollup.computed":
-              - "timestamp.date_histogram"
-              - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
 
   - do:
@@ -581,10 +551,7 @@ setup:
             partition.terms._count: 1
             price.max.value: 1
             "_rollup.id": "foo2"
-            "_rollup.computed":
-              - "timestamp.date_histogram"
-              - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
           - index:
               _index: "foo_rollup"
@@ -597,10 +564,7 @@ setup:
             partition.terms._count: 2
             price.max.value: 2
             "_rollup.id": "foo2"
-            "_rollup.computed":
-              - "timestamp.date_histogram"
-              - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
           - index:
               _index: "foo_rollup"
@@ -613,10 +577,7 @@ setup:
             partition.terms._count: 10
             price.max.value: 3
             "_rollup.id": "foo2"
-            "_rollup.computed":
-              - "timestamp.date_histogram"
-              - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
           - index:
               _index: "foo_rollup"
@@ -629,10 +590,7 @@ setup:
             partition.terms._count: 10
             price.max.value: 4
             "_rollup.id": "foo2"
-            "_rollup.computed":
-              - "timestamp.date_histogram"
-              - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
           - index:
               _index: "foo_rollup"
@@ -645,10 +603,7 @@ setup:
             partition.terms._count: 10
             price.max.value: 3
             "_rollup.id": "foo2"
-            "_rollup.computed":
-              - "timestamp.date_histogram"
-              - "partition.terms"
-            "_rollup.version": 1
+            "_rollup.version": 2
 
   - do:
       xpack.rollup.rollup_search:

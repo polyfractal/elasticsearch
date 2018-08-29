@@ -270,38 +270,11 @@ public class RollupResponseTranslator {
         // which means we can use aggregation's reduce method to combine, just as if
         // it was a result from another shard
         InternalAggregations currentTree = new InternalAggregations(Collections.emptyList());
-        int numReductions = rolledResponses.size() +liveAggs.asList().size();
+        int numReductions = rolledResponses.size() + liveAggs.asList().size();
         int currentReduction = 0;
         SearchResponse placeholderResponse = rolledResponses.remove(0);
-        for (SearchResponse rolledResponse : rolledResponses) {
-            List<InternalAggregation> unrolledAggs = new ArrayList<>(rolledResponse.getAggregations().asList().size());
-            for (Aggregation agg : rolledResponse.getAggregations()) {
-                // We expect a filter agg here because the rollup convention is that all translated aggs
-                // will start with a filter, containing various agg-specific predicates.  If there
-                // *isn't* a filter agg here, something has gone very wrong!
-                if ((agg instanceof InternalFilter) == false) {
-                    throw new RuntimeException("Expected [" +agg.getName()
-                            + "] to be a FilterAggregation, but was ["
-                            + agg.getClass().getSimpleName() + "]");
-                }
-                unrolledAggs.addAll(unrollAgg(((InternalFilter)agg).getAggregations(), liveAggs, currentTree));
-            }
+        logger.error(placeholderResponse.getAggregations());
 
-            // Iteratively merge in each new set of unrolled aggs, so that we can identify/fix overlapping doc_counts
-            // in the next round of unrolling
-            InternalAggregations finalUnrolledAggs = new InternalAggregations(unrolledAggs);
-            currentTree = InternalAggregations.reduce(Arrays.asList(currentTree, finalUnrolledAggs),
-                    new InternalAggregation.ReduceContext(reduceContext.bigArrays(), reduceContext.scriptService(), false));
-            currentReduction += 1;
-        }
-
-        // Add in the live aggregations if they exist
-        if (liveAggs.asList().size() != 0) {
-            currentTree = InternalAggregations.reduce(Arrays.asList(currentTree, liveAggs),
-                    new InternalAggregation.ReduceContext(reduceContext.bigArrays(), reduceContext.scriptService(), false));
-        }
-
-        // final reduction using the "empty" rollup response that we skipped earlier
         List<InternalAggregation> placeholderAggs = new ArrayList<>();
         List<SiblingPipelineAggregator> pipelineAggs = new ArrayList<>();
         placeholderResponse.getAggregations().asList().forEach(agg -> {
@@ -323,8 +296,40 @@ public class RollupResponseTranslator {
         logger.error(pipelineAggs);
         logger.error(placeholderAggs);
 
+        currentReduction += 1;
         currentTree = InternalAggregations.reduce(Arrays.asList(currentTree, new InternalAggregations(placeholderAggs)),
-            new InternalAggregation.ReduceContext(reduceContext.bigArrays(), reduceContext.scriptService(), true));
+            new InternalAggregation.ReduceContext(reduceContext.bigArrays(), reduceContext.scriptService(), false));
+
+
+        for (SearchResponse rolledResponse : rolledResponses) {
+            List<InternalAggregation> unrolledAggs = new ArrayList<>(rolledResponse.getAggregations().asList().size());
+            for (Aggregation agg : rolledResponse.getAggregations()) {
+                // We expect a filter agg here because the rollup convention is that all translated aggs
+                // will start with a filter, containing various agg-specific predicates.  If there
+                // *isn't* a filter agg here, something has gone very wrong!
+                if ((agg instanceof InternalFilter) == false) {
+                    throw new RuntimeException("Expected [" +agg.getName()
+                            + "] to be a FilterAggregation, but was ["
+                            + agg.getClass().getSimpleName() + "]");
+                }
+                unrolledAggs.addAll(unrollAgg(((InternalFilter)agg).getAggregations(), liveAggs, currentTree));
+            }
+
+            // Iteratively merge in each new set of unrolled aggs, so that we can identify/fix overlapping doc_counts
+            // in the next round of unrolling
+            currentReduction += 1;
+            InternalAggregations finalUnrolledAggs = new InternalAggregations(unrolledAggs);
+            currentTree = InternalAggregations.reduce(Arrays.asList(currentTree, finalUnrolledAggs),
+                    new InternalAggregation.ReduceContext(reduceContext.bigArrays(), reduceContext.scriptService(), currentReduction == numReductions));
+
+        }
+
+        // Add in the live aggregations if they exist
+        if (liveAggs.asList().size() != 0) {
+            currentReduction += 1;
+            currentTree = InternalAggregations.reduce(Arrays.asList(currentTree, liveAggs),
+                    new InternalAggregation.ReduceContext(reduceContext.bigArrays(), reduceContext.scriptService(), currentReduction == numReductions));
+        }
 
         if (pipelineAggs.isEmpty() == false) {
             assert currentTree != null;
@@ -339,6 +344,7 @@ public class RollupResponseTranslator {
             }
             currentTree =  new InternalAggregations(currentTreeAggs);
         }
+
 
         return mergeFinalResponse(liveResponse, rolledResponses, currentTree);
     }

@@ -43,10 +43,12 @@ import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
 import org.elasticsearch.search.aggregations.InternalAggregation;
+import org.elasticsearch.search.aggregations.PipelineAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.filter.FilterAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.histogram.HistogramAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
+import org.elasticsearch.search.aggregations.pipeline.AbstractPipelineAggregationBuilder;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -105,25 +107,33 @@ public class TransportRollupSearchAction extends TransportAction<SearchRequest, 
 
         MultiSearchRequest msearch = createMSearchRequest(request, registry, rollupSearchContext);
 
+        // Collect top-level sibling pipelines so the response processor knows about them
+        // (required because many pipelines resolve to the same output, e.g. min/max/avg/sum/count all use BucketMetricValue)
+        List<AbstractPipelineAggregationBuilder> siblingPipelineAggs = request.source().aggregations().getPipelineAggregatorFactories()
+            .stream()
+            .map(agg -> (AbstractPipelineAggregationBuilder) agg)
+            .collect(Collectors.toList());
+
         client.multiSearch(msearch, ActionListener.wrap(msearchResponse -> {
             InternalAggregation.ReduceContext context
                     = new InternalAggregation.ReduceContext(bigArrays, scriptService, false);
-            listener.onResponse(processResponses(rollupSearchContext, msearchResponse, context));
+            listener.onResponse(processResponses(rollupSearchContext, msearchResponse, context, siblingPipelineAggs));
         }, listener::onFailure));
     }
 
     static SearchResponse processResponses(RollupSearchContext rollupContext, MultiSearchResponse msearchResponse,
-                                           InternalAggregation.ReduceContext reduceContext) {
+                                           InternalAggregation.ReduceContext reduceContext,
+                                           List<AbstractPipelineAggregationBuilder> siblingPipelineAggs) throws IOException {
         if (rollupContext.hasLiveIndices() && rollupContext.hasRollupIndices()) {
             // Both
-            return RollupResponseTranslator.combineResponses(msearchResponse.getResponses(), reduceContext);
+            return RollupResponseTranslator.combineResponses(msearchResponse.getResponses(), reduceContext, siblingPipelineAggs);
         } else if (rollupContext.hasLiveIndices()) {
             // Only live
             assert msearchResponse.getResponses().length == 1;
             return RollupResponseTranslator.verifyResponse(msearchResponse.getResponses()[0]);
         } else if (rollupContext.hasRollupIndices()) {
             // Only rollup
-            return RollupResponseTranslator.translateResponse(msearchResponse.getResponses(), reduceContext);
+            return RollupResponseTranslator.translateResponse(msearchResponse.getResponses(), reduceContext, siblingPipelineAggs);
         }
         throw new RuntimeException("MSearch response was empty, cannot unroll RollupSearch results");
     }
@@ -187,13 +197,16 @@ public class TransportRollupSearchAction extends TransportAction<SearchRequest, 
             rolledSearchSource.aggregation(filterAgg);
         }
 
-        // Pipelines are executed at the end after all reductions (meaning we will have converted them back
-        // to the normal agg response convention) so we can add them as-is
-        //sourceAgg.getPipelineAggregatorFactories().forEach(rolledSearchSource::aggregation);
-
         // Rewrite the user's query to our internal conventions, checking against the validated job caps
         QueryBuilder rewritten = rewriteQuery(request.source().query(), validatedCaps);
 
+        // Add an "empty" search that targets the rollup index, but uses the original query.
+        // Because none of the field names will match, it will be a no-op and return an empty response.  But
+        // we will use the pipeline aggs in that empty response to reduce the final merged tree.
+        //
+        // We do it this way because we can't just rewrite pipelines like regular aggs, since they would
+        // attempt to execute at the end of the regular search and fail due to bad names, and wouldn't
+        // have all the data since we merge multiple msearch together (live + rolled, multiple jobs)
         msearch.add(new SearchRequest(context.getRollupIndices(), request.source()));
 
         for (String id : jobIds) {

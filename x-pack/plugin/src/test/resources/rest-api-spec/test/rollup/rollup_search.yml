@@ -638,7 +638,7 @@ setup:
   - match: { aggregations.histo.buckets.3.the_max.value: 3 }
 
 ---
-"Search with pipeline agg":
+"Search with child pipeline agg":
 
   - do:
       xpack.rollup.rollup_search:
@@ -667,12 +667,14 @@ setup:
   - match: { aggregations.histo.buckets.1.key_as_string: "2017-01-01T06:00:00.000Z" }
   - match: { aggregations.histo.buckets.1.doc_count: 2 }
   - match: { aggregations.histo.buckets.1.the_max.value: 2 }
+  - match: { aggregations.histo.buckets.1.the_deriv.value: 1.0 }
   - match: { aggregations.histo.buckets.2.key_as_string: "2017-01-01T07:00:00.000Z" }
   - match: { aggregations.histo.buckets.2.doc_count: 10 }
   - match: { aggregations.histo.buckets.2.the_max.value: 3 }
+  - match: { aggregations.histo.buckets.2.the_deriv.value: 1.0 }
   - match: { aggregations.histo.buckets.3.key_as_string: "2017-01-01T08:00:00.000Z" }
   - match: { aggregations.histo.buckets.3.doc_count: 20 }
   - match: { aggregations.histo.buckets.3.the_max.value: 4 }
-  - match: { aggregations.max_max.value: 4 }
+  - match: { aggregations.histo.buckets.3.the_deriv.value: 1.0 }
 
 

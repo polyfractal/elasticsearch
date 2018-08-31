@@ -5,13 +5,13 @@
  */
 package org.elasticsearch.xpack.rollup;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.action.search.MultiSearchResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.ShardSearchFailure;
 import org.elasticsearch.common.TriFunction;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.SearchHits;
@@ -33,12 +33,17 @@ import org.elasticsearch.search.aggregations.metrics.max.InternalMax;
 import org.elasticsearch.search.aggregations.metrics.min.InternalMin;
 import org.elasticsearch.search.aggregations.metrics.sum.InternalSum;
 import org.elasticsearch.search.aggregations.metrics.sum.SumAggregationBuilder;
-import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
+import org.elasticsearch.search.aggregations.pipeline.AbstractPipelineAggregationBuilder;
 import org.elasticsearch.search.aggregations.pipeline.SiblingPipelineAggregator;
-import org.elasticsearch.search.aggregations.pipeline.bucketmetrics.BucketMetricValue;
 import org.elasticsearch.search.aggregations.pipeline.bucketmetrics.InternalBucketMetricValue;
-import org.elasticsearch.search.aggregations.pipeline.bucketmetrics.max.MaxBucketPipelineAggregationBuilder;
-import org.elasticsearch.search.aggregations.pipeline.bucketmetrics.max.MaxBucketPipelineAggregator;
+import org.elasticsearch.search.aggregations.pipeline.bucketscript.BucketScriptPipelineAggregationBuilder;
+import org.elasticsearch.search.aggregations.pipeline.bucketselector.BucketSelectorPipelineAggregationBuilder;
+import org.elasticsearch.search.aggregations.pipeline.bucketsort.BucketSortPipelineAggregationBuilder;
+import org.elasticsearch.search.aggregations.pipeline.cumulativesum.CumulativeSumPipelineAggregationBuilder;
+import org.elasticsearch.search.aggregations.pipeline.derivative.DerivativePipelineAggregationBuilder;
+import org.elasticsearch.search.aggregations.pipeline.movavg.MovAvgPipelineAggregationBuilder;
+import org.elasticsearch.search.aggregations.pipeline.movfn.MovFnPipelineAggregationBuilder;
+import org.elasticsearch.search.aggregations.pipeline.serialdiff.SerialDiffPipelineAggregationBuilder;
 import org.elasticsearch.search.internal.InternalSearchResponse;
 import org.elasticsearch.xpack.core.rollup.RollupField;
 
@@ -46,14 +51,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 
@@ -65,7 +67,15 @@ import java.util.stream.Collectors;
  */
 public class RollupResponseTranslator {
 
-    private static final Logger logger = Loggers.getLogger(RollupResponseTranslator.class);
+    private static final Logger logger = LogManager.getLogger(RollupResponseTranslator.class);
+
+    // List of pipeline aggregation names, used for filtering.
+    // Some of these won't be applicable (e.g. bucket_sort), but seemed prudent to include
+    // all of them just in case
+    private static final List<String> PIPELINE_NAMES = Collections.unmodifiableList(Arrays.asList(InternalBucketMetricValue.NAME,
+        BucketScriptPipelineAggregationBuilder.NAME, BucketSelectorPipelineAggregationBuilder.NAME, BucketSortPipelineAggregationBuilder.NAME,
+        CumulativeSumPipelineAggregationBuilder.NAME, DerivativePipelineAggregationBuilder.NAME, MovAvgPipelineAggregationBuilder.NAME,
+        MovFnPipelineAggregationBuilder.NAME, SerialDiffPipelineAggregationBuilder.NAME));
 
     /**
      * Verifies a live-only search response.  Essentially just checks for failure then returns
@@ -80,14 +90,15 @@ public class RollupResponseTranslator {
 
     /**
      * Translates a rollup-only search response back into the expected convention.  Similar to
-     * {@link #combineResponses(MultiSearchResponse.Item[], InternalAggregation.ReduceContext)} except it only
+     * {@link #combineResponses(MultiSearchResponse.Item[], InternalAggregation.ReduceContext, List)} except it only
      * has to deal with the rollup response (no live response)
      *
-     * See {@link #combineResponses(MultiSearchResponse.Item[], InternalAggregation.ReduceContext)} for more details
+     * See {@link #combineResponses(MultiSearchResponse.Item[], InternalAggregation.ReduceContext, List)} for more details
      * on the translation conventions
      */
     public static SearchResponse translateResponse(MultiSearchResponse.Item[] rolledMsearch,
-                                                 InternalAggregation.ReduceContext reduceContext) {
+                                                   InternalAggregation.ReduceContext reduceContext,
+                                                   List<AbstractPipelineAggregationBuilder> siblingPipelineAggs) throws IOException {
 
         List<SearchResponse> responses = Arrays.stream(rolledMsearch)
                 .map(item -> {
@@ -97,7 +108,7 @@ public class RollupResponseTranslator {
                     return item.getResponse();
                 }).collect(Collectors.toList());
 
-        return doCombineResponse(null, responses, reduceContext);
+        return doCombineResponse(null, responses, reduceContext, siblingPipelineAggs);
     }
 
     /**
@@ -197,7 +208,8 @@ public class RollupResponseTranslator {
      * @param msearchResponses The responses from the msearch, where the first response is the live-index response
      */
     public static SearchResponse combineResponses(MultiSearchResponse.Item[] msearchResponses,
-                                                  InternalAggregation.ReduceContext reduceContext) {
+                                                  InternalAggregation.ReduceContext reduceContext,
+                                                  List<AbstractPipelineAggregationBuilder> siblingPipelineAggs) throws IOException {
         boolean liveMissing = false;
         assert msearchResponses.length >= 2;
 
@@ -238,11 +250,12 @@ public class RollupResponseTranslator {
             throw new RuntimeException("No indices (live or rollup) found during rollup search");
         }
 
-        return doCombineResponse(liveResponse.getResponse(), rolledResponses, reduceContext);
+        return doCombineResponse(liveResponse.getResponse(), rolledResponses, reduceContext, siblingPipelineAggs);
     }
 
     private static SearchResponse doCombineResponse(SearchResponse liveResponse, List<SearchResponse> rolledResponses,
-                                                  InternalAggregation.ReduceContext reduceContext) {
+                                                    InternalAggregation.ReduceContext reduceContext,
+                                                    List<AbstractPipelineAggregationBuilder> siblingPipelineAggs) throws IOException {
 
         final InternalAggregations liveAggs = liveResponse != null
                 ? (InternalAggregations)liveResponse.getAggregations()
@@ -270,36 +283,36 @@ public class RollupResponseTranslator {
         // which means we can use aggregation's reduce method to combine, just as if
         // it was a result from another shard
         InternalAggregations currentTree = new InternalAggregations(Collections.emptyList());
+
+        // We need to keep track of how many reductions we have done so that the last
+        // reduction can be flagged for pipelines
         int numReductions = rolledResponses.size() + liveAggs.asList().size();
         int currentReduction = 0;
+
+        // We injected an "empty" msearch which targets the rollup index, but uses the original field
+        // names (e.g. it's identical to the pre-rewritten aggregation).  This is the first msearch in the response.
+        // We do this because it contains pipelines that are used after all the regular aggs are reduced.
+        //
+        // We do it this way because we can't just rewrite pipelines like regular aggs, since they would
+        // attempt to execute at the end of the regular msearch and fail due to bad names, and wouldn't
+        // have all the data since we merge multiple msearch together (live + rolled, multiple jobs)
         SearchResponse placeholderResponse = rolledResponses.remove(0);
-        logger.error(placeholderResponse.getAggregations());
 
-        List<InternalAggregation> placeholderAggs = new ArrayList<>();
-        List<SiblingPipelineAggregator> pipelineAggs = new ArrayList<>();
-        placeholderResponse.getAggregations().asList().forEach(agg -> {
-            logger.error(agg.getClass().getSimpleName() + "  " + agg.getName() +  "  " + agg.getType() + "  " + agg.toString());
-            if (agg instanceof InternalBucketMetricValue) {
-                if (agg.getType().equals(MaxBucketPipelineAggregationBuilder.NAME)) {
-                    try {
-                        pipelineAggs.add((SiblingPipelineAggregator) new MaxBucketPipelineAggregationBuilder(agg.getName(), "histo>the_max").create());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
 
-            } else {
-                placeholderAggs.add((InternalAggregation) agg);
-            }
-        });
+        // Top-level sibling pipelines have to be removed.  The "empty" search will execute and while child
+        // pipeline aggs will be present as their internal representation which can be reduced, top-level sibling
+        // aggs fully "resolve" to the final output (e.g. BucketMetricValue) which are not reduce'able.
+        List<InternalAggregation> placeholderAggs = placeholderResponse.getAggregations()
+            .asList()
+            .stream()
+            .filter(aggregation -> PIPELINE_NAMES.contains(aggregation.getType()) == false)
+            .map(InternalAggregation.class::cast).collect(Collectors.toList());
 
-        logger.error(pipelineAggs);
-        logger.error(placeholderAggs);
-
+        // By merging the "empty" search in first, we make sure the instance doing the reductions contains the
+        // child pipeline aggs
         currentReduction += 1;
         currentTree = InternalAggregations.reduce(Arrays.asList(currentTree, new InternalAggregations(placeholderAggs)),
             new InternalAggregation.ReduceContext(reduceContext.bigArrays(), reduceContext.scriptService(), false));
-
 
         for (SearchResponse rolledResponse : rolledResponses) {
             List<InternalAggregation> unrolledAggs = new ArrayList<>(rolledResponse.getAggregations().asList().size());
@@ -331,20 +344,21 @@ public class RollupResponseTranslator {
                     new InternalAggregation.ReduceContext(reduceContext.bigArrays(), reduceContext.scriptService(), currentReduction == numReductions));
         }
 
-        if (pipelineAggs.isEmpty() == false) {
+        // Now that we're done with the regular aggs and child pipelines, reduce sibling pipelines if we have them
+        if (siblingPipelineAggs.isEmpty() == false) {
             assert currentTree != null;
             List<InternalAggregation> currentTreeAggs = currentTree.asList()
                 .stream()
                 .map((p) -> (InternalAggregation) p)
                 .collect(Collectors.toList());
 
-            for (SiblingPipelineAggregator pipelineAggregator : pipelineAggs) {
-                InternalAggregation newAgg = pipelineAggregator.doReduce(new InternalAggregations(currentTreeAggs), reduceContext);
+            for (AbstractPipelineAggregationBuilder pipelineBuilder : siblingPipelineAggs) {
+                SiblingPipelineAggregator pipeline = (SiblingPipelineAggregator) pipelineBuilder.create();
+                InternalAggregation newAgg = pipeline.doReduce(new InternalAggregations(currentTreeAggs), reduceContext);
                 currentTreeAggs.add(newAgg);
             }
             currentTree =  new InternalAggregations(currentTreeAggs);
         }
-
 
         return mergeFinalResponse(liveResponse, rolledResponses, currentTree);
     }

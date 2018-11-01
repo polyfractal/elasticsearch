@@ -117,7 +117,12 @@ public class MergingBucketsDeferringCollector extends DeferringBucketCollector {
             for (PackedLongValues.Iterator itr = sourceEntry.buckets.iterator(); itr.hasNext();) {
                 long bucket = itr.next();
                 if (bucket > 0) {
-                    newBuckets.add(mergeMap[Math.toIntExact(bucket)]);
+
+                    // Only merge in the ordinal if it hasn't been "removed", signified with -1
+                    long ordinal = mergeMap[Math.toIntExact(bucket)];
+                    if (ordinal != -1) {
+                        newBuckets.add(ordinal);
+                    }
                 }
             }
             newEntries.add(new Entry(sourceEntry.context, sourceEntry.docDeltas, newBuckets.build()));
@@ -131,9 +136,13 @@ public class MergingBucketsDeferringCollector extends DeferringBucketCollector {
             PackedLongValues.Builder newBuckets = PackedLongValues.packedBuilder(PackedInts.DEFAULT);
             for (PackedLongValues.Iterator itr = currentBuckets.iterator(); itr.hasNext();) {
                 long bucket = itr.next();
-                if (bucket > 0) {
-                    newBuckets.add(mergeMap[Math.toIntExact(bucket)]);
+                long ordinal = mergeMap[Math.toIntExact(bucket)];
+
+                // Only merge in the ordinal if it hasn't been "removed", signified with -1
+                if (ordinal != -1) {
+                    newBuckets.add(ordinal);
                 }
+
             }
             buckets = newBuckets;
         }
@@ -186,18 +195,20 @@ public class MergingBucketsDeferringCollector extends DeferringBucketCollector {
             int doc = 0;
             for (long i = 0, end = entry.docDeltas.size(); i < end; ++i) {
                 doc += docDeltaIterator.next();
-                final long bucket = buckets.next();
-                final long rebasedBucket = hash.find(bucket);
-                if (rebasedBucket != -1) {
-                    if (needsScores) {
-                        if (docIt.docID() < doc) {
-                            docIt.advance(doc);
+                if (buckets.hasNext()) {
+                    final long bucket = buckets.next();
+                    final long rebasedBucket = hash.find(bucket);
+                    if (rebasedBucket != -1) {
+                        if (needsScores) {
+                            if (docIt.docID() < doc) {
+                                docIt.advance(doc);
+                            }
+                            // aggregations should only be replayed on matching
+                            // documents
+                            assert docIt.docID() == doc;
                         }
-                        // aggregations should only be replayed on matching
-                        // documents
-                        assert docIt.docID() == doc;
+                        leafCollector.collect(doc, rebasedBucket);
                     }
-                    leafCollector.collect(doc, rebasedBucket);
                 }
             }
         }

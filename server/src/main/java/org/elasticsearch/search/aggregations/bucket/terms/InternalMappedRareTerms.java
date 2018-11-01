@@ -37,14 +37,14 @@ public abstract class InternalMappedRareTerms<A extends InternalTerms<A, B>, B e
         return maxDocCount;
     }
 
-    public BloomFilter getBloom() {
+    BloomFilter getBloom() {
         return bloom;
     }
 
     /**
      * Read from a stream.
      */
-    protected InternalMappedRareTerms(StreamInput in, Bucket.Reader<B> bucketReader) throws IOException {
+    InternalMappedRareTerms(StreamInput in, Bucket.Reader<B> bucketReader) throws IOException {
         super(in, bucketReader);
         maxDocCount = in.readLong();
         bloom = new BloomFilter(in);

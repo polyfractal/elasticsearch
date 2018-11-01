@@ -18,6 +18,8 @@
  */
 package org.elasticsearch.search.aggregations.bucket.terms;
 
+import com.carrotsearch.hppc.LongLongHashMap;
+import com.carrotsearch.hppc.cursors.LongLongCursor;
 import org.apache.log4j.Logger;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SortedNumericDocValues;
@@ -55,35 +57,30 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
     private static final Logger logger = Logger.getLogger(LongRareTermsAggregator.class.getName());
 
     //TODO better way to do this?
-    protected final LongObjectPagedHashMap<IntArray> map;
-    protected final LongHash bucketOrds;
-    protected LeafBucketCollector subCollectors;
-    protected final BloomFilter bloom;
-    protected final ValuesSource.Numeric valuesSource;
-
+    protected LongLongHashMap map;
+    protected LongHash bucketOrds;
+    private LeafBucketCollector subCollectors;
+    private final BloomFilter bloom;
+    private final ValuesSource.Numeric valuesSource;
     private final IncludeExclude.LongFilter longFilter;
     private final int maxDocCount;
-    private final BigArrays bigArrays;
     private final DocValueFormat format;
     private MergingBucketsDeferringCollector deferringCollector;
 
+    private final long GC_THRESHOLD = 10;
+
     public LongRareTermsAggregator(String name, AggregatorFactories factories, ValuesSource.Numeric valuesSource, DocValueFormat format,
                                    SearchContext aggregationContext, Aggregator parent, IncludeExclude.LongFilter longFilter,
-                                   int maxDocCount, List<PipelineAggregator> pipelineAggregators, Map<String, Object> metaData) throws IOException {
+                                   int maxDocCount, List<PipelineAggregator> pipelineAggregators,
+                                   Map<String, Object> metaData) throws IOException {
         super(name, factories, aggregationContext, parent, pipelineAggregators, metaData);
         this.valuesSource = valuesSource;
         this.longFilter = longFilter;
         this.maxDocCount = maxDocCount;
-        this.map = new LongObjectPagedHashMap<>(16, aggregationContext.bigArrays());
+        this.map = new LongLongHashMap();
         this.bloom = BloomFilter.Factory.DEFAULT.createFilter(10000000);
-        this.bigArrays = aggregationContext.bigArrays();
         this.bucketOrds = new LongHash(1, aggregationContext.bigArrays());
         this.format = format;
-    }
-
-    @Override
-    public boolean needsScores() {
-        return (valuesSource != null && valuesSource.needsScores()) || super.needsScores();
     }
 
     @Override
@@ -109,6 +106,8 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
             subCollectors = sub;
         }
         return new LeafBucketCollectorBase(sub, values) {
+            private long numDeleted = 0;
+
             @Override
             public void collect(int docId, long owningBucketOrdinal) throws IOException {
                 if (values.advanceExact(docId)) {
@@ -119,16 +118,11 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
                         final long val = values.nextValue();
                         if (previous != val || i == 0) {
                             if ((longFilter == null) || (longFilter.accept(val))) {
-
-                                if (!bloom.mightContain(val)) {
-                                    IntArray docs = map.get(val);
-                                    if (docs == null) {
+                                if (bloom.mightContain(val) == false) {
+                                    long termCount = map.get(val);
+                                    if (termCount == 0) {
                                         // Brand new term, save into map
-                                        // size BigArray to 1, we'll be optimistic the term is rare
-                                        // and most rare terms are freq 1 instead of maxDocCount
-                                        docs = bigArrays.newIntArray(1, false);
-                                        docs.set(0, docId);
-                                        map.put(val, docs);
+                                        map.put(val, 1L);
                                         long bucketOrdinal = bucketOrds.add(val);
                                         if (bucketOrdinal < 0) { // already seen
                                             bucketOrdinal = - 1 - bucketOrdinal;
@@ -139,17 +133,20 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
                                     } else {
                                         // We've seen this term before, but less than the threshold
                                         // so just increment its counter
-                                        if (docs.size() < maxDocCount) {
+                                        if (termCount < maxDocCount) {
                                             // TODO if we only need maxDocCount==1, we could specialize
                                             // and use a bitset instead of a counter scheme
-                                            bigArrays.grow(docs, docs.size() + 1);
-                                            docs.set(docs.size(), docId);
-                                            //map.put(val, valueCount + 1);
+                                            map.put(val, termCount + 1);
                                         } else {
                                             // Otherwise we've breached the threshold, remove from
                                             // the map and add to the bloom filter
                                             map.remove(val);
                                             bloom.put(val);
+                                            numDeleted += 1;
+
+                                            if (numDeleted > GC_THRESHOLD) {
+                                                gcDeletedEntries();
+                                            }
                                         }
                                     }
                                 }
@@ -162,46 +159,49 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
         };
     }
 
+    private void gcDeletedEntries() {
+        try (LongHash oldBucketOrds = bucketOrds) {
+            LongHash newBucketOrds = new LongHash(1, context.bigArrays());
+            long[] mergeMap = new long[(int) oldBucketOrds.size()];
 
-    @Override
-    protected void doPostCollection() throws IOException {
-        // During collection, we didn't run any of the sub-agg collections.
-        // Even though RareTerms only runs in breadth_first, if we collected sub-aggs
-        // during the main collection we'd potentially be storing ordinals that would
-        // later get removed.
-        //
-        // By collecting sub-aggs in postCollection(), we guarantee it is only
-        // called on the surviving buckets
-        logger.error("PostCollection()");
-        for (LongObjectPagedHashMap.Cursor<IntArray> cursor : map) {
-            for (int i = 0; i < cursor.value.size(); i++) {
-                long bucketOrdinal = bucketOrds.add(cursor.key);
-                if (bucketOrdinal < 0) { // already seen
-                    bucketOrdinal = - 1 - bucketOrdinal;
-                    collectExistingBucket(subCollectors, cursor.value.get(i), bucketOrdinal);
-                } else {
-                    collectBucket(subCollectors, cursor.value.get(i), bucketOrdinal);
+            for (int i = 0; i < oldBucketOrds.size(); i++) {
+                long oldKey = oldBucketOrds.get(i);
+                long newBucketOrd = -1;
+
+                // if the key still exists in our map, reinsert into the new ords
+                if (map.containsKey(Math.toIntExact(oldKey))) {
+                    newBucketOrd = newBucketOrds.add(oldKey);
                 }
-                logger.error(cursor.key + ":" + bucketOrdinal);
+                mergeMap[i] = newBucketOrd;
             }
+            mergeBuckets(mergeMap, newBucketOrds.size());
+            if (deferringCollector != null) {
+                deferringCollector.mergeBuckets(mergeMap);
+            }
+            bucketOrds = newBucketOrds;
         }
     }
 
+    @Override
+    protected void doPostCollection() {
+        logger.error("PostCollection()");
+        gcDeletedEntries();
+    }
 
     @Override
     public InternalAggregation buildAggregation(long owningBucketOrdinal) throws IOException {
         assert owningBucketOrdinal == 0;
-        List<LongTerms.Bucket> buckets = new ArrayList<>((int)map.size());
+        List<LongTerms.Bucket> buckets = new ArrayList<>(map.size());
 
         logger.error("BuildAggregation");
-        for (LongObjectPagedHashMap.Cursor<IntArray> cursor : map) {
+        for (LongLongCursor cursor : map) {
             // All the term ordinals were already inserted during post-collection,
             // so we can just get them here
             logger.error(cursor.key);
             long bucketOrdinal = bucketOrds.find(cursor.key);
             LongTerms.Bucket bucket = new LongTerms.Bucket(0, 0, null, false, 0, format);
             bucket.term = cursor.key;
-            bucket.docCount = cursor.value.size();
+            bucket.docCount = cursor.value;
             bucket.bucketOrd = bucketOrdinal;
             buckets.add(bucket);
 
@@ -210,7 +210,7 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
 
         // Done with map and bloom, reclaim some memory
         bloom.close();
-        map.close();
+        map = null;
 
         runDeferredCollections(buckets.stream().mapToLong(b -> b.bucketOrd).toArray());
 
@@ -221,7 +221,7 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
         }
 
         CollectionUtil.introSort(buckets, ORDER.comparator(this));
-        return new LongRareTerms(name, ORDER, pipelineAggregators(), metaData(), format, buckets, 0, bloom);
+        return new LongRareTerms(name, ORDER, pipelineAggregators(), metaData(), format, buckets, maxDocCount, bloom);
     }
 
     @Override
@@ -231,6 +231,6 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
 
     @Override
     public void doClose() {
-        Releasables.close(map, bloom);
+        Releasables.close(bloom);
     }
 }

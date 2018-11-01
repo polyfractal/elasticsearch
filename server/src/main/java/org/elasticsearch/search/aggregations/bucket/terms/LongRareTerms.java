@@ -82,7 +82,7 @@ public class LongRareTerms extends InternalMappedRareTerms<LongRareTerms, LongTe
     @Override
     public InternalAggregation doReduce(List<InternalAggregation> aggregations, ReduceContext reduceContext) {
         for (InternalAggregation agg : aggregations) {
-            if (agg instanceof DoubleTerms) {
+            if (agg instanceof DoubleRareTerms) {
                 return agg.doReduce(aggregations, reduceContext);
             }
         }

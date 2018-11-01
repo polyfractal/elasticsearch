@@ -24,6 +24,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
@@ -59,6 +60,8 @@ import java.util.stream.Collectors;
  */
 public class SSLService extends AbstractComponent {
 
+    private final Settings settings;
+
     /**
      * This is a mapping from "context name" (in general use, the name of a setting key)
      * to a configuration.
@@ -85,7 +88,7 @@ public class SSLService extends AbstractComponent {
      * for use later
      */
     public SSLService(Settings settings, Environment environment) {
-        super(settings);
+        this.settings = settings;
         this.env = environment;
         this.globalSSLConfiguration = new SSLConfiguration(settings.getByPrefix(XPackSettings.GLOBAL_SSL_PREFIX));
         this.sslConfigurations = new HashMap<>();
@@ -94,7 +97,7 @@ public class SSLService extends AbstractComponent {
 
     private SSLService(Settings settings, Environment environment, SSLConfiguration globalSSLConfiguration,
                        Map<String, SSLConfiguration> sslConfigurations, Map<SSLConfiguration, SSLContextHolder> sslContexts) {
-        super(settings);
+        this.settings = settings;
         this.env = environment;
         this.globalSSLConfiguration = globalSSLConfiguration;
         this.sslConfigurations = sslConfigurations;
@@ -542,17 +545,6 @@ public class SSLService extends AbstractComponent {
             return context;
         }
 
-        /**
-         * Invalidates the sessions in the provided {@link SSLSessionContext}
-         */
-        private void invalidateSessions(SSLSessionContext sslSessionContext) {
-            Enumeration<byte[]> sessionIds = sslSessionContext.getIds();
-            while (sessionIds.hasMoreElements()) {
-                byte[] sessionId = sessionIds.nextElement();
-                sslSessionContext.getSession(sessionId).invalidate();
-            }
-        }
-
         synchronized void reload() {
             invalidateSessions(context.getClientSessionContext());
             invalidateSessions(context.getServerSessionContext());
@@ -589,6 +581,24 @@ public class SSLService extends AbstractComponent {
             TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("X509");
             trustManagerFactory.init(keyStore);
             return (X509ExtendedTrustManager) trustManagerFactory.getTrustManagers()[0];
+        }
+    }
+
+    /**
+     * Invalidates the sessions in the provided {@link SSLSessionContext}
+     */
+    static void invalidateSessions(SSLSessionContext sslSessionContext) {
+        Enumeration<byte[]> sessionIds = sslSessionContext.getIds();
+        while (sessionIds.hasMoreElements()) {
+            byte[] sessionId = sessionIds.nextElement();
+            SSLSession session = sslSessionContext.getSession(sessionId);
+            // a SSLSession could be null as there is no lock while iterating, the session cache
+            // could have evicted a value, the session could be timed out, or the session could
+            // have already been invalidated, which removes the value from the session cache in the
+            // sun implementation
+            if (session != null) {
+                session.invalidate();
+            }
         }
     }
 

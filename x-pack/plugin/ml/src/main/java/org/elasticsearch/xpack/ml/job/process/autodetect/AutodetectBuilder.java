@@ -19,9 +19,9 @@ import org.elasticsearch.xpack.core.ml.job.config.Job;
 import org.elasticsearch.xpack.core.ml.job.config.MlFilter;
 import org.elasticsearch.xpack.core.ml.job.config.ModelPlotConfig;
 import org.elasticsearch.xpack.core.ml.job.process.autodetect.state.Quantiles;
-import org.elasticsearch.xpack.ml.job.process.NativeController;
+import org.elasticsearch.xpack.ml.process.NativeController;
 import org.elasticsearch.xpack.ml.job.process.ProcessBuilderUtils;
-import org.elasticsearch.xpack.ml.job.process.ProcessPipes;
+import org.elasticsearch.xpack.ml.process.ProcessPipes;
 import org.elasticsearch.xpack.ml.job.process.autodetect.writer.AnalysisLimitsWriter;
 import org.elasticsearch.xpack.ml.job.process.autodetect.writer.FieldConfigWriter;
 import org.elasticsearch.xpack.ml.job.process.autodetect.writer.ModelPlotConfigWriter;
@@ -83,8 +83,16 @@ public class AutodetectBuilder {
     /**
      * The maximum number of anomaly records that will be written each bucket
      */
+    @Deprecated
     public static final Setting<Integer> MAX_ANOMALY_RECORDS_SETTING = Setting.intSetting("max.anomaly.records", DEFAULT_MAX_NUM_RECORDS,
-            Setting.Property.NodeScope);
+            Setting.Property.NodeScope, Setting.Property.Deprecated);
+    // Though this setting is dynamic, it is only set when a new job is opened. So, already runnin jobs will not get the updated value.
+    public static final Setting<Integer> MAX_ANOMALY_RECORDS_SETTING_DYNAMIC = Setting.intSetting(
+        "xpack.ml.max_anomaly_records",
+        MAX_ANOMALY_RECORDS_SETTING,
+        1,
+        Setting.Property.NodeScope,
+        Setting.Property.Dynamic);
 
     /**
      * Config setting storing the flag that disables model persistence
@@ -244,9 +252,8 @@ public class AutodetectBuilder {
         return command;
     }
 
-
     static String maxAnomalyRecordsArg(Settings settings) {
-        return "--maxAnomalyRecords=" + MAX_ANOMALY_RECORDS_SETTING.get(settings);
+        return "--maxAnomalyRecords=" + MAX_ANOMALY_RECORDS_SETTING_DYNAMIC.get(settings);
     }
 
     private static String getTimeFieldOrDefault(Job job) {

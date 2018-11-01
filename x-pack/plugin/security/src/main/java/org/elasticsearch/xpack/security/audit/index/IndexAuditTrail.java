@@ -55,7 +55,7 @@ import org.elasticsearch.xpack.core.security.authc.Authentication;
 import org.elasticsearch.xpack.core.security.authc.AuthenticationToken;
 import org.elasticsearch.xpack.core.security.index.IndexAuditTrailField;
 import org.elasticsearch.xpack.core.security.user.SystemUser;
-import org.elasticsearch.protocol.xpack.security.User;
+import org.elasticsearch.xpack.core.security.user.User;
 import org.elasticsearch.xpack.core.security.user.XPackUser;
 import org.elasticsearch.xpack.core.template.TemplateUtils;
 import org.elasticsearch.xpack.security.audit.AuditLevel;
@@ -165,6 +165,7 @@ public class IndexAuditTrail extends AbstractComponent implements AuditTrail, Cl
                     TimeValue.timeValueMillis(1L), Property.NodeScope);
 
     private final AtomicReference<State> state = new AtomicReference<>(State.INITIALIZED);
+    private final Settings settings;
     private final String nodeName;
     private final Client client;
     private final QueueConsumer queueConsumer;
@@ -185,7 +186,7 @@ public class IndexAuditTrail extends AbstractComponent implements AuditTrail, Cl
     }
 
     public IndexAuditTrail(Settings settings, Client client, ThreadPool threadPool, ClusterService clusterService) {
-        super(settings);
+        this.settings = settings;
         this.threadPool = threadPool;
         this.clusterService = clusterService;
         this.nodeName = Node.NODE_NAME_SETTING.get(settings);

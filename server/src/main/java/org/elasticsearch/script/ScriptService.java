@@ -109,6 +109,7 @@ public class ScriptService extends AbstractComponent implements Closeable, Clust
     public static final Setting<List<String>> CONTEXTS_ALLOWED_SETTING =
         Setting.listSetting("script.allowed_contexts", Collections.emptyList(), Function.identity(), Setting.Property.NodeScope);
 
+    private final Settings settings;
     private final Set<String> typesAllowed;
     private final Set<String> contextsAllowed;
 
@@ -127,9 +128,7 @@ public class ScriptService extends AbstractComponent implements Closeable, Clust
     private double compilesAllowedPerNano;
 
     public ScriptService(Settings settings, Map<String, ScriptEngine> engines, Map<String, ScriptContext<?>> contexts) {
-        super(settings);
-
-        Objects.requireNonNull(settings);
+        this.settings = Objects.requireNonNull(settings);
         this.engines = Objects.requireNonNull(engines);
         this.contexts = Objects.requireNonNull(contexts);
 
@@ -279,15 +278,6 @@ public class ScriptService extends AbstractComponent implements Closeable, Clust
             lang = source.getLang();
             idOrCode = source.getSource();
             options = source.getOptions();
-        }
-
-        // TODO: fix this through some API or something, that's wrong
-        // special exception to prevent expressions from compiling as update or mapping scripts
-        boolean expression = "expression".equals(lang);
-        boolean notSupported = context.name.equals(UpdateScript.CONTEXT.name);
-        if (expression && notSupported) {
-            throw new UnsupportedOperationException("scripts of type [" + script.getType() + "]," +
-                " operation [" + context.name + "] and lang [" + lang + "] are not supported");
         }
 
         ScriptEngine scriptEngine = getEngine(lang);

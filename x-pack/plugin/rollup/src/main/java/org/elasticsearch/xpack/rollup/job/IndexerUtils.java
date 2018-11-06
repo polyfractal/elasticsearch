@@ -8,18 +8,28 @@ package org.elasticsearch.xpack.rollup.job;
 import org.apache.log4j.Logger;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.common.rounding.DateTimeUnit;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.bucket.composite.CompositeAggregation;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.histogram.HistogramAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.elasticsearch.search.aggregations.metrics.InternalNumericMetricsAggregation;
+import org.elasticsearch.search.aggregations.metrics.MaxAggregationBuilder;
 import org.elasticsearch.xpack.core.rollup.RollupField;
 import org.elasticsearch.xpack.core.rollup.job.DateHistogramGroupConfig;
 import org.elasticsearch.xpack.core.rollup.job.GroupConfig;
 import org.elasticsearch.xpack.core.rollup.job.RollupIndexerJobStats;
 import org.elasticsearch.xpack.rollup.Rollup;
+import org.elasticsearch.xpack.rollup.RollupJobIdentifierUtils;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeField;
+import org.joda.time.DateTimeZone;
+import org.joda.time.DurationField;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -69,6 +79,7 @@ class IndexerUtils {
             processKeys(keys, doc, b.getDocCount(), groupConfig, idGenerator);
             idGenerator.add(jobId);
             processMetrics(metrics, doc);
+            enrichWithMaxDate(doc, groupConfig.getDateHistogram());
 
             doc.put(RollupField.ROLLUP_META + "." + RollupField.VERSION_FIELD,
                 isUpgradedDocID ? Rollup.CURRENT_ROLLUP_VERSION : Rollup.ROLLUP_VERSION_V1);
@@ -139,5 +150,23 @@ class IndexerUtils {
 
         // Go back through and remove all empty counts
         emptyCounts.forEach(m -> doc.remove(m.replace(RollupField.COUNT_FIELD, RollupField.VALUE)));
+    }
+
+    private static void enrichWithMaxDate(Map<String, Object> doc, DateHistogramGroupConfig config) {
+        String dateField = config.getField();
+        String dateMaxAgg = RollupField.formatFieldName(dateField, MaxAggregationBuilder.NAME, RollupField.VALUE);
+        if (doc.containsKey(dateMaxAgg) == false) {
+            String timestampField = RollupField.formatFieldName(dateField, DateHistogramAggregationBuilder.NAME, RollupField.TIMESTAMP);
+            long timestamp = (long) doc.get(timestampField);
+
+            if (RollupJobIdentifierUtils.isCalendarInterval(config.getInterval())) {
+                DateTimeField interval = RollupJobIdentifierUtils.convertIntervalToDateTime(config.getInterval()).field(DateTimeZone.UTC);
+                timestamp = interval.add(timestamp, 1);
+            } else {
+                long interval = RollupJobIdentifierUtils.convertIntervalToLong(config.getInterval(), "date_histogram.max");
+                timestamp += interval;
+            }
+            doc.put(dateMaxAgg, timestamp);
+        }
     }
 }

@@ -139,7 +139,7 @@ public class RollupJobIdentifierUtils {
         }
     }
 
-    private static boolean isCalendarInterval(DateHistogramInterval interval) {
+    public static boolean isCalendarInterval(DateHistogramInterval interval) {
         return DateHistogramAggregationBuilder.DATE_FIELD_UNITS.containsKey(interval.toString());
     }
 
@@ -152,9 +152,9 @@ public class RollupJobIdentifierUtils {
 
         // The request must be gte the config.  The CALENDAR_ORDERING map values are integers representing
         // relative orders between the calendar units
-        DateTimeUnit requestUnit = DateHistogramAggregationBuilder.DATE_FIELD_UNITS.get(requestInterval.toString());
+        DateTimeUnit requestUnit = convertIntervalToDateTime(requestInterval);
         long requestOrder = requestUnit.field(DateTimeZone.UTC).getDurationField().getUnitMillis();
-        DateTimeUnit configUnit = DateHistogramAggregationBuilder.DATE_FIELD_UNITS.get(configInterval.toString());
+        DateTimeUnit configUnit = convertIntervalToDateTime(configInterval);
         long configOrder = configUnit.field(DateTimeZone.UTC).getDurationField().getUnitMillis();
 
         // All calendar units are multiples naturally, so we just care about gte
@@ -169,10 +169,8 @@ public class RollupJobIdentifierUtils {
         }
 
         // Both are fixed, good to convert to millis now
-        long configIntervalMillis = TimeValue.parseTimeValue(configInterval.toString(),
-            "date_histo.config.interval").getMillis();
-        long requestIntervalMillis = TimeValue.parseTimeValue(requestInterval.toString(),
-            "date_histo.request.interval").getMillis();
+        long configIntervalMillis = convertIntervalToLong(configInterval);
+        long requestIntervalMillis = convertIntervalToLong(configInterval);
 
         // Must be a multiple and gte the config
         return requestIntervalMillis >= configIntervalMillis && requestIntervalMillis % configIntervalMillis == 0;
@@ -183,13 +181,23 @@ public class RollupJobIdentifierUtils {
         if (isCalendarInterval(configInterval)) {
             return false;
         }
-        long configIntervalMillis = TimeValue.parseTimeValue(configInterval.toString(),
-            "date_histo.config.interval").getMillis();
+        long configIntervalMillis = convertIntervalToLong(configInterval);
 
         // Must be a multiple and gte the config
         return requestInterval >= configIntervalMillis && requestInterval % configIntervalMillis == 0;
     }
 
+    public static DateTimeUnit convertIntervalToDateTime(DateHistogramInterval interval) {
+        return DateHistogramAggregationBuilder.DATE_FIELD_UNITS.get(interval.toString());
+    }
+
+    public static long convertIntervalToLong(DateHistogramInterval interval) {
+        return convertIntervalToLong(interval, "date_histo.config.interval");
+    }
+
+    public static long convertIntervalToLong(DateHistogramInterval interval, String source) {
+        return TimeValue.parseTimeValue(interval.toString(), source).getMillis();
+    }
     /**
      * Find the set of histo's with the largest interval
      */
@@ -200,7 +208,7 @@ public class RollupJobIdentifierUtils {
             if (fieldCaps != null) {
                 for (Map<String, Object> agg : fieldCaps.getAggs()) {
                     if (agg.get(RollupField.AGG).equals(HistogramAggregationBuilder.NAME)) {
-                        Long interval = (long)agg.get(RollupField.INTERVAL);
+                        long interval = (long)agg.get(RollupField.INTERVAL);
                         // query interval must be gte the configured interval, and a whole multiple
                         if (interval <= source.interval() && source.interval() % interval == 0) {
                             localCaps.add(cap);
@@ -387,7 +395,7 @@ public class RollupJobIdentifierUtils {
     static long getMillisFixedOrCalendar(String value) {
         DateHistogramInterval interval = new DateHistogramInterval(value);
         if (isCalendarInterval(interval)) {
-            DateTimeUnit intervalUnit = DateHistogramAggregationBuilder.DATE_FIELD_UNITS.get(interval.toString());
+            DateTimeUnit intervalUnit = convertIntervalToDateTime(interval);
             return intervalUnit.field(DateTimeZone.UTC).getDurationField().getUnitMillis();
         } else {
             return TimeValue.parseTimeValue(value, "date_histo.comparator.interval").getMillis();

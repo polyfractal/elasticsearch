@@ -22,12 +22,14 @@ import org.elasticsearch.xpack.core.rollup.RollupField;
 import org.elasticsearch.xpack.core.rollup.action.GetRollupCapsAction;
 import org.elasticsearch.xpack.core.rollup.action.RollableIndexCaps;
 import org.elasticsearch.xpack.core.rollup.action.RollupJobCaps;
+import org.elasticsearch.xpack.core.rollup.job.RollupJobConfig;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -53,9 +55,15 @@ public class TransportGetRollupCapsAction extends HandledTransportAction<GetRoll
         for (ObjectObjectCursor<String, IndexMetaData> entry : indices) {
 
             // Does this index have rollup metadata?
-            TransportGetRollupCapsAction.findRollupIndexCaps(entry.key, entry.value).ifPresent(cap -> {
+            TransportGetRollupCapsAction.findRollupIndexCaps(entry.key, entry.value).ifPresent(configs -> {
 
-                List<RollupJobCaps> jobCaps;
+                List<RollupJobCaps> jobCaps = configs.stream().map((Function<RollupJobConfig, RollupJobCaps>) config -> {
+                    if (config.getIndexPattern().equals(indexPattern) || indexPattern.equals(MetaData.ALL)) {
+                        enrichWithMaxTimestamp(config, entry.value);
+                    }
+                }).collect(Collectors.toList());
+
+                /*
                 if (indexPattern.equals(MetaData.ALL)) {
                     // This index has rollup metadata, and since we want _all, just process all of them
                     jobCaps = cap.getJobCaps();
@@ -63,16 +71,17 @@ public class TransportGetRollupCapsAction extends HandledTransportAction<GetRoll
                     // This index has rollup metadata, but is it for the index pattern that we're looking for?
                     jobCaps = cap.getJobCapsByIndexPattern(indexPattern);
                 }
+                */
 
                 jobCaps.forEach(jobCap -> {
-                    String pattern = indexPattern.equals(MetaData.ALL)
-                        ? jobCap.getIndexPattern() : indexPattern;
+                    String pattern = indexPattern.equals(MetaData.ALL) ? jobCap.getIndexPattern() : indexPattern;
 
                     // Do we already have an entry for this index pattern?
                     List<RollupJobCaps>  indexCaps = allCaps.get(pattern);
                     if (indexCaps == null) {
                         indexCaps = new ArrayList<>();
                     }
+                    enrichWithMaxTimestamp(jobCap, entry.value);
                     indexCaps.add(jobCap);
                     allCaps.put(pattern, indexCaps);
                 });
@@ -86,7 +95,7 @@ public class TransportGetRollupCapsAction extends HandledTransportAction<GetRoll
                 e -> new RollableIndexCaps(e.getKey(), e.getValue())));
     }
 
-    static Optional<RollupIndexCaps> findRollupIndexCaps(String indexName, IndexMetaData indexMetaData) {
+    static Optional<List<RollupJobConfig>> findRollupIndexCaps(String indexName, IndexMetaData indexMetaData) {
         if (indexMetaData == null) {
             return Optional.empty();
         }
@@ -101,12 +110,16 @@ public class TransportGetRollupCapsAction extends HandledTransportAction<GetRoll
             return Optional.empty();
         }
 
-        RollupIndexCaps caps = RollupIndexCaps.parseMetadataXContent(
+        List<RollupJobConfig> jobs = RollupIndexCaps.parseMetadataXContentToJobs(
             new BytesArray(rollupMapping.source().uncompressed()), indexName);
 
-        if (caps.hasCaps()) {
-            return Optional.of(caps);
+        if (jobs.isEmpty() == false) {
+            return Optional.of(jobs);
         }
         return Optional.empty();
+    }
+
+    static void enrichWithMaxTimestamp(RollupJobConfig job, IndexMetaData indexMetaData) {
+        //if (cap.getFieldCaps().get())
     }
 }

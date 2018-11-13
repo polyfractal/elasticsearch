@@ -37,7 +37,7 @@ public class RollupIndexCaps implements Writeable, ToXContentFragment {
 
     //TODO find a way to make this parsing less hacky :(
     // Note: we ignore unknown fields since there may be unrelated metadata
-    private static final ObjectParser<RollupIndexCaps, Void> METADATA_PARSER
+    private static final ObjectParser<RollupIndexCaps, Void> METADATA_CAPS_PARSER
             = new ObjectParser<>(GetRollupCapsAction.NAME, true, RollupIndexCaps::new);
     static {
         /*
@@ -57,7 +57,7 @@ public class RollupIndexCaps implements Writeable, ToXContentFragment {
               }
             }
          */
-        METADATA_PARSER.declareField((parser, rollupIndexCaps, aVoid) -> {
+        METADATA_CAPS_PARSER.declareField((parser, rollupIndexCaps, aVoid) -> {
             // "_doc"
             if (parser.currentName().equals(RollupField.TYPE_NAME) && parser.currentToken().equals(XContentParser.Token.START_OBJECT)) {
                 parser.nextToken();// START_OBJECT
@@ -80,6 +80,51 @@ public class RollupIndexCaps implements Writeable, ToXContentFragment {
                     }
                 }
                 rollupIndexCaps.setJobs(jobs);
+            }
+        }, INDEX_NAME, ObjectParser.ValueType.OBJECT);
+    }
+
+    private static final ObjectParser<List<RollupJobConfig>, Void> METADATA_JOB_PARSER
+        = new ObjectParser<>(GetRollupCapsAction.NAME, true, ArrayList::new);
+    static {
+        /*
+            Rollup index metadata layout is:
+
+            "_doc": {
+              "_meta" : {
+                "_rollup": {
+                  "job-1": {
+                  ... job config, parsable by RollupJobConfig.PARSER ...
+                  },
+                  "job-2": {
+                    ... job config, parsable by RollupJobConfig.PARSER ...
+                  }
+                },
+                "rollup-version": "7.0.0"
+              }
+            }
+         */
+        METADATA_JOB_PARSER.declareField((parser, rollupJobConfigs, aVoid) -> {
+            // "_doc"
+            if (parser.currentName().equals(RollupField.TYPE_NAME) && parser.currentToken().equals(XContentParser.Token.START_OBJECT)) {
+                parser.nextToken();// START_OBJECT
+
+                // "meta"
+                if (parser.currentName().equals("_meta") && parser.currentToken().equals(XContentParser.Token.FIELD_NAME)) {
+                    parser.nextToken(); // FIELD_NAME
+                    parser.nextToken(); // START_OBJECT
+
+                    // "_rollup"
+                    if (parser.currentName().equals(RollupField.ROLLUP_META) &&
+                        parser.currentToken().equals(XContentParser.Token.FIELD_NAME)) {
+                        parser.nextToken(); // FIELD_NAME
+
+                        // "job-1"
+                        while (parser.nextToken().equals(XContentParser.Token.END_OBJECT) == false) {
+                            rollupJobConfigs.add(RollupJobConfig.fromXContent(parser, null));
+                        }
+                    }
+                }
             }
         }, INDEX_NAME, ObjectParser.ValueType.OBJECT);
     }
@@ -121,7 +166,7 @@ public class RollupIndexCaps implements Writeable, ToXContentFragment {
         return jobCaps.stream().map(RollupJobCaps::getRollupIndex).collect(Collectors.toList());
     }
 
-    static RollupIndexCaps parseMetadataXContent(BytesReference source, String indexName) {
+    static RollupIndexCaps parseMetadataXContentToCaps(BytesReference source, String indexName) {
         XContentParser parser;
         try {
             parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, LoggingDeprecationHandler.INSTANCE,
@@ -130,7 +175,19 @@ public class RollupIndexCaps implements Writeable, ToXContentFragment {
             throw new RuntimeException("Unable to parse mapping metadata for index ["
                     + indexName + "]", e);
         }
-        return METADATA_PARSER.apply(parser, null);
+        return METADATA_CAPS_PARSER.apply(parser, null);
+    }
+
+    static List<RollupJobConfig> parseMetadataXContentToJobs(BytesReference source, String indexName) {
+        XContentParser parser;
+        try {
+            parser = XContentHelper.createParser(NamedXContentRegistry.EMPTY, LoggingDeprecationHandler.INSTANCE,
+                source, XContentType.JSON);
+        } catch (Exception e) {
+            throw new RuntimeException("Unable to parse mapping metadata for index ["
+                + indexName + "]", e);
+        }
+        return METADATA_JOB_PARSER.apply(parser, null);
     }
 
     @Override

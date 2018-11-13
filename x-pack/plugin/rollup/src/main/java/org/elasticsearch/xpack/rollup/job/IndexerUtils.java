@@ -16,6 +16,7 @@ import org.elasticsearch.search.aggregations.bucket.histogram.HistogramAggregati
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.elasticsearch.search.aggregations.metrics.InternalNumericMetricsAggregation;
 import org.elasticsearch.search.aggregations.metrics.MaxAggregationBuilder;
+import org.elasticsearch.search.aggregations.metrics.MinAggregationBuilder;
 import org.elasticsearch.xpack.core.rollup.RollupField;
 import org.elasticsearch.xpack.core.rollup.job.DateHistogramGroupConfig;
 import org.elasticsearch.xpack.core.rollup.job.GroupConfig;
@@ -80,6 +81,7 @@ class IndexerUtils {
             idGenerator.add(jobId);
             processMetrics(metrics, doc);
             enrichWithMaxDate(doc, groupConfig.getDateHistogram());
+            enrichWithMinDate(doc, groupConfig.getDateHistogram());
 
             doc.put(RollupField.ROLLUP_META + "." + RollupField.VERSION_FIELD,
                 isUpgradedDocID ? Rollup.CURRENT_ROLLUP_VERSION : Rollup.ROLLUP_VERSION_V1);
@@ -152,7 +154,7 @@ class IndexerUtils {
         emptyCounts.forEach(m -> doc.remove(m.replace(RollupField.COUNT_FIELD, RollupField.VALUE)));
     }
 
-    private static void enrichWithMaxDate(Map<String, Object> doc, DateHistogramGroupConfig config) {
+    static void enrichWithMaxDate(Map<String, Object> doc, DateHistogramGroupConfig config) {
         String dateField = config.getField();
         String dateMaxAgg = RollupField.formatFieldName(dateField, MaxAggregationBuilder.NAME, RollupField.VALUE);
         if (doc.containsKey(dateMaxAgg) == false) {
@@ -167,6 +169,18 @@ class IndexerUtils {
                 timestamp += interval;
             }
             doc.put(dateMaxAgg, timestamp);
+        }
+    }
+
+    static void enrichWithMinDate(Map<String, Object> doc, DateHistogramGroupConfig config) {
+        String dateField = config.getField();
+        String dateMinAgg = RollupField.formatFieldName(dateField, MinAggregationBuilder.NAME, RollupField.VALUE);
+        if (doc.containsKey(dateMinAgg) == false) {
+            String timestampField = RollupField.formatFieldName(dateField, DateHistogramAggregationBuilder.NAME, RollupField.TIMESTAMP);
+            long timestamp = (long) doc.get(timestampField);
+
+            // Unlike max, we can just set the min == the timestamp itself
+            doc.put(dateMinAgg, timestamp);
         }
     }
 }

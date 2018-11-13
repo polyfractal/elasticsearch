@@ -36,6 +36,7 @@ import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilde
 import org.elasticsearch.search.aggregations.metrics.InternalNumericMetricsAggregation;
 import org.elasticsearch.search.aggregations.metrics.AvgAggregationBuilder;
 import org.elasticsearch.search.aggregations.metrics.MaxAggregationBuilder;
+import org.elasticsearch.search.aggregations.metrics.MinAggregationBuilder;
 import org.elasticsearch.search.aggregations.metrics.SumAggregationBuilder;
 import org.elasticsearch.xpack.core.rollup.RollupField;
 import org.elasticsearch.xpack.core.rollup.job.DateHistogramGroupConfig;
@@ -51,6 +52,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -127,6 +129,9 @@ public class IndexerUtilsTests extends AggregatorTestCase {
             Map<String, Object> map = doc.sourceAsMap();
             assertNull(map.get("does_not_exist"));
             assertThat(map.get("the_histo." + DateHistogramAggregationBuilder.NAME + "." + RollupField.COUNT_FIELD), equalTo(1));
+            assertNotNull(map.get(timestampField + "." + MaxAggregationBuilder.NAME + "." + RollupField.VALUE));
+            assertThat(map.get(timestampField + "." + MinAggregationBuilder.NAME + "." + RollupField.VALUE),
+                equalTo(map.get(timestampField + "." + DateHistogramAggregationBuilder.NAME + "." + RollupField.TIMESTAMP)));
         }
     }
 
@@ -197,6 +202,9 @@ public class IndexerUtilsTests extends AggregatorTestCase {
             long max = (long) map.get("the_histo." + MaxAggregationBuilder.NAME + "." + RollupField.VALUE);
             long timestamp = (long) map.get("the_histo." + DateHistogramAggregationBuilder.NAME + "." + RollupField.TIMESTAMP);
             assertThat(max - timestamp, equalTo(msPerHour));
+
+            assertThat(map.get(timestampField + "." + MinAggregationBuilder.NAME + "." + RollupField.VALUE),
+                equalTo(map.get(timestampField + "." + DateHistogramAggregationBuilder.NAME + "." + RollupField.TIMESTAMP)));
         }
     }
 
@@ -263,6 +271,9 @@ public class IndexerUtilsTests extends AggregatorTestCase {
             Map<String, Object> map = doc.sourceAsMap();
             assertNotNull( map.get(valueField + "." + MaxAggregationBuilder.NAME + "." + RollupField.VALUE));
             assertThat(map.get("value_field." + TermsAggregationBuilder.NAME + "." + RollupField.COUNT_FIELD), equalTo(1));
+            assertNotNull(map.get(timestampField + "." + MaxAggregationBuilder.NAME + "." + RollupField.VALUE));
+            assertThat(map.get(timestampField + "." + MinAggregationBuilder.NAME + "." + RollupField.VALUE),
+                equalTo(map.get(timestampField + "." + DateHistogramAggregationBuilder.NAME + "." + RollupField.TIMESTAMP)));
         }
     }
 
@@ -329,6 +340,9 @@ public class IndexerUtilsTests extends AggregatorTestCase {
             assertNull(map.get("another_field." + AvgAggregationBuilder.NAME + "." + RollupField.VALUE));
             assertNotNull(map.get("another_field." + SumAggregationBuilder.NAME + "." + RollupField.VALUE));
             assertThat(map.get("the_histo." + DateHistogramAggregationBuilder.NAME + "." + RollupField.COUNT_FIELD), equalTo(1));
+            assertNotNull(map.get(timestampField + "." + MaxAggregationBuilder.NAME + "." + RollupField.VALUE));
+            assertThat(map.get(timestampField + "." + MinAggregationBuilder.NAME + "." + RollupField.VALUE),
+                equalTo(map.get(timestampField + "." + DateHistogramAggregationBuilder.NAME + "." + RollupField.TIMESTAMP)));
         }
     }
 
@@ -568,7 +582,7 @@ public class IndexerUtilsTests extends AggregatorTestCase {
 
         CompositeAggregationBuilder compositeBuilder =
             new CompositeAggregationBuilder(RollupIndexer.AGGREGATION_NAME, RollupIndexer.createValueSourceBuilders(groupConfig))
-                .size(numDocs*2);
+                .size(numDocs * 2);
 
         MetricConfig metricConfig = new MetricConfig(metricField, singletonList("max"));
         List<AggregationBuilder> metricAgg = createAggregationBuilders(singletonList(metricConfig));
@@ -587,16 +601,78 @@ public class IndexerUtilsTests extends AggregatorTestCase {
         assertThat(docs.size(), equalTo(10));
         for (IndexRequest doc : docs) {
             Map<String, Object> map = doc.sourceAsMap();
-            Object value = map.get(valueField + "." + TermsAggregationBuilder.NAME + "." + RollupField.VALUE);
-            if (value == null) {
-                assertThat(map.get(valueField + "." + TermsAggregationBuilder.NAME + "." + RollupField.COUNT_FIELD), equalTo(5));
-            } else {
-                assertThat(map.get(valueField + "." + TermsAggregationBuilder.NAME + "." + RollupField.COUNT_FIELD), equalTo(1));
-            }
+            assertThat(map.get(valueField + "." + TermsAggregationBuilder.NAME + "." + RollupField.COUNT_FIELD), equalTo(1));
+            assertNotNull(map.get(timestampField + "." + MaxAggregationBuilder.NAME + "." + RollupField.VALUE));
+            assertThat(map.get(timestampField + "." + MinAggregationBuilder.NAME + "." + RollupField.VALUE),
+                equalTo(map.get(timestampField + "." + DateHistogramAggregationBuilder.NAME + "." + RollupField.TIMESTAMP)));
         }
     }
 
-    interface Mock {
-        List<? extends CompositeAggregation.Bucket> getBuckets();
+    public void testEncrichMaxFixedTimeNoMaxAgg() {
+        String dateField = "timestamp";
+        DateHistogramInterval interval = new DateHistogramInterval("100ms");
+        DateHistogramGroupConfig dateHistoConfig = new DateHistogramGroupConfig(dateField, interval);
+
+        Map<String, Object> doc = new HashMap<>();
+        doc.put(RollupField.formatFieldName(dateField, DateHistogramAggregationBuilder.NAME, RollupField.TIMESTAMP), 100L);
+        IndexerUtils.enrichWithMaxDate(doc, dateHistoConfig);
+        assertThat(doc.get("timestamp.max.value"), equalTo(200L));
+    }
+
+    public void testEncrichMaxCalendarTimeNoMaxAgg() {
+        String dateField = "timestamp";
+        DateHistogramInterval interval = new DateHistogramInterval("1h");
+        DateHistogramGroupConfig dateHistoConfig = new DateHistogramGroupConfig(dateField, interval);
+
+        Map<String, Object> doc = new HashMap<>();
+        doc.put(RollupField.formatFieldName(dateField, DateHistogramAggregationBuilder.NAME, RollupField.TIMESTAMP), 100L);
+        IndexerUtils.enrichWithMaxDate(doc, dateHistoConfig);
+        assertThat(doc.get("timestamp.max.value"), equalTo(3600100L));
+    }
+
+    public void testEncrichMaxHasMax() {
+        String dateField = "timestamp";
+        DateHistogramInterval interval = new DateHistogramInterval("100ms");
+        DateHistogramGroupConfig dateHistoConfig = new DateHistogramGroupConfig(dateField, interval);
+
+        Map<String, Object> doc = new HashMap<>();
+        doc.put(RollupField.formatFieldName(dateField, DateHistogramAggregationBuilder.NAME, RollupField.TIMESTAMP), 100L);
+        doc.put(RollupField.formatFieldName(dateField, MaxAggregationBuilder.NAME, RollupField.VALUE), 500L);
+        IndexerUtils.enrichWithMaxDate(doc, dateHistoConfig);
+        assertThat(doc.get("timestamp.max.value"), equalTo(500L));
+    }
+
+    public void testEncrichMinFixedTimeNoMinAgg() {
+        String dateField = "timestamp";
+        DateHistogramInterval interval = new DateHistogramInterval("100ms");
+        DateHistogramGroupConfig dateHistoConfig = new DateHistogramGroupConfig(dateField, interval);
+
+        Map<String, Object> doc = new HashMap<>();
+        doc.put(RollupField.formatFieldName(dateField, DateHistogramAggregationBuilder.NAME, RollupField.TIMESTAMP), 100L);
+        IndexerUtils.enrichWithMinDate(doc, dateHistoConfig);
+        assertThat(doc.get("timestamp.min.value"), equalTo(100L));  // Same as timestamp
+    }
+
+    public void testEncrichMinCalendarTimeNoMinAgg() {
+        String dateField = "timestamp";
+        DateHistogramInterval interval = new DateHistogramInterval("1h");
+        DateHistogramGroupConfig dateHistoConfig = new DateHistogramGroupConfig(dateField, interval);
+
+        Map<String, Object> doc = new HashMap<>();
+        doc.put(RollupField.formatFieldName(dateField, DateHistogramAggregationBuilder.NAME, RollupField.TIMESTAMP), 100L);
+        IndexerUtils.enrichWithMinDate(doc, dateHistoConfig);
+        assertThat(doc.get("timestamp.min.value"), equalTo(100L));  // Same as timestamp
+    }
+
+    public void testEncrichMinHasMin() {
+        String dateField = "timestamp";
+        DateHistogramInterval interval = new DateHistogramInterval("100ms");
+        DateHistogramGroupConfig dateHistoConfig = new DateHistogramGroupConfig(dateField, interval);
+
+        Map<String, Object> doc = new HashMap<>();
+        doc.put(RollupField.formatFieldName(dateField, DateHistogramAggregationBuilder.NAME, RollupField.TIMESTAMP), 100L);
+        doc.put(RollupField.formatFieldName(dateField, MinAggregationBuilder.NAME, RollupField.VALUE), 110L);
+        IndexerUtils.enrichWithMaxDate(doc, dateHistoConfig);
+        assertThat(doc.get("timestamp.min.value"), equalTo(110L));  // Same as min aggregation
     }
 }

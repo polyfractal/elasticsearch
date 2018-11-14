@@ -20,16 +20,12 @@ package org.elasticsearch.search.aggregations.bucket.terms;
 
 import com.carrotsearch.hppc.LongLongHashMap;
 import com.carrotsearch.hppc.cursors.LongLongCursor;
-import org.apache.log4j.Logger;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.util.CollectionUtil;
 import org.elasticsearch.common.lease.Releasables;
-import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.BloomFilter;
-import org.elasticsearch.common.util.IntArray;
 import org.elasticsearch.common.util.LongHash;
-import org.elasticsearch.common.util.LongObjectPagedHashMap;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
@@ -51,12 +47,14 @@ import java.util.Map;
 
 import static java.util.Collections.emptyList;
 
+/**
+ * An aggregator that finds "rare" string values (e.g. terms agg that orders ascending)
+ */
 public class LongRareTermsAggregator extends DeferableBucketAggregator {
 
     static final BucketOrder ORDER = BucketOrder.compound(BucketOrder.count(true), BucketOrder.key(true)); // sort by count ascending
-    private static final Logger logger = Logger.getLogger(LongRareTermsAggregator.class.getName());
 
-    //TODO better way to do this?
+    //TODO review question: is LongLong map ok?
     protected LongLongHashMap map;
     protected LongHash bucketOrds;
     private LeafBucketCollector subCollectors;
@@ -67,6 +65,11 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
     private final DocValueFormat format;
     private MergingBucketsDeferringCollector deferringCollector;
 
+    // TODO review question: What to set this at?
+    /**
+      Sets the number of "removed" values to accumulate before we purge ords
+     via the MergingBucketCollector's mergeBuckets() method
+     */
     private final long GC_THRESHOLD = 10;
 
     public LongRareTermsAggregator(String name, AggregatorFactories factories, ValuesSource.Numeric valuesSource, DocValueFormat format,
@@ -78,6 +81,7 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
         this.longFilter = longFilter;
         this.maxDocCount = maxDocCount;
         this.map = new LongLongHashMap();
+        // TODO review: should we expose the BF settings?  What's a good default?
         this.bloom = BloomFilter.Factory.DEFAULT.createFilter(10000000);
         this.bucketOrds = new LongHash(1, aggregationContext.bigArrays());
         this.format = format;
@@ -169,7 +173,7 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
                 long newBucketOrd = -1;
 
                 // if the key still exists in our map, reinsert into the new ords
-                if (map.containsKey(Math.toIntExact(oldKey))) {
+                if (map.containsKey(oldKey)) {
                     newBucketOrd = newBucketOrds.add(oldKey);
                 }
                 mergeMap[i] = newBucketOrd;
@@ -184,7 +188,8 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
 
     @Override
     protected void doPostCollection() {
-        logger.error("PostCollection()");
+        // Make sure we do one final GC to clean up any deleted ords
+        // that may be lingering (but still below GC threshold)
         gcDeletedEntries();
     }
 
@@ -193,11 +198,9 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
         assert owningBucketOrdinal == 0;
         List<LongTerms.Bucket> buckets = new ArrayList<>(map.size());
 
-        logger.error("BuildAggregation");
         for (LongLongCursor cursor : map) {
-            // All the term ordinals were already inserted during post-collection,
-            // so we can just get them here
-            logger.error(cursor.key);
+            // The collection managed pruning unwanted terms, so any
+            // terms that made it this far are "rare" and we want buckets
             long bucketOrdinal = bucketOrds.find(cursor.key);
             LongTerms.Bucket bucket = new LongTerms.Bucket(0, 0, null, false, 0, format);
             bucket.term = cursor.key;
@@ -214,10 +217,10 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
 
         runDeferredCollections(buckets.stream().mapToLong(b -> b.bucketOrd).toArray());
 
-        // Now build the aggs
+        // Finalize the buckets
         for (LongTerms.Bucket bucket : buckets) {
             bucket.aggregations = bucketAggregations(bucket.bucketOrd);
-            bucket.docCountError = 0;
+            bucket.docCountError = -1;  // TODO can we determine an error based on the bloom accuracy?
         }
 
         CollectionUtil.introSort(buckets, ORDER.comparator(this));
@@ -231,6 +234,6 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
 
     @Override
     public void doClose() {
-        Releasables.close(bloom);
+        Releasables.close(bloom, bucketOrds);
     }
 }

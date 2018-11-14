@@ -82,12 +82,12 @@ public class UnmappedRareTerms extends InternalTerms<UnmappedRareTerms, Unmapped
 
     @Override
     public InternalAggregation doReduce(List<InternalAggregation> aggregations, ReduceContext reduceContext) {
-        for (InternalAggregation agg : aggregations) {
-            if (!(agg instanceof UnmappedTerms)) {
-                return agg.reduce(aggregations, reduceContext);
-            }
-        }
-        return this;
+        return new UnmappedRareTerms(name, pipelineAggregators(), metaData);
+    }
+
+    @Override
+    public boolean isMapped() {
+        return false;
     }
 
     @Override

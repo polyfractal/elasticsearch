@@ -5,7 +5,6 @@ import org.apache.lucene.util.CollectionUtil;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.util.BloomFilter;
-import org.elasticsearch.common.util.CollectionUtils;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.BucketOrder;
@@ -66,12 +65,12 @@ public abstract class InternalMappedRareTerms<A extends InternalTerms<A, B>, B e
         for (InternalAggregation aggregation : aggregations) {
             @SuppressWarnings("unchecked")
             InternalTerms<A, B> terms = (InternalTerms<A, B>) aggregation;
-            if (referenceTerms == null && !aggregation.getClass().equals(UnmappedTerms.class)) {
+            if (referenceTerms == null && !aggregation.getClass().equals(UnmappedRareTerms.class)) {
                 referenceTerms = terms;
             }
             if (referenceTerms != null &&
                 !referenceTerms.getClass().equals(terms.getClass()) &&
-                !terms.getClass().equals(UnmappedTerms.class)) {
+                !terms.getClass().equals(UnmappedRareTerms.class)) {
                 // control gets into this loop when the same field name against which the query is executed
                 // is of different types in different indices.
                 throw new AggregationExecutionException("Merging/Reducing the aggregations failed when computing the aggregation ["

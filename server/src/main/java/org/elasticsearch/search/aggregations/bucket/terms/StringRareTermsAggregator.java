@@ -24,13 +24,13 @@ import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefBuilder;
 import org.apache.lucene.util.CollectionUtil;
+import org.elasticsearch.common.lease.Releasables;
 import org.elasticsearch.common.util.BloomFilter;
 import org.elasticsearch.common.util.BytesRefHash;
 import org.elasticsearch.index.fielddata.SortedBinaryDocValues;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
-import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.LeafBucketCollector;
 import org.elasticsearch.search.aggregations.LeafBucketCollectorBase;
@@ -43,28 +43,33 @@ import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 import static java.util.Collections.emptyList;
 
 /**
- * An aggregator of string values.
+ * An aggregator that finds "rare" string values (e.g. terms agg that orders ascending)
  */
 public class StringRareTermsAggregator extends DeferableBucketAggregator {
     private final ValuesSource valuesSource;
     private final IncludeExclude.StringFilter includeExclude;
 
-    // TODO: is there equivalent to LongObjectPagedHashMap like used in LongRareTerms?
-    protected final ObjectLongHashMap<BytesRef> map;
-    protected final BytesRefHash bucketOrds;
+    // TODO review question: is there equivalent to LongObjectPagedHashMap like used in LongRareTerms?
+    protected ObjectLongHashMap<BytesRef> map;
+    protected BytesRefHash bucketOrds;
 
     private final BloomFilter bloom;
     private final long maxDocCount;
     private MergingBucketsDeferringCollector deferringCollector;
     private final DocValueFormat format;
 
+    // TODO review question: What to set this at?
+    /**
+     Sets the number of "removed" values to accumulate before we purge ords
+     via the MergingBucketCollector's mergeBuckets() method
+     */
+    private final long GC_THRESHOLD = 10;
 
     public StringRareTermsAggregator(String name, AggregatorFactories factories, ValuesSource valuesSource,
                                      DocValueFormat format,  IncludeExclude.StringFilter includeExclude,
@@ -75,6 +80,7 @@ public class StringRareTermsAggregator extends DeferableBucketAggregator {
         this.valuesSource = valuesSource;
         this.includeExclude = includeExclude;
         this.map = new ObjectLongHashMap<>();
+        // TODO review: should we expose the BF settings?  What's a good default?
         this.bloom = BloomFilter.Factory.DEFAULT.createFilter(10000000);
         this.format = format;
         this.bucketOrds = new BytesRefHash(1, context.bigArrays());
@@ -91,34 +97,34 @@ public class StringRareTermsAggregator extends DeferableBucketAggregator {
         return deferringCollector;
     }
 
-
     @Override
     public LeafBucketCollector getLeafCollector(LeafReaderContext ctx,
                                                 final LeafBucketCollector sub) throws IOException {
         final SortedBinaryDocValues values = valuesSource.bytesValues(ctx);
         return new LeafBucketCollectorBase(sub, values) {
             final BytesRefBuilder previous = new BytesRefBuilder();
+            private long numDeleted = 0;
 
             @Override
             public void collect(int doc, long bucket) throws IOException {
                 assert bucket == 0;
                 if (values.advanceExact(doc)) {
                     final int valuesCount = values.docValueCount();
+                    previous.clear();
 
                     // SortedBinaryDocValues don't guarantee uniqueness so we
                     // need to take care of dups
-                    previous.clear();
                     for (int i = 0; i < valuesCount; ++i) {
                         final BytesRef bytes = values.nextValue();
                         if (includeExclude != null && !includeExclude.accept(bytes)) {
                             continue;
                         }
-                        if (previous.get().equals(bytes)) {
+                        if (i > 0 && previous.get().equals(bytes)) {
                             continue;
                         }
 
                         if (bloom.mightContain(bytes) == false) {
-                            Long valueCount = map.get(bytes);
+                            long valueCount = map.get(bytes);
                             if (valueCount == 0) {
                                 // Brand new term, save into map
                                 map.put(BytesRef.deepCopyOf(bytes), 1L);
@@ -132,6 +138,11 @@ public class StringRareTermsAggregator extends DeferableBucketAggregator {
                                     // the map and add to the bloom filter
                                     map.remove(bytes);
                                     bloom.put(bytes);
+                                    numDeleted += 1;
+
+                                    if (numDeleted > GC_THRESHOLD) {
+                                        gcDeletedEntries();
+                                    }
                                 }
                             }
                         }
@@ -140,6 +151,37 @@ public class StringRareTermsAggregator extends DeferableBucketAggregator {
                 }
             }
         };
+    }
+
+    private void gcDeletedEntries() {
+        try (BytesRefHash oldBucketOrds = bucketOrds) {
+            BytesRefHash newBucketOrds = new BytesRefHash(1, context.bigArrays());
+            long[] mergeMap = new long[(int) oldBucketOrds.size()];
+
+            BytesRef scratch = new BytesRef();
+            for (int i = 0; i < oldBucketOrds.size(); i++) {
+                BytesRef oldKey = oldBucketOrds.get(i, scratch);
+                long newBucketOrd = -1;
+
+                // if the key still exists in our map, reinsert into the new ords
+                if (map.containsKey(oldKey)) {
+                    newBucketOrd = newBucketOrds.add(oldKey);
+                }
+                mergeMap[i] = newBucketOrd;
+            }
+            mergeBuckets(mergeMap, newBucketOrds.size());
+            if (deferringCollector != null) {
+                deferringCollector.mergeBuckets(mergeMap);
+            }
+            bucketOrds = newBucketOrds;
+        }
+    }
+
+    @Override
+    protected void doPostCollection() {
+        // Make sure we do one final GC to clean up any deleted ords
+        // that may be lingering (but still below GC threshold)
+        gcDeletedEntries();
     }
 
     @Override
@@ -153,6 +195,7 @@ public class StringRareTermsAggregator extends DeferableBucketAggregator {
 
             // We have to replay our map into a LongHash map because downstream
             // methods expect the same hashing layout.
+            /*
             long bucketOrdinal = bucketOrds.add(cursor.key);
             if (bucketOrdinal < 0) { // already seen
                 bucketOrdinal = -1 - bucketOrdinal;
@@ -162,35 +205,44 @@ public class StringRareTermsAggregator extends DeferableBucketAggregator {
             bucket.docCount = cursor.value;
             bucket.bucketOrd = bucketOrdinal;
             buckets.add(bucket);
+            */
+
+            // The collection managed pruning unwanted terms, so any
+            // terms that made it this far are "rare" and we want buckets
+            long bucketOrdinal = bucketOrds.find(cursor.key);
+            bucket.termBytes = BytesRef.deepCopyOf(cursor.key);
+            bucket.docCount = cursor.value;
+            bucket.bucketOrd = bucketOrdinal;
+            buckets.add(bucket);
+
+            consumeBucketsAndMaybeBreak(1);
         }
 
-        // Get the top buckets
-        final StringTerms.Bucket[] list = new StringTerms.Bucket[buckets.size()];
-        long survivingBucketOrds[] = new long[buckets.size()];
-        for (int i = buckets.size() - 1; i >= 0; --i) {
-            final StringTerms.Bucket bucket = buckets.get(i);
-            survivingBucketOrds[i] = bucket.bucketOrd;
-            list[i] = bucket;
-        }
-        // replay any deferred collections
-        runDeferredCollections(survivingBucketOrds);
+        // Done with map and bloom, reclaim some memory
+        bloom.close();
+        map = null;
 
-        // Now build the aggs
-        for (final StringTerms.Bucket bucket : list) {
-            bucket.termBytes = BytesRef.deepCopyOf(bucket.termBytes);
+        runDeferredCollections(buckets.stream().mapToLong(b -> b.bucketOrd).toArray());
+
+        // Finalize the buckets
+        for (StringTerms.Bucket bucket : buckets) {
             bucket.aggregations = bucketAggregations(bucket.bucketOrd);
-            bucket.docCountError = 0;
+            bucket.docCountError = -1;  // TODO can we determine an error based on the bloom accuracy?
         }
-        List<StringTerms.Bucket> finalList = Arrays.asList(list);
-        CollectionUtil.introSort(finalList, LongRareTermsAggregator.ORDER.comparator(this));
 
+        CollectionUtil.introSort(buckets, LongRareTermsAggregator.ORDER.comparator(this));
         return new StringRareTerms(name, LongRareTermsAggregator.ORDER, pipelineAggregators(), metaData(),
-            format, finalList, maxDocCount, bloom);
+            format, buckets, maxDocCount, bloom);
     }
 
     @Override
     public InternalAggregation buildEmptyAggregation() {
         return new StringRareTerms(name, LongRareTermsAggregator.ORDER, pipelineAggregators(), metaData(), format, emptyList(), 0, bloom);
+    }
+
+    @Override
+    public void doClose() {
+        Releasables.close(bloom, bucketOrds);
     }
 }
 

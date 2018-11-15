@@ -116,13 +116,11 @@ public class MergingBucketsDeferringCollector extends DeferringBucketCollector {
             PackedLongValues.Builder newBuckets = PackedLongValues.packedBuilder(PackedInts.DEFAULT);
             for (PackedLongValues.Iterator itr = sourceEntry.buckets.iterator(); itr.hasNext();) {
                 long bucket = itr.next();
-                if (bucket > 0) {
 
-                    // Only merge in the ordinal if it hasn't been "removed", signified with -1
-                    long ordinal = mergeMap[Math.toIntExact(bucket)];
-                    if (ordinal != -1) {
-                        newBuckets.add(ordinal);
-                    }
+                // Only merge in the ordinal if it hasn't been "removed", signified with -1
+                long ordinal = mergeMap[Math.toIntExact(bucket)];
+                if (ordinal != -1) {
+                    newBuckets.add(ordinal);
                 }
             }
             newEntries.add(new Entry(sourceEntry.context, sourceEntry.docDeltas, newBuckets.build()));

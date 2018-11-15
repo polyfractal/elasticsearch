@@ -58,7 +58,7 @@ public class StringRareTermsAggregator extends DeferableBucketAggregator {
     // TODO review question: is there equivalent to LongObjectPagedHashMap like used in LongRareTerms?
     protected ObjectLongHashMap<BytesRef> map;
     protected BytesRefHash bucketOrds;
-
+    private LeafBucketCollector subCollectors;
     private final BloomFilter bloom;
     private final long maxDocCount;
     private MergingBucketsDeferringCollector deferringCollector;
@@ -101,14 +101,17 @@ public class StringRareTermsAggregator extends DeferableBucketAggregator {
     public LeafBucketCollector getLeafCollector(LeafReaderContext ctx,
                                                 final LeafBucketCollector sub) throws IOException {
         final SortedBinaryDocValues values = valuesSource.bytesValues(ctx);
+        if (subCollectors == null) {
+            subCollectors = sub;
+        }
         return new LeafBucketCollectorBase(sub, values) {
             final BytesRefBuilder previous = new BytesRefBuilder();
             private long numDeleted = 0;
 
             @Override
-            public void collect(int doc, long bucket) throws IOException {
+            public void collect(int docId, long bucket) throws IOException {
                 assert bucket == 0;
-                if (values.advanceExact(doc)) {
+                if (values.advanceExact(docId)) {
                     final int valuesCount = values.docValueCount();
                     previous.clear();
 
@@ -128,6 +131,13 @@ public class StringRareTermsAggregator extends DeferableBucketAggregator {
                             if (valueCount == 0) {
                                 // Brand new term, save into map
                                 map.put(BytesRef.deepCopyOf(bytes), 1L);
+                                long bucketOrdinal = bucketOrds.add(bytes);
+                                if (bucketOrdinal < 0) { // already seen
+                                    bucketOrdinal = - 1 - bucketOrdinal;
+                                    collectExistingBucket(subCollectors, docId, bucketOrdinal);
+                                } else {
+                                    collectBucket(subCollectors, docId, bucketOrdinal);
+                                }
                             } else {
                                 // We've seen this term before, but less than the threshold
                                 // so just increment its counter

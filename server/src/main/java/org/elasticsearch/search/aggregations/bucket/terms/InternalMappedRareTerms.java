@@ -94,7 +94,9 @@ public abstract class InternalMappedRareTerms<A extends InternalTerms<A, B>, B e
         final List<B> rare = new ArrayList<>(size);
         for (List<B> sameTermBuckets : buckets.values()) {
             final B b = sameTermBuckets.get(0).reduce(sameTermBuckets, reduceContext);
-            if (b.getDocCount() <= maxDocCount && containsTerm(bloom, b) == false) {
+            // Only prune if this is the final reduction, otherwise we may remove a term that shows
+            // up in a later incremental reduction and looks "rare" even though it isn't.
+            if (reduceContext.isFinalReduce() == false || b.getDocCount() <= maxDocCount && containsTerm(bloom, b) == false) {
                 rare.add(b);
             }
         }

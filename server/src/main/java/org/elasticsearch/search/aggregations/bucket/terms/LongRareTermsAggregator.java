@@ -24,7 +24,6 @@ import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.SortedNumericDocValues;
 import org.apache.lucene.util.CollectionUtil;
 import org.elasticsearch.common.lease.Releasables;
-import org.elasticsearch.common.util.BloomFilter;
 import org.elasticsearch.common.util.LongHash;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregator;
@@ -33,9 +32,6 @@ import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.LeafBucketCollector;
 import org.elasticsearch.search.aggregations.LeafBucketCollectorBase;
-import org.elasticsearch.search.aggregations.bucket.DeferableBucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.DeferringBucketCollector;
-import org.elasticsearch.search.aggregations.bucket.MergingBucketsDeferringCollector;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
 import org.elasticsearch.search.aggregations.support.ValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
@@ -50,52 +46,23 @@ import static java.util.Collections.emptyList;
 /**
  * An aggregator that finds "rare" string values (e.g. terms agg that orders ascending)
  */
-public class LongRareTermsAggregator extends DeferableBucketAggregator {
+public class LongRareTermsAggregator extends AbstractRareTermsAggregator<ValuesSource.Numeric, IncludeExclude.LongFilter> {
 
     static final BucketOrder ORDER = BucketOrder.compound(BucketOrder.count(true), BucketOrder.key(true)); // sort by count ascending
 
     //TODO review question: is LongLong map ok?
     protected LongLongHashMap map;
     protected LongHash bucketOrds;
-    private LeafBucketCollector subCollectors;
-    private final BloomFilter bloom;
-    private final ValuesSource.Numeric valuesSource;
-    private final IncludeExclude.LongFilter longFilter;
-    private final int maxDocCount;
-    private final DocValueFormat format;
-    private MergingBucketsDeferringCollector deferringCollector;
 
-    // TODO review question: What to set this at?
-    /**
-      Sets the number of "removed" values to accumulate before we purge ords
-     via the MergingBucketCollector's mergeBuckets() method
-     */
-    private final long GC_THRESHOLD = 10;
+    private LeafBucketCollector subCollectors;
 
     public LongRareTermsAggregator(String name, AggregatorFactories factories, ValuesSource.Numeric valuesSource, DocValueFormat format,
                                    SearchContext aggregationContext, Aggregator parent, IncludeExclude.LongFilter longFilter,
                                    int maxDocCount, List<PipelineAggregator> pipelineAggregators,
                                    Map<String, Object> metaData) throws IOException {
-        super(name, factories, aggregationContext, parent, pipelineAggregators, metaData);
-        this.valuesSource = valuesSource;
-        this.longFilter = longFilter;
-        this.maxDocCount = maxDocCount;
+        super(name, factories, aggregationContext, parent, pipelineAggregators, metaData, maxDocCount, format, valuesSource, longFilter);
         this.map = new LongLongHashMap();
-        // TODO review: should we expose the BF settings?  What's a good default?
-        this.bloom = BloomFilter.Factory.DEFAULT.createFilter(10000000);
         this.bucketOrds = new LongHash(1, aggregationContext.bigArrays());
-        this.format = format;
-    }
-
-    @Override
-    protected boolean shouldDefer(Aggregator aggregator) {
-        return true;
-    }
-
-    @Override
-    public DeferringBucketCollector getDeferringCollector() {
-        deferringCollector = new MergingBucketsDeferringCollector(context);
-        return deferringCollector;
     }
 
     protected SortedNumericDocValues getValues(ValuesSource.Numeric valuesSource, LeafReaderContext ctx) throws IOException {
@@ -121,7 +88,7 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
                     for (int i = 0; i < valuesCount; ++i) {
                         final long val = values.nextValue();
                         if (previous != val || i == 0) {
-                            if ((longFilter == null) || (longFilter.accept(val))) {
+                            if ((includeExclude == null) || (includeExclude.accept(val))) {
                                 if (bloom.mightContain(val) == false) {
                                     long termCount = map.get(val);
                                     if (termCount == 0) {
@@ -163,9 +130,11 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
         };
     }
 
-    private void gcDeletedEntries() {
+    protected void gcDeletedEntries() {
+        boolean hasDeletedEntry = false;
+        LongHash newBucketOrds = new LongHash(1, context.bigArrays());
         try (LongHash oldBucketOrds = bucketOrds) {
-            LongHash newBucketOrds = new LongHash(1, context.bigArrays());
+
             long[] mergeMap = new long[(int) oldBucketOrds.size()];
 
             for (int i = 0; i < oldBucketOrds.size(); i++) {
@@ -175,22 +144,22 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
                 // if the key still exists in our map, reinsert into the new ords
                 if (map.containsKey(oldKey)) {
                     newBucketOrd = newBucketOrds.add(oldKey);
+                } else {
+                    // Make a note when one of the ords has been deleted
+                    hasDeletedEntry = true;
                 }
                 mergeMap[i] = newBucketOrd;
             }
-            mergeBuckets(mergeMap, newBucketOrds.size());
-            if (deferringCollector != null) {
-                deferringCollector.mergeBuckets(mergeMap);
+            // Only merge/delete the ordinals if we have actually deleted one,
+            // to save on some redundant work
+            if (hasDeletedEntry) {
+                mergeBuckets(mergeMap, newBucketOrds.size());
+                if (deferringCollector != null) {
+                    deferringCollector.mergeBuckets(mergeMap);
+                }
             }
-            bucketOrds = newBucketOrds;
         }
-    }
-
-    @Override
-    protected void doPostCollection() {
-        // Make sure we do one final GC to clean up any deleted ords
-        // that may be lingering (but still below GC threshold)
-        gcDeletedEntries();
+        bucketOrds = newBucketOrds;
     }
 
     @Override
@@ -210,10 +179,6 @@ public class LongRareTermsAggregator extends DeferableBucketAggregator {
 
             consumeBucketsAndMaybeBreak(1);
         }
-
-        // Done with map and bloom, reclaim some memory
-        bloom.close();
-        map = null;
 
         runDeferredCollections(buckets.stream().mapToLong(b -> b.bucketOrd).toArray());
 

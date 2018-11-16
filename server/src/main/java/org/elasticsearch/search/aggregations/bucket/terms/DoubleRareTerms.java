@@ -85,7 +85,7 @@ public class DoubleRareTerms extends InternalMappedRareTerms<DoubleRareTerms, Do
     public InternalAggregation doReduce(List<InternalAggregation> aggregations, ReduceContext reduceContext) {
         boolean promoteToDouble = false;
         for (InternalAggregation agg : aggregations) {
-            if (agg instanceof LongTerms && ((LongTerms) agg).format == DocValueFormat.RAW) {
+            if (agg instanceof LongRareTerms && ((LongRareTerms) agg).format == DocValueFormat.RAW) {
                 /*
                  * this terms agg mixes longs and doubles, we must promote longs to doubles to make the internal aggs
                  * compatible

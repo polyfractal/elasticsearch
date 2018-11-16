@@ -27,7 +27,6 @@ import org.apache.lucene.document.SortedNumericDocValuesField;
 import org.apache.lucene.document.SortedSetDocValuesField;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.RandomIndexWriter;
 import org.apache.lucene.search.DocValuesFieldExistsQuery;
 import org.apache.lucene.search.IndexSearcher;
@@ -53,8 +52,6 @@ import org.elasticsearch.index.mapper.Uid;
 import org.elasticsearch.indices.breaker.NoneCircuitBreakerService;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.Aggregation;
-import org.elasticsearch.search.aggregations.AggregationBuilder;
-import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.Aggregations;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorTestCase;
@@ -73,18 +70,15 @@ import org.elasticsearch.search.aggregations.metrics.TopHitsAggregationBuilder;
 import org.elasticsearch.search.aggregations.support.ValueType;
 import org.elasticsearch.search.sort.FieldSortBuilder;
 import org.elasticsearch.search.sort.ScoreSortBuilder;
+import org.junit.Assert;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 import static org.elasticsearch.index.mapper.SeqNoFieldMapper.PRIMARY_TERM_NAME;
-import static org.elasticsearch.search.aggregations.InternalMultiBucketAggregation.countInnerBucket;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 
@@ -206,129 +200,73 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                 Aggregations children = bucket.getAggregations();
                 assertThat(children.asList().size(), equalTo(1));
                 assertThat(children.asList().get(0).getName(), equalTo("the_max"));
-                assertThat(((Max)(children.asList().get(0))).getValue(), equalTo(1L));
+                assertThat(((Max)(children.asList().get(0))).getValue(), equalTo(1.0));
             }, ValueType.NUMERIC
         );
-        /*
-        testBothCases(query, dataset,
-            aggregation -> aggregation.field(KEYWORD_FIELD).maxDocCount(1),
+        testBothCases(query, dataset, aggregation -> {
+                MaxAggregationBuilder max = new MaxAggregationBuilder("the_max").field(LONG_FIELD);
+                aggregation.field(KEYWORD_FIELD).maxDocCount(1).subAggregation(max);
+            },
             agg -> {
                 assertEquals(1, agg.getBuckets().size());
                 StringTerms.Bucket bucket = (StringTerms.Bucket) agg.getBuckets().get(0);
-                assertThat(bucket.getKeyAsString(), equalTo("1"));
+                assertThat(bucket.getKey(), equalTo("1"));
                 assertThat(bucket.getDocCount(), equalTo(1L));
+
+                Aggregations children = bucket.getAggregations();
+                assertThat(children.asList().size(), equalTo(1));
+                assertThat(children.asList().get(0).getName(), equalTo("the_max"));
+                assertThat(((Max)(children.asList().get(0))).getValue(), equalTo(1.0));
             }, ValueType.STRING
         );
-        testBothCases(query, dataset,
-            aggregation -> aggregation.field(DOUBLE_FIELD).maxDocCount(1),
+        testBothCases(query, dataset, aggregation -> {
+                MaxAggregationBuilder max = new MaxAggregationBuilder("the_max").field(LONG_FIELD);
+                aggregation.field(DOUBLE_FIELD).maxDocCount(1).subAggregation(max);
+            },
             agg -> {
                 assertEquals(1, agg.getBuckets().size());
                 DoubleTerms.Bucket bucket = (DoubleTerms.Bucket) agg.getBuckets().get(0);
                 assertThat(bucket.getKey(), equalTo(1.0));
                 assertThat(bucket.getDocCount(), equalTo(1L));
+
+                Aggregations children = bucket.getAggregations();
+                assertThat(children.asList().size(), equalTo(1));
+                assertThat(children.asList().get(0).getName(), equalTo("the_max"));
+                assertThat(((Max)(children.asList().get(0))).getValue(), equalTo(1.0));
             }, ValueType.DOUBLE
         );
-        */
     }
 
+    public void testEmpty() throws IOException {
+        Query query = new MatchAllDocsQuery();
 
-    private <T> void termsAggregatorWithNestedMaxAgg(ValueType valueType, MappedFieldType fieldType,
-                                                     Function<Integer, T> valueFactory,
-                                                     Function<T, IndexableField> luceneFieldFactory) throws Exception {
-        final Map<T, Long> counts = new HashMap<>();
-        int numTerms = scaledRandomIntBetween(8, 128);
-        for (int i = 0; i < numTerms; i++) {
-            counts.put(valueFactory.apply(i), randomLong());
-        }
+        testSearchCase(query, Collections.emptyList(),
+            aggregation -> aggregation.field(LONG_FIELD).maxDocCount(1),
+            agg -> assertEquals(0, agg.getBuckets().size()), ValueType.NUMERIC
+        );
+        testSearchCase(query, Collections.emptyList(),
+            aggregation -> aggregation.field(KEYWORD_FIELD).maxDocCount(1),
+            agg -> assertEquals(0, agg.getBuckets().size()), ValueType.STRING
+        );
+        testSearchCase(query, Collections.emptyList(),
+            aggregation -> aggregation.field(DOUBLE_FIELD).maxDocCount(1),
+            agg -> assertEquals(0, agg.getBuckets().size()), ValueType.DOUBLE
+        );
 
-        try (Directory directory = newDirectory()) {
-            try (RandomIndexWriter indexWriter = new RandomIndexWriter(random(), directory)) {
-                for (Map.Entry<T, Long> entry : counts.entrySet()) {
-                    Document document = new Document();
-                    document.add(luceneFieldFactory.apply(entry.getKey()));
-                    document.add(new NumericDocValuesField("value", entry.getValue()));
-                    indexWriter.addDocument(document);
-                }
-                try (IndexReader indexReader = maybeWrapReaderEs(indexWriter.getReader())) {
-
-                    List<Map.Entry<T, Long>> expectedBuckets = new ArrayList<>(counts.entrySet());
-                    Comparator<Map.Entry<T, Long>> comparator = Comparator.comparing(Map.Entry::getValue, Long::compareTo);
-                    expectedBuckets.sort(comparator);
-
-                    IndexSearcher indexSearcher = newIndexSearcher(indexReader);
-                    AggregationBuilder aggregationBuilder = new RareTermsAggregationBuilder("_name", valueType)
-                        .field("field")
-                        .subAggregation(AggregationBuilders.max("_max").field("value"));
-                    fieldType.setName("field");
-                    fieldType.setHasDocValues(true);
-
-                    MappedFieldType fieldType2 = new NumberFieldMapper.NumberFieldType(NumberFieldMapper.NumberType.LONG);
-                    fieldType2.setName("value");
-                    fieldType2.setHasDocValues(true);
-                    Aggregator aggregator = createAggregator(aggregationBuilder, indexSearcher, fieldType, fieldType2);
-                    aggregator.preCollection();
-                    indexSearcher.search(new MatchAllDocsQuery(), aggregator);
-                    aggregator.postCollection();
-                    Terms result = (Terms) aggregator.buildAggregation(0L);
-                    assertEquals(expectedBuckets.size(), result.getBuckets().size());
-                    for (int i = 0; i < expectedBuckets.size(); i++) {
-                        Map.Entry<T, Long>  expected = expectedBuckets.get(i);
-                        Terms.Bucket actual = result.getBuckets().get(i);
-                        assertEquals(expected.getKey(), actual.getKey());
-                    }
-                }
-            }
-        }
-    }
-
-    public void testEmpty() throws Exception {
-        try (Directory directory = newDirectory()) {
-            try (RandomIndexWriter indexWriter = new RandomIndexWriter(random(), directory)) {
-                MappedFieldType fieldType1 = new KeywordFieldMapper.KeywordFieldType();
-                fieldType1.setName("string");
-                fieldType1.setHasDocValues(true);
-
-                MappedFieldType fieldType2 = new NumberFieldMapper.NumberFieldType(NumberFieldMapper.NumberType.LONG);
-                fieldType1.setName("long");
-                fieldType1.setHasDocValues(true);
-
-                MappedFieldType fieldType3 = new NumberFieldMapper.NumberFieldType(NumberFieldMapper.NumberType.DOUBLE);
-                fieldType1.setName("double");
-                fieldType1.setHasDocValues(true);
-                try (IndexReader indexReader = maybeWrapReaderEs(indexWriter.getReader())) {
-                    IndexSearcher indexSearcher = newIndexSearcher(indexReader);
-                    RareTermsAggregationBuilder aggregationBuilder = new RareTermsAggregationBuilder("_name", ValueType.STRING)
-                        .field("string");
-                    Aggregator aggregator = createAggregator(aggregationBuilder, indexSearcher, fieldType1);
-                    aggregator.preCollection();
-                    indexSearcher.search(new MatchAllDocsQuery(), aggregator);
-                    aggregator.postCollection();
-                    Terms result = (Terms) aggregator.buildAggregation(0L);
-                    assertEquals("_name", result.getName());
-                    assertEquals(0, result.getBuckets().size());
-
-                    aggregationBuilder = new RareTermsAggregationBuilder("_name", ValueType.LONG)
-                        .field("long");
-                    aggregator = createAggregator(aggregationBuilder, indexSearcher, fieldType2);
-                    aggregator.preCollection();
-                    indexSearcher.search(new MatchAllDocsQuery(), aggregator);
-                    aggregator.postCollection();
-                    result = (Terms) aggregator.buildAggregation(0L);
-                    assertEquals("_name", result.getName());
-                    assertEquals(0, result.getBuckets().size());
-
-                    aggregationBuilder = new RareTermsAggregationBuilder("_name", ValueType.DOUBLE)
-                        .field("double");
-                    aggregator = createAggregator(aggregationBuilder, indexSearcher, fieldType3);
-                    aggregator.preCollection();
-                    indexSearcher.search(new MatchAllDocsQuery(), aggregator);
-                    aggregator.postCollection();
-                    result = (Terms) aggregator.buildAggregation(0L);
-                    assertEquals("_name", result.getName());
-                    assertEquals(0, result.getBuckets().size());
-                }
-            }
-        }
+        // Note: the search and reduce test will generate no segments (due to no docs)
+        // and so will return a null agg because the aggs aren't run/reduced
+        testSearchAndReduceCase(query, Collections.emptyList(),
+            aggregation -> aggregation.field(LONG_FIELD).maxDocCount(1),
+            Assert::assertNull, ValueType.NUMERIC
+        );
+        testSearchAndReduceCase(query, Collections.emptyList(),
+            aggregation -> aggregation.field(KEYWORD_FIELD).maxDocCount(1),
+            Assert::assertNull, ValueType.STRING
+        );
+        testSearchAndReduceCase(query, Collections.emptyList(),
+            aggregation -> aggregation.field(DOUBLE_FIELD).maxDocCount(1),
+            Assert::assertNull, ValueType.DOUBLE
+        );
     }
 
     public void testUnmapped() throws Exception {
@@ -370,110 +308,112 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
         }
     }
 
-    public void testNestedTermsAgg() throws Exception {
-        try (Directory directory = newDirectory()) {
-            try (RandomIndexWriter indexWriter = new RandomIndexWriter(random(), directory)) {
-                Document document = new Document();
-                document.add(new SortedDocValuesField("field1", new BytesRef("a")));
-                document.add(new SortedDocValuesField("field2", new BytesRef("b")));
-                indexWriter.addDocument(document);
-                document = new Document();
-                document.add(new SortedDocValuesField("field1", new BytesRef("c")));
-                document.add(new SortedDocValuesField("field2", new BytesRef("d")));
-                indexWriter.addDocument(document);
-                document = new Document();
-                document.add(new SortedDocValuesField("field1", new BytesRef("e")));
-                document.add(new SortedDocValuesField("field2", new BytesRef("f")));
-                indexWriter.addDocument(document);
-                try (IndexReader indexReader = maybeWrapReaderEs(indexWriter.getReader())) {
-                    IndexSearcher indexSearcher = newIndexSearcher(indexReader);
-                    Aggregator.SubAggCollectionMode collectionMode = randomFrom(Aggregator.SubAggCollectionMode.values());
-                    RareTermsAggregationBuilder aggregationBuilder = new RareTermsAggregationBuilder("_name1", ValueType.STRING)
-                        .field("field1")
-                        .subAggregation(new RareTermsAggregationBuilder("_name2", ValueType.STRING)
-                            .field("field2")
-                        );
-                    MappedFieldType fieldType1 = new KeywordFieldMapper.KeywordFieldType();
-                    fieldType1.setName("field1");
-                    fieldType1.setHasDocValues(true);
-                    MappedFieldType fieldType2 = new KeywordFieldMapper.KeywordFieldType();
-                    fieldType2.setName("field2");
-                    fieldType2.setHasDocValues(true);
+    public void testNestedTerms() throws IOException {
+        Query query = new MatchAllDocsQuery();
 
-                    Aggregator aggregator = createAggregator(aggregationBuilder, indexSearcher, fieldType1, fieldType2);
-                    aggregator.preCollection();
-                    indexSearcher.search(new MatchAllDocsQuery(), aggregator);
-                    aggregator.postCollection();
-                    Terms result = (Terms) aggregator.buildAggregation(0L);
-                    assertEquals(3, result.getBuckets().size());
-                    assertEquals("a", result.getBuckets().get(0).getKeyAsString());
-                    assertEquals(1L, result.getBuckets().get(0).getDocCount());
-                    Terms.Bucket nestedBucket = ((Terms) result.getBuckets().get(0).getAggregations().get("_name2")).getBuckets().get(0);
-                    assertEquals("b", nestedBucket.getKeyAsString());
-                    assertEquals("c", result.getBuckets().get(1).getKeyAsString());
-                    assertEquals(1L, result.getBuckets().get(1).getDocCount());
-                    nestedBucket = ((Terms) result.getBuckets().get(1).getAggregations().get("_name2")).getBuckets().get(0);
-                    assertEquals("d", nestedBucket.getKeyAsString());
-                    assertEquals("e", result.getBuckets().get(2).getKeyAsString());
-                    assertEquals(1L, result.getBuckets().get(2).getDocCount());
-                    nestedBucket = ((Terms) result.getBuckets().get(2).getAggregations().get("_name2")).getBuckets().get(0);
-                    assertEquals("f", nestedBucket.getKeyAsString());
-                }
-            }
-        }
+        testBothCases(query, dataset, aggregation -> {
+                TermsAggregationBuilder terms = new TermsAggregationBuilder("the_terms", ValueType.STRING).field(KEYWORD_FIELD);
+                aggregation.field(LONG_FIELD).maxDocCount(1).subAggregation(terms);
+            },
+            agg -> {
+                assertEquals(1, agg.getBuckets().size());
+                LongTerms.Bucket bucket = (LongTerms.Bucket) agg.getBuckets().get(0);
+                assertThat(bucket.getKey(), equalTo(1L));
+                assertThat(bucket.getDocCount(), equalTo(1L));
+
+                Aggregations children = bucket.getAggregations();
+                assertThat(children.asList().size(), equalTo(1));
+                assertThat(children.asList().get(0).getName(), equalTo("the_terms"));
+                assertThat(((Terms)(children.asList().get(0))).getBuckets().size(), equalTo(1));
+                assertThat(((Terms)(children.asList().get(0))).getBuckets().get(0).getKeyAsString(), equalTo("1"));
+            }, ValueType.NUMERIC
+        );
+
+        testBothCases(query, dataset, aggregation -> {
+                TermsAggregationBuilder terms = new TermsAggregationBuilder("the_terms", ValueType.STRING).field(KEYWORD_FIELD);
+                aggregation.field(KEYWORD_FIELD).maxDocCount(1).subAggregation(terms);
+            },
+            agg -> {
+                assertEquals(1, agg.getBuckets().size());
+                StringTerms.Bucket bucket = (StringTerms.Bucket) agg.getBuckets().get(0);
+                assertThat(bucket.getKey(), equalTo("1"));
+                assertThat(bucket.getDocCount(), equalTo(1L));
+
+                Aggregations children = bucket.getAggregations();
+                assertThat(children.asList().size(), equalTo(1));
+                assertThat(children.asList().get(0).getName(), equalTo("the_terms"));
+                assertThat(((Terms)(children.asList().get(0))).getBuckets().size(), equalTo(1));
+                assertThat(((Terms)(children.asList().get(0))).getBuckets().get(0).getKeyAsString(), equalTo("1"));
+            }, ValueType.STRING
+        );
+        testBothCases(query, dataset, aggregation -> {
+                TermsAggregationBuilder terms = new TermsAggregationBuilder("the_terms", ValueType.STRING).field(KEYWORD_FIELD);
+                aggregation.field(DOUBLE_FIELD).maxDocCount(1).subAggregation(terms);
+            },
+            agg -> {
+                assertEquals(1, agg.getBuckets().size());
+                DoubleTerms.Bucket bucket = (DoubleTerms.Bucket) agg.getBuckets().get(0);
+                assertThat(bucket.getKey(), equalTo(1.0));
+                assertThat(bucket.getDocCount(), equalTo(1L));
+
+                Aggregations children = bucket.getAggregations();
+                assertThat(children.asList().size(), equalTo(1));
+                assertThat(children.asList().get(0).getName(), equalTo("the_terms"));
+                assertThat(((Terms)(children.asList().get(0))).getBuckets().size(), equalTo(1));
+                assertThat(((Terms)(children.asList().get(0))).getBuckets().get(0).getKeyAsString(), equalTo("1"));
+            }, ValueType.DOUBLE
+        );
     }
 
     public void testMixLongAndDouble() throws Exception {
         RareTermsAggregationBuilder aggregationBuilder = new RareTermsAggregationBuilder("_name", ValueType.LONG)
-                .field("number");
-            List<InternalAggregation> aggs = new ArrayList<> ();
-            int numLongs = randomIntBetween(1, 3);
-            for (int i = 0; i < numLongs; i++) {
-                final Directory dir;
-                try (IndexReader reader = createIndexWithLongs()) {
-                    dir = ((DirectoryReader) reader).directory();
-                    IndexSearcher searcher = new IndexSearcher(reader);
+            .field(LONG_FIELD)
+            .maxDocCount(2);
+        List<InternalAggregation> aggs = new ArrayList<>();
+
+        try (Directory directory = newDirectory()) {
+            try (RandomIndexWriter indexWriter = new RandomIndexWriter(random(), directory)) {
+                Document document = new Document();
+                document.add(new NumericDocValuesField(LONG_FIELD, 1L));
+                indexWriter.addDocument(document);
+
+                try (IndexReader indexReader = maybeWrapReaderEs(indexWriter.getReader())) {
+                    IndexSearcher indexSearcher = newIndexSearcher(indexReader);
                     MappedFieldType fieldType =
                         new NumberFieldMapper.NumberFieldType(NumberFieldMapper.NumberType.LONG);
-                    fieldType.setName("number");
+                    fieldType.setName(LONG_FIELD);
                     fieldType.setHasDocValues(true);
-                    aggs.add(buildInternalAggregation(aggregationBuilder, fieldType, searcher));
+                    aggs.add(buildInternalAggregation(aggregationBuilder, fieldType, indexSearcher));
+
                 }
-                dir.close();
             }
-            int numDoubles = randomIntBetween(1, 3);
-            for (int i = 0; i < numDoubles; i++) {
-                final Directory dir;
-                try (IndexReader reader = createIndexWithDoubles()) {
-                    dir = ((DirectoryReader) reader).directory();
-                    IndexSearcher searcher = new IndexSearcher(reader);
+        }
+        try (Directory directory = newDirectory()) {
+            try (RandomIndexWriter indexWriter = new RandomIndexWriter(random(), directory)) {
+                Document document = new Document();
+                document.add(new SortedNumericDocValuesField(LONG_FIELD, NumericUtils.doubleToSortableLong(1.0d)));
+                indexWriter.addDocument(document);
+
+                try (IndexReader indexReader = maybeWrapReaderEs(indexWriter.getReader())) {
+                    IndexSearcher indexSearcher = newIndexSearcher(indexReader);
                     MappedFieldType fieldType =
                         new NumberFieldMapper.NumberFieldType(NumberFieldMapper.NumberType.DOUBLE);
-                    fieldType.setName("number");
+                    fieldType.setName(LONG_FIELD);
                     fieldType.setHasDocValues(true);
-                    aggs.add(buildInternalAggregation(aggregationBuilder, fieldType, searcher));
+                    aggs.add(buildInternalAggregation(aggregationBuilder, fieldType, indexSearcher));
                 }
-                dir.close();
             }
-            InternalAggregation.ReduceContext ctx =
-                new InternalAggregation.ReduceContext(new MockBigArrays(new MockPageCacheRecycler(Settings.EMPTY),
-                    new NoneCircuitBreakerService()), null, true);
-            for (InternalAggregation internalAgg : aggs) {
-                InternalAggregation mergedAggs = internalAgg.doReduce(aggs, ctx);
-                assertTrue(mergedAggs instanceof DoubleTerms);
-                long expected = numLongs + numDoubles;
-                List<? extends Terms.Bucket> buckets = ((DoubleTerms) mergedAggs).getBuckets();
-                assertEquals(4, buckets.size());
-                assertEquals("1.0", buckets.get(0).getKeyAsString());
-                assertEquals(expected, buckets.get(0).getDocCount());
-                assertEquals("10.0", buckets.get(1).getKeyAsString());
-                assertEquals(expected * 2, buckets.get(1).getDocCount());
-                assertEquals("100.0", buckets.get(2).getKeyAsString());
-                assertEquals(expected * 2, buckets.get(2).getDocCount());
-                assertEquals("1000.0", buckets.get(3).getKeyAsString());
-                assertEquals(expected, buckets.get(3).getDocCount());
-            }
+        }
+        InternalAggregation.ReduceContext ctx =
+            new InternalAggregation.ReduceContext(new MockBigArrays(new MockPageCacheRecycler(Settings.EMPTY),
+                new NoneCircuitBreakerService()), null, true);
+        InternalAggregation mergedAggs = aggs.get(0).doReduce(aggs, ctx);
+        assertTrue(mergedAggs instanceof DoubleRareTerms);
+        List<DoubleTerms.Bucket> buckets = ((DoubleRareTerms) mergedAggs).getBuckets();
+        assertThat(buckets.size(), equalTo(1));
+        assertThat(buckets.get(0).getKeyAsString(), equalTo("1.0"));
     }
+
 
     public void testGlobalAggregationWithScore() throws IOException {
         try (Directory directory = newDirectory()) {
@@ -537,10 +477,44 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     indexWriter.addDocuments(generateDocsWithNested(Integer.toString(i), i, nestedValues));
                 }
                 indexWriter.commit();
+
+                NestedAggregationBuilder nested = new NestedAggregationBuilder("nested", "nested_object")
+                    .subAggregation(new RareTermsAggregationBuilder("terms", ValueType.LONG)
+                        .field("nested_value")
+                        .maxDocCount(1)
+                    );
+                MappedFieldType fieldType = new NumberFieldMapper.NumberFieldType(NumberFieldMapper.NumberType.LONG);
+                fieldType.setHasDocValues(true);
+                fieldType.setName("nested_value");
+                try (IndexReader indexReader = wrap(DirectoryReader.open(directory))) {
+                    InternalNested result = searchAndReduce(newIndexSearcher(indexReader),
+                        // match root document only
+                        new DocValuesFieldExistsQuery(PRIMARY_TERM_NAME), nested, fieldType);
+                    InternalMultiBucketAggregation<?, ?> terms = result.getAggregations().get("terms");
+                    assertThat(terms.getBuckets().size(), equalTo(1));
+                    assertThat(terms.getBuckets().get(0).getKeyAsString(), equalTo("8"));
+                }
+
+            }
+        }
+    }
+
+    public void testWithNestedScoringAggregations() throws IOException {
+        try (Directory directory = newDirectory()) {
+            try (RandomIndexWriter indexWriter = new RandomIndexWriter(random(), directory)) {
+                for (int i = 0; i < 10; i++) {
+                    int[] nestedValues = new int[i];
+                    for (int j = 0; j < i; j++) {
+                        nestedValues[j] = j;
+                    }
+                    indexWriter.addDocuments(generateDocsWithNested(Integer.toString(i), i, nestedValues));
+                }
+                indexWriter.commit();
                 for (boolean withScore : new boolean[]{true, false}) {
                     NestedAggregationBuilder nested = new NestedAggregationBuilder("nested", "nested_object")
                         .subAggregation(new RareTermsAggregationBuilder("terms", ValueType.LONG)
                             .field("nested_value")
+                            .maxDocCount(2)
                             .subAggregation(
                                 new TopHitsAggregationBuilder("top_hits")
                                     .sort(withScore ? new ScoreSortBuilder() : new FieldSortBuilder("_doc"))
@@ -551,21 +525,27 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
                     fieldType.setHasDocValues(true);
                     fieldType.setName("nested_value");
                     try (IndexReader indexReader = wrap(DirectoryReader.open(directory))) {
-                        InternalNested result = search(newSearcher(indexReader, false, true),
-                            // match root document only
-                            new DocValuesFieldExistsQuery(PRIMARY_TERM_NAME), nested, fieldType);
-                        InternalMultiBucketAggregation<?, ?> terms = result.getAggregations().get("terms");
-                        assertThat(terms.getBuckets().size(), equalTo(9));
-                        int ptr = 9;
-                        for (MultiBucketsAggregation.Bucket bucket : terms.getBuckets()) {
-                            InternalTopHits topHits = bucket.getAggregations().get("top_hits");
-                            assertThat(topHits.getHits().totalHits, equalTo((long) ptr));
-                            if (withScore) {
-                                assertThat(topHits.getHits().getMaxScore(), equalTo(1f));
-                            } else {
+
+                        if (withScore) {
+
+                            IllegalStateException e = expectThrows(IllegalStateException.class,
+                                () -> searchAndReduce(newIndexSearcher(indexReader),
+                                // match root document only
+                                new DocValuesFieldExistsQuery(PRIMARY_TERM_NAME), nested, fieldType));
+                            assertThat(e.getMessage(), equalTo("RareTerms agg [terms] is the child of the nested agg [nested], " +
+                                "and also has a scoring child agg [top_hits].  This combination is not supported because it requires " +
+                                "executing in [depth_first] mode, which the RareTerms agg cannot do."));
+                        } else {
+                            InternalNested result = searchAndReduce(newIndexSearcher(indexReader),
+                                // match root document only
+                                new DocValuesFieldExistsQuery(PRIMARY_TERM_NAME), nested, fieldType);
+                            InternalMultiBucketAggregation<?, ?> terms = result.getAggregations().get("terms");
+                            assertThat(terms.getBuckets().size(), equalTo(2));
+                            for (MultiBucketsAggregation.Bucket bucket : terms.getBuckets()) {
+                                InternalTopHits topHits = bucket.getAggregations().get("top_hits");
+                                assertThat(topHits.getHits().totalHits, equalTo(1L));
                                 assertThat(topHits.getHits().getMaxScore(), equalTo(Float.NaN));
                             }
-                            --ptr;
                         }
                     }
                 }
@@ -595,48 +575,9 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
         return documents;
     }
 
-
-    private IndexReader createIndexWithLongs() throws IOException {
-        Directory directory = newDirectory();
-        RandomIndexWriter indexWriter = new RandomIndexWriter(random(), directory);
-        Document document = new Document();
-        document.add(new SortedNumericDocValuesField("number", 10));
-        document.add(new SortedNumericDocValuesField("number", 100));
-        indexWriter.addDocument(document);
-        document = new Document();
-        document.add(new SortedNumericDocValuesField("number", 1));
-        document.add(new SortedNumericDocValuesField("number", 100));
-        indexWriter.addDocument(document);
-        document = new Document();
-        document.add(new SortedNumericDocValuesField("number", 10));
-        document.add(new SortedNumericDocValuesField("number", 1000));
-        indexWriter.addDocument(document);
-        indexWriter.close();
-        return DirectoryReader.open(directory);
-    }
-
-    private IndexReader createIndexWithDoubles() throws IOException {
-        Directory directory = newDirectory();
-        RandomIndexWriter indexWriter = new RandomIndexWriter(random(), directory);
-        Document document = new Document();
-        document.add(new SortedNumericDocValuesField("number", NumericUtils.doubleToSortableLong(10.0d)));
-        document.add(new SortedNumericDocValuesField("number", NumericUtils.doubleToSortableLong(100.0d)));
-        indexWriter.addDocument(document);
-        document = new Document();
-        document.add(new SortedNumericDocValuesField("number", NumericUtils.doubleToSortableLong(1.0d)));
-        document.add(new SortedNumericDocValuesField("number", NumericUtils.doubleToSortableLong(100.0d)));
-        indexWriter.addDocument(document);
-        document = new Document();
-        document.add(new SortedNumericDocValuesField("number", NumericUtils.doubleToSortableLong(10.0d)));
-        document.add(new SortedNumericDocValuesField("number", NumericUtils.doubleToSortableLong(1000.0d)));
-        indexWriter.addDocument(document);
-        indexWriter.close();
-        return DirectoryReader.open(directory);
-    }
-
     private InternalAggregation buildInternalAggregation(RareTermsAggregationBuilder builder, MappedFieldType fieldType,
                                                          IndexSearcher searcher) throws IOException {
-        TermsAggregator aggregator = createAggregator(builder, searcher, fieldType);
+        AbstractRareTermsAggregator aggregator = createAggregator(builder, searcher, fieldType);
         aggregator.preCollection();
         searcher.search(new MatchAllDocsQuery(), aggregator);
         aggregator.postCollection();
@@ -698,7 +639,7 @@ public class RareTermsAggregatorTests extends AggregatorTestCase {
             }
 
             try (IndexReader indexReader = DirectoryReader.open(directory)) {
-                IndexSearcher indexSearcher = newSearcher(indexReader, true, true);
+                IndexSearcher indexSearcher = newIndexSearcher(indexReader);
 
                 RareTermsAggregationBuilder aggregationBuilder = new RareTermsAggregationBuilder("_name", valueType);
                 if (configure != null) {

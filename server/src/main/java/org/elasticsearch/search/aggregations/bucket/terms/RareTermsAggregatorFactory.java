@@ -25,12 +25,9 @@ import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
-import org.elasticsearch.search.aggregations.Aggregator.SubAggCollectionMode;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
 import org.elasticsearch.search.aggregations.AggregatorFactory;
-import org.elasticsearch.search.aggregations.BucketOrder;
 import org.elasticsearch.search.aggregations.InternalAggregation;
-import org.elasticsearch.search.aggregations.InternalOrder;
 import org.elasticsearch.search.aggregations.NonCollectingAggregator;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
 import org.elasticsearch.search.aggregations.support.ValuesSource;
@@ -49,7 +46,6 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
 
     private final IncludeExclude includeExclude;
     private final String executionHint;
-    private final SubAggCollectionMode collectMode = SubAggCollectionMode.BREADTH_FIRST;
     private final int maxDocCount;
 
     public RareTermsAggregatorFactory(String name, ValuesSourceConfig<ValuesSource> config,
@@ -82,17 +78,7 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
             return asMultiBucketAggregator(this, context, parent);
         }
         if (valuesSource instanceof ValuesSource.Bytes) {
-            ExecutionMode execution = null;
-            if (executionHint != null) {
-                execution = ExecutionMode.fromString(executionHint, DEPRECATION_LOGGER);
-            }
-            // In some cases, using ordinals is just not supported: override it
-            if (valuesSource instanceof ValuesSource.Bytes.WithOrdinals == false) {
-                execution = ExecutionMode.MAP;
-            }
-            if (execution == null) {
-                execution = ExecutionMode.MAP; //TODO global ords not implemented yet
-            }
+            ExecutionMode execution = ExecutionMode.MAP; //TODO global ords not implemented yet, only supports "map"
 
             DocValueFormat format = config.format();
             if ((includeExclude != null) && (includeExclude.isRegexBased()) && format != DocValueFormat.RAW) {
@@ -106,7 +92,8 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
 
         if ((includeExclude != null) && (includeExclude.isRegexBased())) {
             throw new AggregationExecutionException("Aggregation [" + name + "] cannot support regular expression style include/exclude "
-                + "settings as they can only be applied to string fields. Use an array of numeric values for include/exclude clauses used to filter numeric fields");
+                + "settings as they can only be applied to string fields. Use an array of numeric values for include/exclude clauses " +
+                "used to filter numeric fields");
         }
 
         if (valuesSource instanceof ValuesSource.Numeric) {
@@ -140,7 +127,7 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
                                List<PipelineAggregator> pipelineAggregators, Map<String, Object> metaData, long maxDocCount)
                 throws IOException {
                 final IncludeExclude.StringFilter filter = includeExclude == null ? null : includeExclude.convertToStringFilter(format);
-                return new StringRareTermsAggregator(name, factories, valuesSource, format, filter,
+                return new StringRareTermsAggregator(name, factories, (ValuesSource.Bytes) valuesSource, format, filter,
                     context, parent, pipelineAggregators, metaData, maxDocCount);
             }
 

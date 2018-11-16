@@ -114,14 +114,29 @@ public class MergingBucketsDeferringCollector extends DeferringBucketCollector {
         List<Entry> newEntries = new ArrayList<>(entries.size());
         for (Entry sourceEntry : entries) {
             PackedLongValues.Builder newBuckets = PackedLongValues.packedBuilder(PackedInts.DEFAULT);
+            PackedLongValues.Builder newDocDeltas = PackedLongValues.packedBuilder(PackedInts.DEFAULT);
+            PackedLongValues.Iterator docDeltasItr = sourceEntry.docDeltas.iterator();
+
+            long lastGoodDelta = 0;
             for (PackedLongValues.Iterator itr = sourceEntry.buckets.iterator(); itr.hasNext();) {
                 long bucket = itr.next();
+                assert docDeltasItr.hasNext();
+                long delta = docDeltasItr.next();
 
                 // Only merge in the ordinal if it hasn't been "removed", signified with -1
                 long ordinal = mergeMap[Math.toIntExact(bucket)];
+                /*
                 if (ordinal != -1) {
                     newBuckets.add(ordinal);
+                    newDocDeltas.add(delta + lastGoodDelta);
+                    lastGoodDelta = 0;
+                } else {
+                    // we are skipping this ordinal, which means we need to accumulate the
+                    // doc delta's since the last "good" delta
+                    lastGoodDelta += delta;
                 }
+                */
+                newBuckets.add(ordinal);
             }
             newEntries.add(new Entry(sourceEntry.context, sourceEntry.docDeltas, newBuckets.build()));
         }
@@ -132,16 +147,36 @@ public class MergingBucketsDeferringCollector extends DeferringBucketCollector {
         if (buckets.size() > 0) {
             PackedLongValues currentBuckets = buckets.build();
             PackedLongValues.Builder newBuckets = PackedLongValues.packedBuilder(PackedInts.DEFAULT);
+            //PackedLongValues.Builder newDocDeltas = PackedLongValues.packedBuilder(PackedInts.DEFAULT);
+
+            // The current segment's deltas aren't built yet, so build to a temp object
+            //PackedLongValues currentDeltas = docDeltas.build();
+            //PackedLongValues.Iterator docDeltasItr = currentDeltas.iterator();
+
+            long lastGoodDelta = 0;
             for (PackedLongValues.Iterator itr = currentBuckets.iterator(); itr.hasNext();) {
                 long bucket = itr.next();
+                //assert docDeltasItr.hasNext();
+                //long delta = docDeltasItr.next();
                 long ordinal = mergeMap[Math.toIntExact(bucket)];
 
                 // Only merge in the ordinal if it hasn't been "removed", signified with -1
+                /*
                 if (ordinal != -1) {
                     newBuckets.add(ordinal);
+                    //newDocDeltas.add(delta + lastGoodDelta);
+                    lastGoodDelta = 0;
+                } else {
+                    // we are skipping this ordinal, which means we need to accumulate the
+                    // doc delta's since the last "good" delta.
+                    // The first is skipped because the original deltas are stored as offsets from first doc,
+                    // not offsets from 0
+                    lastGoodDelta += delta;
                 }
-
+                */
+                newBuckets.add(ordinal);
             }
+            //docDeltas = newDocDeltas;
             buckets = newBuckets;
         }
     }
@@ -205,7 +240,9 @@ public class MergingBucketsDeferringCollector extends DeferringBucketCollector {
                             // documents
                             assert docIt.docID() == doc;
                         }
-                        leafCollector.collect(doc, rebasedBucket);
+                        if (bucket != -1) {
+                            leafCollector.collect(doc, rebasedBucket);
+                        }
                     }
                 }
             }

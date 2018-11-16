@@ -25,7 +25,6 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.BytesRefBuilder;
 import org.apache.lucene.util.CollectionUtil;
 import org.elasticsearch.common.lease.Releasables;
-import org.elasticsearch.common.util.BloomFilter;
 import org.elasticsearch.common.util.BytesRefHash;
 import org.elasticsearch.index.fielddata.SortedBinaryDocValues;
 import org.elasticsearch.search.DocValueFormat;
@@ -34,9 +33,6 @@ import org.elasticsearch.search.aggregations.AggregatorFactories;
 import org.elasticsearch.search.aggregations.InternalAggregation;
 import org.elasticsearch.search.aggregations.LeafBucketCollector;
 import org.elasticsearch.search.aggregations.LeafBucketCollectorBase;
-import org.elasticsearch.search.aggregations.bucket.DeferableBucketAggregator;
-import org.elasticsearch.search.aggregations.bucket.DeferringBucketCollector;
-import org.elasticsearch.search.aggregations.bucket.MergingBucketsDeferringCollector;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
 import org.elasticsearch.search.aggregations.support.ValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
@@ -51,18 +47,11 @@ import static java.util.Collections.emptyList;
 /**
  * An aggregator that finds "rare" string values (e.g. terms agg that orders ascending)
  */
-public class StringRareTermsAggregator extends DeferableBucketAggregator {
-    private final ValuesSource valuesSource;
-    private final IncludeExclude.StringFilter includeExclude;
-
+public class StringRareTermsAggregator extends AbstractRareTermsAggregator<ValuesSource.Bytes, IncludeExclude.StringFilter> {
     // TODO review question: is there equivalent to LongObjectPagedHashMap like used in LongRareTerms?
     protected ObjectLongHashMap<BytesRef> map;
     protected BytesRefHash bucketOrds;
     private LeafBucketCollector subCollectors;
-    private final BloomFilter bloom;
-    private final long maxDocCount;
-    private MergingBucketsDeferringCollector deferringCollector;
-    private final DocValueFormat format;
 
     // TODO review question: What to set this at?
     /**
@@ -71,30 +60,13 @@ public class StringRareTermsAggregator extends DeferableBucketAggregator {
      */
     private final long GC_THRESHOLD = 10;
 
-    public StringRareTermsAggregator(String name, AggregatorFactories factories, ValuesSource valuesSource,
-                                     DocValueFormat format,  IncludeExclude.StringFilter includeExclude,
+    public StringRareTermsAggregator(String name, AggregatorFactories factories, ValuesSource.Bytes valuesSource,
+                                     DocValueFormat format,  IncludeExclude.StringFilter stringFilter,
                                      SearchContext context, Aggregator parent, List<PipelineAggregator> pipelineAggregators,
                                      Map<String, Object> metaData, long maxDocCount) throws IOException {
-        super(name, factories, context, parent, pipelineAggregators, metaData);
-        this.maxDocCount = maxDocCount;
-        this.valuesSource = valuesSource;
-        this.includeExclude = includeExclude;
+        super(name, factories, context, parent, pipelineAggregators, metaData, maxDocCount, format, valuesSource, stringFilter);
         this.map = new ObjectLongHashMap<>();
-        // TODO review: should we expose the BF settings?  What's a good default?
-        this.bloom = BloomFilter.Factory.DEFAULT.createFilter(10000000);
-        this.format = format;
         this.bucketOrds = new BytesRefHash(1, context.bigArrays());
-    }
-
-    @Override
-    protected boolean shouldDefer(Aggregator aggregator) {
-        return true;
-    }
-
-    @Override
-    public DeferringBucketCollector getDeferringCollector() {
-        deferringCollector = new MergingBucketsDeferringCollector(context);
-        return deferringCollector;
     }
 
     @Override
@@ -163,11 +135,12 @@ public class StringRareTermsAggregator extends DeferableBucketAggregator {
         };
     }
 
-    private void gcDeletedEntries() {
+    protected void gcDeletedEntries() {
+        boolean hasDeletedEntry = false;
+        BytesRefHash newBucketOrds = new BytesRefHash(1, context.bigArrays());
         try (BytesRefHash oldBucketOrds = bucketOrds) {
-            BytesRefHash newBucketOrds = new BytesRefHash(1, context.bigArrays());
-            long[] mergeMap = new long[(int) oldBucketOrds.size()];
 
+            long[] mergeMap = new long[(int) oldBucketOrds.size()];
             BytesRef scratch = new BytesRef();
             for (int i = 0; i < oldBucketOrds.size(); i++) {
                 BytesRef oldKey = oldBucketOrds.get(i, scratch);
@@ -176,22 +149,22 @@ public class StringRareTermsAggregator extends DeferableBucketAggregator {
                 // if the key still exists in our map, reinsert into the new ords
                 if (map.containsKey(oldKey)) {
                     newBucketOrd = newBucketOrds.add(oldKey);
+                } else {
+                    // Make a note when one of the ords has been deleted
+                    hasDeletedEntry = true;
                 }
                 mergeMap[i] = newBucketOrd;
             }
-            mergeBuckets(mergeMap, newBucketOrds.size());
-            if (deferringCollector != null) {
-                deferringCollector.mergeBuckets(mergeMap);
+            // Only merge/delete the ordinals if we have actually deleted one,
+            // to save on some redundant work
+            if (hasDeletedEntry) {
+                mergeBuckets(mergeMap, newBucketOrds.size());
+                if (deferringCollector != null) {
+                    deferringCollector.mergeBuckets(mergeMap);
+                }
             }
-            bucketOrds = newBucketOrds;
         }
-    }
-
-    @Override
-    protected void doPostCollection() {
-        // Make sure we do one final GC to clean up any deleted ords
-        // that may be lingering (but still below GC threshold)
-        gcDeletedEntries();
+        bucketOrds = newBucketOrds;
     }
 
     @Override
@@ -203,20 +176,6 @@ public class StringRareTermsAggregator extends DeferableBucketAggregator {
         for (ObjectLongCursor<BytesRef> cursor : map) {
             StringTerms.Bucket bucket = new StringTerms.Bucket(new BytesRef(), 0, null, false, 0, format);
 
-            // We have to replay our map into a LongHash map because downstream
-            // methods expect the same hashing layout.
-            /*
-            long bucketOrdinal = bucketOrds.add(cursor.key);
-            if (bucketOrdinal < 0) { // already seen
-                bucketOrdinal = -1 - bucketOrdinal;
-            }
-
-            bucket.termBytes = cursor.key;
-            bucket.docCount = cursor.value;
-            bucket.bucketOrd = bucketOrdinal;
-            buckets.add(bucket);
-            */
-
             // The collection managed pruning unwanted terms, so any
             // terms that made it this far are "rare" and we want buckets
             long bucketOrdinal = bucketOrds.find(cursor.key);
@@ -227,10 +186,6 @@ public class StringRareTermsAggregator extends DeferableBucketAggregator {
 
             consumeBucketsAndMaybeBreak(1);
         }
-
-        // Done with map and bloom, reclaim some memory
-        bloom.close();
-        map = null;
 
         runDeferredCollections(buckets.stream().mapToLong(b -> b.bucketOrd).toArray());
 

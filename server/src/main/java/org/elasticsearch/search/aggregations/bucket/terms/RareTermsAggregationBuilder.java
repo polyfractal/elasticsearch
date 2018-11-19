@@ -25,11 +25,8 @@ import org.elasticsearch.common.xcontent.ObjectParser;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
-import org.elasticsearch.search.aggregations.Aggregator.SubAggCollectionMode;
 import org.elasticsearch.search.aggregations.AggregatorFactories.Builder;
 import org.elasticsearch.search.aggregations.AggregatorFactory;
-import org.elasticsearch.search.aggregations.BucketOrder;
-import org.elasticsearch.search.aggregations.InternalOrder;
 import org.elasticsearch.search.aggregations.support.ValueType;
 import org.elasticsearch.search.aggregations.support.ValuesSource;
 import org.elasticsearch.search.aggregations.support.ValuesSourceAggregationBuilder;
@@ -46,8 +43,7 @@ import java.util.Objects;
 public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<ValuesSource, RareTermsAggregationBuilder> {
     public static final String NAME = "rare_terms";
 
-    public static final ParseField EXECUTION_HINT_FIELD_NAME = new ParseField("execution_hint");
-    public static final ParseField MAX_DOC_COUNT_FIELD_NAME = new ParseField("max_doc_count");
+    private static final ParseField MAX_DOC_COUNT_FIELD_NAME = new ParseField("max_doc_count");
 
     private static final int MAX_MAX_DOC_COUNT = 10;
     private static final ObjectParser<RareTermsAggregationBuilder, Void> PARSER;
@@ -55,8 +51,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
         PARSER = new ObjectParser<>(RareTermsAggregationBuilder.NAME);
         ValuesSourceParserHelper.declareAnyFields(PARSER, true, true);
         PARSER.declareLong(RareTermsAggregationBuilder::maxDocCount, MAX_DOC_COUNT_FIELD_NAME);
-
-        PARSER.declareString(RareTermsAggregationBuilder::executionHint, EXECUTION_HINT_FIELD_NAME);
 
         PARSER.declareField((b, v) -> b.includeExclude(IncludeExclude.merge(v, b.includeExclude())),
             IncludeExclude::parseInclude, IncludeExclude.INCLUDE_FIELD, ObjectParser.ValueType.OBJECT_ARRAY_OR_STRING);
@@ -70,16 +64,14 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
     }
 
     private IncludeExclude includeExclude = null;
-    private String executionHint = null;
     private int maxDocCount = 1;
 
     public RareTermsAggregationBuilder(String name, ValueType valueType) {
         super(name, ValuesSourceType.ANY, valueType);
     }
 
-    protected RareTermsAggregationBuilder(RareTermsAggregationBuilder clone, Builder factoriesBuilder, Map<String, Object> metaData) {
+    private RareTermsAggregationBuilder(RareTermsAggregationBuilder clone, Builder factoriesBuilder, Map<String, Object> metaData) {
         super(clone, factoriesBuilder, metaData);
-        this.executionHint = clone.executionHint;
         this.includeExclude = clone.includeExclude;
     }
 
@@ -93,7 +85,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
      */
     public RareTermsAggregationBuilder(StreamInput in) throws IOException {
         super(in, ValuesSourceType.ANY);
-        executionHint = in.readOptionalString();
         includeExclude = in.readOptionalWriteable(IncludeExclude::new);
         maxDocCount = in.readVInt();
     }
@@ -105,7 +96,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
 
     @Override
     protected void innerWriteTo(StreamOutput out) throws IOException {
-        out.writeOptionalString(executionHint);
         out.writeOptionalWriteable(includeExclude);
         out.writeVInt(maxDocCount);
     }
@@ -130,21 +120,6 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
     }
 
     /**
-     * Expert: sets an execution hint to the aggregation.
-     */
-    public RareTermsAggregationBuilder executionHint(String executionHint) {
-        this.executionHint = executionHint;
-        return this;
-    }
-
-    /**
-     * Expert: gets an execution hint to the aggregation.
-     */
-    public String executionHint() {
-        return executionHint;
-    }
-
-    /**
      * Set terms to include and exclude from the aggregation results
      */
     public RareTermsAggregationBuilder includeExclude(IncludeExclude includeExclude) {
@@ -160,17 +135,16 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
     }
 
     @Override
-    protected ValuesSourceAggregatorFactory<ValuesSource, ?> innerBuild(SearchContext context, ValuesSourceConfig<ValuesSource> config,
-                                                                        AggregatorFactory<?> parent, Builder subFactoriesBuilder) throws IOException {
-        return new RareTermsAggregatorFactory(name, config, includeExclude, executionHint,
+    protected ValuesSourceAggregatorFactory<ValuesSource, ?> innerBuild(SearchContext context,
+                                                                        ValuesSourceConfig<ValuesSource> config,
+                                                                        AggregatorFactory<?> parent,
+                                                                        Builder subFactoriesBuilder) throws IOException {
+        return new RareTermsAggregatorFactory(name, config, includeExclude,
             context, parent, subFactoriesBuilder, metaData, maxDocCount);
     }
 
     @Override
     protected XContentBuilder doXContentBody(XContentBuilder builder, Params params) throws IOException {
-        if (executionHint != null) {
-            builder.field(RareTermsAggregationBuilder.EXECUTION_HINT_FIELD_NAME.getPreferredName(), executionHint);
-        }
         if (includeExclude != null) {
             includeExclude.toXContent(builder, params);
         }
@@ -180,14 +154,13 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
 
     @Override
     protected int innerHashCode() {
-        return Objects.hash(executionHint, includeExclude, maxDocCount);
+        return Objects.hash(includeExclude, maxDocCount);
     }
 
     @Override
     protected boolean innerEquals(Object obj) {
         RareTermsAggregationBuilder other = (RareTermsAggregationBuilder) obj;
-        return Objects.equals(executionHint, other.executionHint)
-            && Objects.equals(includeExclude, other.includeExclude)
+        return Objects.equals(includeExclude, other.includeExclude)
             && Objects.equals(maxDocCount, other.maxDocCount);
     }
 

@@ -21,7 +21,6 @@ package org.elasticsearch.search.aggregations.bucket.terms;
 
 import org.elasticsearch.common.ParseField;
 import org.elasticsearch.common.logging.DeprecationLogger;
-import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
 import org.elasticsearch.search.aggregations.Aggregator;
@@ -40,22 +39,16 @@ import java.util.List;
 import java.util.Map;
 
 public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<ValuesSource, RareTermsAggregatorFactory> {
-
-    private static final DeprecationLogger DEPRECATION_LOGGER
-        = new DeprecationLogger(Loggers.getLogger(TermsAggregatorFactory.class));
-
     private final IncludeExclude includeExclude;
-    private final String executionHint;
     private final int maxDocCount;
 
-    public RareTermsAggregatorFactory(String name, ValuesSourceConfig<ValuesSource> config,
-                                      IncludeExclude includeExclude, String executionHint,
+    RareTermsAggregatorFactory(String name, ValuesSourceConfig<ValuesSource> config,
+                                      IncludeExclude includeExclude,
                                       SearchContext context,
                                       AggregatorFactory<?> parent, AggregatorFactories.Builder subFactoriesBuilder,
                                       Map<String, Object> metaData, int maxDocCount) throws IOException {
         super(name, config, context, parent, subFactoriesBuilder, metaData);
         this.includeExclude = includeExclude;
-        this.executionHint = executionHint;
         this.maxDocCount = maxDocCount;
     }
 
@@ -82,8 +75,9 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
 
             DocValueFormat format = config.format();
             if ((includeExclude != null) && (includeExclude.isRegexBased()) && format != DocValueFormat.RAW) {
-                throw new AggregationExecutionException("Aggregation [" + name + "] cannot support regular expression style include/exclude "
-                    + "settings as they can only be applied to string fields. Use an array of values for include/exclude clauses");
+                throw new AggregationExecutionException("Aggregation [" + name + "] cannot support " +
+                    "regular expression style include/exclude settings as they can only be applied to string fields. " +
+                    "Use an array of values for include/exclude clauses");
             }
 
             return execution.create(name, factories, valuesSource, format,

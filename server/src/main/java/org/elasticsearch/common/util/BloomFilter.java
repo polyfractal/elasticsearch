@@ -29,6 +29,7 @@ import org.elasticsearch.common.lease.Releasable;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Objects;
 
 /**
  * A bloom filter. Inspired by Guava bloom filter implementation though with some optimizations.
@@ -54,14 +55,26 @@ public class BloomFilter implements Writeable, Releasable {
     //  50m=0.10 : 228.5mb  ,  3 Hashes
 
     /**
+     * The bit set of the BloomFilter (not necessarily power of 2!)
+     */
+    private final BitArray bits;
+
+    /**
+     * Number of hashes per element
+     */
+    private final int numHashFunctions;
+
+    private final Hashing hashing = Hashing.V1;
+
+    /**
      * Creates a bloom filter based on the with the expected number
      * of insertions and expected false positive probability.
      *
      * @param expectedInsertions the number of expected insertions to the constructed
      * @param fpp                the desired false positive probability (must be positive and less than 1.0)
      */
-    public static BloomFilter create(int expectedInsertions, double fpp) {
-        return create(expectedInsertions, fpp, -1);
+    public BloomFilter(int expectedInsertions, double fpp) {
+        this(expectedInsertions, fpp, -1);
     }
 
     /**
@@ -72,7 +85,7 @@ public class BloomFilter implements Writeable, Releasable {
      * @param fpp                the desired false positive probability (must be positive and less than 1.0)
      * @param numHashFunctions   the number of hash functions to use (must be less than or equal to 255)
      */
-    public static BloomFilter create(int expectedInsertions, double fpp, int numHashFunctions) {
+    public BloomFilter(int expectedInsertions, double fpp, int numHashFunctions) {
         if (expectedInsertions == 0) {
             expectedInsertions = 1;
         }
@@ -90,31 +103,10 @@ public class BloomFilter implements Writeable, Releasable {
         }
 
         if (numHashFunctions > 255) {
-            throw new IllegalArgumentException("Currently we don't allow BloomFilters that would use more than 255 hash functions");
+            throw new IllegalArgumentException("BloomFilters with more than 255 hash functions are not allowed.");
         }
 
-        try {
-            return new BloomFilter(new BitArray(numBits), numHashFunctions);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Could not create BloomFilter of " + numBits + " bits", e);
-        }
-    }
-
-
-    /**
-     * The bit set of the BloomFilter (not necessarily power of 2!)
-     */
-    private final BitArray bits;
-
-    /**
-     * Number of hashes per element
-     */
-    private final int numHashFunctions;
-
-    private final Hashing hashing = Hashing.V1;
-
-    private BloomFilter(BitArray bits, int numHashFunctions) {
-        this.bits = bits;
+        this.bits = new BitArray(numBits);
         this.numHashFunctions = numHashFunctions;
     }
 
@@ -169,6 +161,21 @@ public class BloomFilter implements Writeable, Releasable {
         return bits.hashCode() + numHashFunctions;
     }
 
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (other == null || getClass() != other.getClass()) {
+            return false;
+        }
+
+        final BloomFilter that = (BloomFilter) other;
+        return Objects.equals(this.bits, that.bits)
+            && Objects.equals(this.hashing, that.hashing)
+            && Objects.equals(this.numHashFunctions, that.numHashFunctions);
+    }
+
     public void writeTo(StreamOutput out) throws IOException {
         out.writeVInt(bits.data.length);
         for (long l : bits.data) {
@@ -183,19 +190,19 @@ public class BloomFilter implements Writeable, Releasable {
     }
 
     /*
-   * Cheat sheet:
-   *
-   * m: total bits
-   * n: expected insertions
-   * b: m/n, bits per insertion
+     * Cheat sheet:
+     *
+     * m: total bits
+     * n: expected insertions
+     * b: m/n, bits per insertion
 
-   * p: expected false positive probability
-   *
-   * 1) Optimal k = b * ln2
-   * 2) p = (1 - e ^ (-kn/m))^k
-   * 3) For optimal k: p = 2 ^ (-k) ~= 0.6185^b
-   * 4) For optimal k: m = -nlnp / ((ln2) ^ 2)
-   */
+     * p: expected false positive probability
+     *
+     * 1) Optimal k = b * ln2
+     * 2) p = (1 - e ^ (-kn/m))^k
+     * 3) For optimal k: p = 2 ^ (-k) ~= 0.6185^b
+     * 4) For optimal k: m = -nlnp / ((ln2) ^ 2)
+     */
 
     /**
      * Computes the optimal k (number of hashes per element inserted in Bloom filter), given the
@@ -253,7 +260,9 @@ public class BloomFilter implements Writeable, Releasable {
             this.bitSize = data.length * Long.SIZE;
         }
 
-        /** Returns true if the bit changed value. */
+        /**
+         * Returns true if the bit changed value.
+         */
         boolean set(long index) {
             if (!get(index)) {
                 data[(int) (index >>> 6)] |= (1L << index);
@@ -267,12 +276,16 @@ public class BloomFilter implements Writeable, Releasable {
             return (data[(int) (index >>> 6)] & (1L << index)) != 0;
         }
 
-        /** Number of bits */
+        /**
+         * Number of bits
+         */
         long bitSize() {
             return bitSize;
         }
 
-        /** Number of set bits (1s) */
+        /**
+         * Number of set bits (1s)
+         */
         long bitCount() {
             return bitCount;
         }
@@ -281,7 +294,9 @@ public class BloomFilter implements Writeable, Releasable {
             return new BitArray(data.clone());
         }
 
-        /** Combines the two BitArrays using bitwise OR. */
+        /**
+         * Combines the two BitArrays using bitwise OR.
+         */
         void putAll(BitArray array) {
             bitCount = 0;
             for (int i = 0; i < data.length; i++) {
@@ -290,7 +305,8 @@ public class BloomFilter implements Writeable, Releasable {
             }
         }
 
-        @Override public boolean equals(Object o) {
+        @Override
+        public boolean equals(Object o) {
             if (o instanceof BitArray) {
                 BitArray bitArray = (BitArray) o;
                 return Arrays.equals(data, bitArray.data);
@@ -298,9 +314,11 @@ public class BloomFilter implements Writeable, Releasable {
             return false;
         }
 
-        @Override public int hashCode() {
+        @Override
+        public int hashCode() {
             return Arrays.hashCode(data);
         }
+
 
         public long ramBytesUsed() {
             return Long.BYTES * data.length + RamUsageEstimator.NUM_BYTES_ARRAY_HEADER + 16;

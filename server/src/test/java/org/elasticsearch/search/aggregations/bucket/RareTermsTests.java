@@ -21,7 +21,6 @@ package org.elasticsearch.search.aggregations.bucket;
 
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.automaton.RegExp;
-import org.elasticsearch.search.aggregations.Aggregator.SubAggCollectionMode;
 import org.elasticsearch.search.aggregations.BaseAggregationTestCase;
 import org.elasticsearch.search.aggregations.bucket.terms.IncludeExclude;
 import org.elasticsearch.search.aggregations.bucket.terms.RareTermsAggregationBuilder;
@@ -31,8 +30,6 @@ import java.util.TreeSet;
 
 public class RareTermsTests extends BaseAggregationTestCase<RareTermsAggregationBuilder> {
 
-    private static final String[] executionHints = new String[]{"map"};
-
     @Override
     protected RareTermsAggregationBuilder createTestAggregatorBuilder() {
         String name = randomAlphaOfLengthBetween(3, 20);
@@ -41,9 +38,6 @@ public class RareTermsTests extends BaseAggregationTestCase<RareTermsAggregation
         randomFieldOrScript(factory, field);
         if (randomBoolean()) {
             factory.missing("MISSING");
-        }
-        if (randomBoolean()) {
-            factory.executionHint(randomFrom(executionHints));
         }
         if (randomBoolean()) {
             factory.format("###.##");

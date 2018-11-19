@@ -49,6 +49,7 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
     public static final ParseField EXECUTION_HINT_FIELD_NAME = new ParseField("execution_hint");
     public static final ParseField MAX_DOC_COUNT_FIELD_NAME = new ParseField("max_doc_count");
 
+    private static final int MAX_MAX_DOC_COUNT = 10;
     private static final ObjectParser<RareTermsAggregationBuilder, Void> PARSER;
     static {
         PARSER = new ObjectParser<>(RareTermsAggregationBuilder.NAME);
@@ -119,9 +120,10 @@ public class RareTermsAggregationBuilder extends ValuesSourceAggregationBuilder<
                 "[" + MAX_DOC_COUNT_FIELD_NAME.getPreferredName() + "] must be greater than 0. Found ["
                     + maxDocCount + "] in [" + name + "]");
         }
-        if (maxDocCount > Integer.MAX_VALUE) {
+        //TODO review: what size cap should we put on this?
+        if (maxDocCount > MAX_MAX_DOC_COUNT) {
             throw new IllegalArgumentException("[" + MAX_DOC_COUNT_FIELD_NAME.getPreferredName() + "] must be smaller" +
-                "than " + Integer.MAX_VALUE + "in [" + name + "]");
+                "than " + MAX_MAX_DOC_COUNT + "in [" + name + "]");
         }
         this.maxDocCount = (int) maxDocCount;
         return this;

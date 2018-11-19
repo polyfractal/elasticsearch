@@ -20,14 +20,12 @@ package org.elasticsearch.common.util;
 
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.RamUsageEstimator;
-import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Numbers;
 import org.elasticsearch.common.hash.MurmurHash3;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.lease.Releasable;
-import org.elasticsearch.common.unit.SizeValue;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -37,87 +35,23 @@ import java.util.Arrays;
  */
 public class BloomFilter implements Writeable, Releasable {
 
-    /**
-     * A factory that can use different fpp based on size.
-     */
-    public static class Factory {
-
-        public static final Factory DEFAULT = buildDefault();
-
-        private static Factory buildDefault() {
-            // Some numbers:
-            // 10k =0.001: 140.4kb  , 10 Hashes
-            // 10k =0.01 :  93.6kb  ,  6 Hashes
-            // 100k=0.01 : 936.0kb  ,  6 Hashes
-            // 100k=0.03 : 712.7kb  ,  5 Hashes
-            // 500k=0.01 :   4.5mb  ,  6 Hashes
-            // 500k=0.03 :   3.4mb  ,  5 Hashes
-            // 500k=0.05 :   2.9mb  ,  4 Hashes
-            //   1m=0.01 :   9.1mb  ,  6 Hashes
-            //   1m=0.03 :   6.9mb  ,  5 Hashes
-            //   1m=0.05 :   5.9mb  ,  4 Hashes
-            //   5m=0.01 :  45.7mb  ,  6 Hashes
-            //   5m=0.03 :  34.8mb  ,  5 Hashes
-            //   5m=0.05 :  29.7mb  ,  4 Hashes
-            //  50m=0.01 : 457.0mb  ,  6 Hashes
-            //  50m=0.03 : 297.3mb  ,  4 Hashes
-            //  50m=0.10 : 228.5mb  ,  3 Hashes
-            return buildFromString("10k=0.01,1m=0.03");
-        }
-
-        /**
-         * Supports just passing fpp, as in "0.01", and also ranges, like "50k=0.01,1m=0.05". If
-         * its null, returns {@link #buildDefault()}.
-         */
-        public static Factory buildFromString(@Nullable String config) {
-            if (config == null) {
-                return buildDefault();
-            }
-            String[] sEntries = config.split(",");
-            if (sEntries.length == 0) {
-                if (config.length() > 0) {
-                    return new Factory(new Entry[]{new Entry(0, Double.parseDouble(config))});
-                }
-                return buildDefault();
-            }
-            Entry[] entries = new Entry[sEntries.length];
-            for (int i = 0; i < sEntries.length; i++) {
-                int index = sEntries[i].indexOf('=');
-                entries[i] = new Entry(
-                    (int) SizeValue.parseSizeValue(sEntries[i].substring(0, index).trim()).singles(),
-                    Double.parseDouble(sEntries[i].substring(index + 1).trim())
-                );
-            }
-            return new Factory(entries);
-        }
-
-        private final Entry[] entries;
-
-        public Factory(Entry[] entries) {
-            this.entries = entries;
-            // the order is from the upper most expected insertions to the lowest
-            Arrays.sort(this.entries, (o1, o2) -> o2.expectedInsertions - o1.expectedInsertions);
-        }
-
-        public BloomFilter createFilter(int expectedInsertions) {
-            for (Entry entry : entries) {
-                if (expectedInsertions > entry.expectedInsertions) {
-                    return BloomFilter.create(expectedInsertions, entry.fpp);
-                }
-            }
-            return BloomFilter.create(expectedInsertions, 0.03);
-        }
-
-        public static class Entry {
-            public final int expectedInsertions;
-            public final double fpp;
-
-            Entry(int expectedInsertions, double fpp) {
-                this.expectedInsertions = expectedInsertions;
-                this.fpp = fpp;
-            }
-        }
-    }
+    // Some numbers:
+    // 10k =0.001: 140.4kb  , 10 Hashes
+    // 10k =0.01 :  93.6kb  ,  6 Hashes
+    // 100k=0.01 : 936.0kb  ,  6 Hashes
+    // 100k=0.03 : 712.7kb  ,  5 Hashes
+    // 500k=0.01 :   4.5mb  ,  6 Hashes
+    // 500k=0.03 :   3.4mb  ,  5 Hashes
+    // 500k=0.05 :   2.9mb  ,  4 Hashes
+    //   1m=0.01 :   9.1mb  ,  6 Hashes
+    //   1m=0.03 :   6.9mb  ,  5 Hashes
+    //   1m=0.05 :   5.9mb  ,  4 Hashes
+    //   5m=0.01 :  45.7mb  ,  6 Hashes
+    //   5m=0.03 :  34.8mb  ,  5 Hashes
+    //   5m=0.05 :  29.7mb  ,  4 Hashes
+    //  50m=0.01 : 457.0mb  ,  6 Hashes
+    //  50m=0.03 : 297.3mb  ,  4 Hashes
+    //  50m=0.10 : 228.5mb  ,  3 Hashes
 
     /**
      * Creates a bloom filter based on the with the expected number
@@ -155,8 +89,12 @@ public class BloomFilter implements Writeable, Releasable {
             numHashFunctions = optimalNumOfHashFunctions(expectedInsertions, numBits);
         }
 
+        if (numHashFunctions > 255) {
+            throw new IllegalArgumentException("Currently we don't allow BloomFilters that would use more than 255 hash functions");
+        }
+
         try {
-            return new BloomFilter(new BitArray(numBits), numHashFunctions, Hashing.DEFAULT);
+            return new BloomFilter(new BitArray(numBits), numHashFunctions);
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Could not create BloomFilter of " + numBits + " bits", e);
         }
@@ -166,26 +104,18 @@ public class BloomFilter implements Writeable, Releasable {
     /**
      * The bit set of the BloomFilter (not necessarily power of 2!)
      */
-    final BitArray bits;
+    private final BitArray bits;
+
     /**
      * Number of hashes per element
      */
-    final int numHashFunctions;
+    private final int numHashFunctions;
 
-    final Hashing hashing;
+    private final Hashing hashing = Hashing.V1;
 
-    BloomFilter(BitArray bits, int numHashFunctions, Hashing hashing) {
+    private BloomFilter(BitArray bits, int numHashFunctions) {
         this.bits = bits;
         this.numHashFunctions = numHashFunctions;
-        this.hashing = hashing;
-    /*
-     * This only exists to forbid BFs that cannot use the compact persistent representation.
-     * If it ever throws, at a user who was not intending to use that representation, we should
-     * reconsider
-     */
-        if (numHashFunctions > 255) {
-            throw new IllegalArgumentException("Currently we don't allow BloomFilters that would use more than 255 hash functions");
-        }
     }
 
     public BloomFilter(StreamInput in) throws IOException {
@@ -194,17 +124,7 @@ public class BloomFilter implements Writeable, Releasable {
         for (int i = 0; i < numLongs; i++) {
             data[i] = in.readLong();
         }
-        numHashFunctions = in.readVInt();
-        /*
-         * This only exists to forbid BFs that cannot use the compact persistent representation.
-         * If it ever throws, at a user who was not intending to use that representation, we should
-         * reconsider
-         */
-        if (numHashFunctions > 255) {
-            throw new IllegalArgumentException("Currently we don't allow BloomFilters that would use more than 255 hash functions");
-        }
-
-        this.hashing = Hashing.fromType(in.readVInt());
+        this.numHashFunctions = in.readVInt();
         this.bits = new BitArray(data);
     }
 
@@ -255,23 +175,11 @@ public class BloomFilter implements Writeable, Releasable {
             out.writeLong(l);
         }
         out.writeVInt(numHashFunctions);
-        out.writeVInt(hashing.type()); // hashType
     }
 
     @Override
     public void close() {
 
-    }
-
-    static void longToBytes(long val, byte[] arr) {
-        arr[0] = (byte) (val >>> 56);
-        arr[1] = (byte) (val >>> 48);
-        arr[2] = (byte) (val >>> 40);
-        arr[3] = (byte) (val >>> 32);
-        arr[4] = (byte) (val >>> 24);
-        arr[5] = (byte) (val >>> 16);
-        arr[6] = (byte) (val >>> 8);
-        arr[7] = (byte) (val);
     }
 
     /*
@@ -298,7 +206,7 @@ public class BloomFilter implements Writeable, Releasable {
      * @param n expected insertions (must be positive)
      * @param m total number of bits in Bloom filter (must be positive)
      */
-    static int optimalNumOfHashFunctions(long n, long m) {
+    private static int optimalNumOfHashFunctions(long n, long m) {
         return Math.max(1, (int) Math.round(m / n * Math.log(2)));
     }
 
@@ -311,7 +219,7 @@ public class BloomFilter implements Writeable, Releasable {
      * @param n expected insertions (must be positive)
      * @param p false positive rate (must be 0 &lt; p &lt; 1)
      */
-    static long optimalNumOfBits(long n, double p) {
+    private static long optimalNumOfBits(long n, double p) {
         if (p == 0) {
             p = Double.MIN_VALUE;
         }
@@ -399,49 +307,7 @@ public class BloomFilter implements Writeable, Releasable {
         }
     }
 
-    static enum Hashing {
-
-        V0() {
-            @Override
-            protected boolean put(byte[] bytes, int offset, int length, int numHashFunctions, BitArray bits) {
-                long bitSize = bits.bitSize();
-                long hash64 = hash3_x64_128(bytes, offset, length, 0);
-                int hash1 = (int) hash64;
-                int hash2 = (int) (hash64 >>> 32);
-                boolean bitsChanged = false;
-                for (int i = 1; i <= numHashFunctions; i++) {
-                    int nextHash = hash1 + i * hash2;
-                    if (nextHash < 0) {
-                        nextHash = ~nextHash;
-                    }
-                    bitsChanged |= bits.set(nextHash % bitSize);
-                }
-                return bitsChanged;
-            }
-
-            @Override
-            protected boolean mightContain(byte[] bytes, int offset, int length, int numHashFunctions, BitArray bits) {
-                long bitSize = bits.bitSize();
-                long hash64 = hash3_x64_128(bytes, offset, length, 0);
-                int hash1 = (int) hash64;
-                int hash2 = (int) (hash64 >>> 32);
-                for (int i = 1; i <= numHashFunctions; i++) {
-                    int nextHash = hash1 + i * hash2;
-                    if (nextHash < 0) {
-                        nextHash = ~nextHash;
-                    }
-                    if (!bits.get(nextHash % bitSize)) {
-                        return false;
-                    }
-                }
-                return true;
-            }
-
-            @Override
-            protected int type() {
-                return 0;
-            }
-        },
+    enum Hashing {
         V1() {
             @Override
             protected boolean put(byte[] bytes, int offset, int length, int numHashFunctions, BitArray bits) {
@@ -493,152 +359,5 @@ public class BloomFilter implements Writeable, Releasable {
         protected abstract boolean mightContain(byte[] bytes, int offset, int length, int numHashFunctions, BitArray bits);
 
         protected abstract int type();
-
-        public static final Hashing DEFAULT = Hashing.V1;
-
-        public static Hashing fromType(int type) {
-            if (type == 0) {
-                return Hashing.V0;
-            } if (type == 1) {
-                return Hashing.V1;
-            } else {
-                throw new IllegalArgumentException("no hashing type matching " + type);
-            }
-        }
     }
-
-    // START : MURMUR 3_128 USED FOR Hashing.V0
-    // NOTE: don't replace this code with the o.e.common.hashing.MurmurHash3 method which returns a different hash
-
-    protected static long getblock(byte[] key, int offset, int index) {
-        int i_8 = index << 3;
-        int blockOffset = offset + i_8;
-        return ((long) key[blockOffset + 0] & 0xff) + (((long) key[blockOffset + 1] & 0xff) << 8) +
-            (((long) key[blockOffset + 2] & 0xff) << 16) + (((long) key[blockOffset + 3] & 0xff) << 24) +
-            (((long) key[blockOffset + 4] & 0xff) << 32) + (((long) key[blockOffset + 5] & 0xff) << 40) +
-            (((long) key[blockOffset + 6] & 0xff) << 48) + (((long) key[blockOffset + 7] & 0xff) << 56);
-    }
-
-    protected static long rotl64(long v, int n) {
-        return ((v << n) | (v >>> (64 - n)));
-    }
-
-    protected static long fmix(long k) {
-        k ^= k >>> 33;
-        k *= 0xff51afd7ed558ccdL;
-        k ^= k >>> 33;
-        k *= 0xc4ceb9fe1a85ec53L;
-        k ^= k >>> 33;
-
-        return k;
-    }
-
-    @SuppressWarnings("fallthrough") // Uses fallthrough to implement a well know hashing algorithm
-    public static long hash3_x64_128(byte[] key, int offset, int length, long seed) {
-        final int nblocks = length >> 4; // Process as 128-bit blocks.
-
-        long h1 = seed;
-        long h2 = seed;
-
-        long c1 = 0x87c37b91114253d5L;
-        long c2 = 0x4cf5ad432745937fL;
-
-        //----------
-        // body
-
-        for (int i = 0; i < nblocks; i++) {
-            long k1 = getblock(key, offset, i * 2 + 0);
-            long k2 = getblock(key, offset, i * 2 + 1);
-
-            k1 *= c1;
-            k1 = rotl64(k1, 31);
-            k1 *= c2;
-            h1 ^= k1;
-
-            h1 = rotl64(h1, 27);
-            h1 += h2;
-            h1 = h1 * 5 + 0x52dce729;
-
-            k2 *= c2;
-            k2 = rotl64(k2, 33);
-            k2 *= c1;
-            h2 ^= k2;
-
-            h2 = rotl64(h2, 31);
-            h2 += h1;
-            h2 = h2 * 5 + 0x38495ab5;
-        }
-
-        //----------
-        // tail
-
-        // Advance offset to the unprocessed tail of the data.
-        offset += nblocks * 16;
-
-        long k1 = 0;
-        long k2 = 0;
-
-        switch (length & 15) {
-            case 15:
-                k2 ^= ((long) key[offset + 14]) << 48;
-            case 14:
-                k2 ^= ((long) key[offset + 13]) << 40;
-            case 13:
-                k2 ^= ((long) key[offset + 12]) << 32;
-            case 12:
-                k2 ^= ((long) key[offset + 11]) << 24;
-            case 11:
-                k2 ^= ((long) key[offset + 10]) << 16;
-            case 10:
-                k2 ^= ((long) key[offset + 9]) << 8;
-            case 9:
-                k2 ^= ((long) key[offset + 8]) << 0;
-                k2 *= c2;
-                k2 = rotl64(k2, 33);
-                k2 *= c1;
-                h2 ^= k2;
-
-            case 8:
-                k1 ^= ((long) key[offset + 7]) << 56;
-            case 7:
-                k1 ^= ((long) key[offset + 6]) << 48;
-            case 6:
-                k1 ^= ((long) key[offset + 5]) << 40;
-            case 5:
-                k1 ^= ((long) key[offset + 4]) << 32;
-            case 4:
-                k1 ^= ((long) key[offset + 3]) << 24;
-            case 3:
-                k1 ^= ((long) key[offset + 2]) << 16;
-            case 2:
-                k1 ^= ((long) key[offset + 1]) << 8;
-            case 1:
-                k1 ^= (key[offset]);
-                k1 *= c1;
-                k1 = rotl64(k1, 31);
-                k1 *= c2;
-                h1 ^= k1;
-        }
-
-        //----------
-        // finalization
-
-        h1 ^= length;
-        h2 ^= length;
-
-        h1 += h2;
-        h2 += h1;
-
-        h1 = fmix(h1);
-        h2 = fmix(h2);
-
-        h1 += h2;
-        h2 += h1;
-
-        //return (new long[]{h1, h2});
-        // SAME AS GUAVA, they take the first long out of the 128bit
-        return h1;
-    }
-
-    // END: MURMUR 3_128
 }

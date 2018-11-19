@@ -63,6 +63,13 @@ public abstract class InternalMappedRareTerms<A extends InternalTerms<A, B>, B e
         BloomFilter bloomFilter = null;
 
         for (InternalAggregation aggregation : aggregations) {
+
+            // Unmapped rare terms don't have a bloom filter so we'll skip all this work
+            // and save some type casting headaches later.
+            if (aggregation.isMapped() == false) {
+                continue;
+            }
+
             @SuppressWarnings("unchecked")
             InternalTerms<A, B> terms = (InternalTerms<A, B>) aggregation;
             if (referenceTerms == null && !aggregation.getClass().equals(UnmappedRareTerms.class)) {

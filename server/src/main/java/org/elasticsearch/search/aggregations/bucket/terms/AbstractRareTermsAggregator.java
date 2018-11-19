@@ -59,7 +59,7 @@ public abstract class  AbstractRareTermsAggregator<T extends ValuesSource, U ext
         super(name, factories, context, parent, pipelineAggregators, metaData);
 
         // TODO review: should we expose the BF settings?  What's a good default?
-        this.bloom = BloomFilter.Factory.DEFAULT.createFilter(10000000);
+        this.bloom = BloomFilter.create(1000000, 0.03); // ~7mb
         this.maxDocCount = maxDocCount;
         this.format = format;
         this.valuesSource = valuesSource;

@@ -135,13 +135,8 @@ class BinaryValuesSource extends SingleDimensionValuesSource<BytesRef> {
     }
 
     @Override
-    long hashAt(int slot) {
-        return values.get(slot).hashCode();
-    }
-
-    @Override
     long currentHash() {
-        return currentValue.hashCode();
+        return currentValue == null ? 0 : currentValue.hashCode();
     }
 
     @Override

@@ -130,13 +130,8 @@ class DoubleValuesSource extends SingleDimensionValuesSource<Double> {
     }
 
     @Override
-    long hashAt(int slot) {
-        return Double.doubleToRawLongBits(values.get(slot));
-    }
-
-    @Override
     long currentHash() {
-        return Double.doubleToRawLongBits(currentValue);
+        return missingCurrentValue ? 0 : Double.doubleToRawLongBits(currentValue);
     }
 
     @Override

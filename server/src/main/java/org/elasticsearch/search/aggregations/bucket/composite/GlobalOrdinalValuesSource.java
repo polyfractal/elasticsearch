@@ -115,11 +115,6 @@ class GlobalOrdinalValuesSource extends SingleDimensionValuesSource<BytesRef> {
     }
 
     @Override
-    long hashAt(int slot) {
-        return values.get(slot);
-    }
-
-    @Override
     long currentHash() {
         return currentValue;
     }

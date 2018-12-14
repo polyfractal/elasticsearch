@@ -118,8 +118,6 @@ abstract class SingleDimensionValuesSource<T extends Comparable<T>> implements R
 
     abstract long currentHash();
 
-    abstract long hashAt(int slot);
-
     /**
      * Creates a {@link LeafBucketCollector} that extracts all values from a document and invokes
      * {@link LeafBucketCollector#collect} on the provided <code>next</code> collector for each of them.

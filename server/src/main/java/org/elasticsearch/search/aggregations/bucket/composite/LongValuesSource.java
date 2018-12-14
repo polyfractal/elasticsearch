@@ -148,13 +148,8 @@ class LongValuesSource extends SingleDimensionValuesSource<Long> {
     }
 
     @Override
-    long hashAt(int slot) {
-        return values.get(slot);
-    }
-
-    @Override
     long currentHash() {
-        return currentValue;
+        return missingCurrentValue ? 0 : currentValue;
     }
 
     @Override

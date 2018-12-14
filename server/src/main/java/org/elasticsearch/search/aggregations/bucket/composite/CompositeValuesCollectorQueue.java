@@ -20,6 +20,7 @@
 package org.elasticsearch.search.aggregations.bucket.composite;
 
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.util.PriorityQueue;
 import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.lease.Releasables;
 import org.elasticsearch.common.util.BigArrays;
@@ -27,10 +28,13 @@ import org.elasticsearch.common.util.IntArray;
 import org.elasticsearch.search.aggregations.LeafBucketCollector;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Objects;
 import java.util.Set;
-import java.util.TreeMap;
-import java.util.function.BiConsumer;
+import java.util.TreeSet;
 
 /**
  * A specialized queue implementation for composite buckets
@@ -41,11 +45,19 @@ final class CompositeValuesCollectorQueue implements Releasable {
 
     private final BigArrays bigArrays;
     private final int maxSize;
-    private final TreeMap<Integer, Integer> keys;
-    private HashMap<Long, Integer> fastKeys;
+    //private final TreeMap<Integer, Integer> keys;
+    private final CompositeKeyQueue queue;
     private final SingleDimensionValuesSource<?>[] arrays;
     private IntArray docCounts;
     private boolean afterKeyIsSet = false;
+    private long currentHash;
+    private InsertFlag lastInsertFlag = InsertFlag.NONE;
+    private boolean finalized = false;
+    private int finalizedSize = 0;
+
+    private enum InsertFlag {
+        NONE, UNDERFLOW, FELL_THROUGH, CONTAINS, ADDED
+    }
 
     /**
      * Constructs a composite queue with the specified size and sources.
@@ -58,7 +70,8 @@ final class CompositeValuesCollectorQueue implements Releasable {
         this.bigArrays = bigArrays;
         this.maxSize = size;
         this.arrays = sources;
-        this.keys = new TreeMap<>(this::compare);
+        //this.keys = new TreeMap<>(this::compare);
+        this.queue = new CompositeKeyQueue(maxSize);
         if (afterKey != null) {
             assert afterKey.size() == sources.length;
             afterKeyIsSet = true;
@@ -73,46 +86,42 @@ final class CompositeValuesCollectorQueue implements Releasable {
      * The current size of the queue.
      */
     int size() {
-        return keys.size();
+        return finalized ? finalizedSize : queue.size();
     }
 
     /**
      * Whether the queue is full or not.
      */
     boolean isFull() {
-        return keys.size() == maxSize;
+        return finalized ? finalizedSize == maxSize : queue.size() == maxSize;
     }
 
     /**
-     * Returns a sorted {@link Set} view of the slots contained in this queue.
+     * Returns a sorted {@link List} view of the slots contained in this queue.
      */
-    Set<Integer> getSortedSlot() {
-        return keys.keySet();
-    }
-
-    /**
-     * Compares the current candidate with the values in the queue and returns
-     * the slot if the candidate is already in the queue or null if the candidate is not present.
-     */
-    Integer compareCurrent() {
-        return keys.get(CANDIDATE_SLOT);
-    }
-
-    void finishFirstPass() {
-        if (fastKeys == null) {
-            fastKeys = new HashMap<>(keys.size());
-            keys.forEach((s1, s2) -> fastKeys.put(hashAt(s1), s1));
+    List<Integer> getSortedSlot() {
+        finalized = true;
+        finalizedSize = queue.size();
+        List<Integer> list = new ArrayList<>(queue.size());
+        while (queue.size() > 0) {
+            list.add(queue.getSlot(queue.pop()));
         }
+        Collections.reverse(list);
+        return list;
     }
 
     Integer fastCompareCurrent() {
-        return fastKeys.get(currentHash());
+        return queue.getSlot(currentHash);
     }
+
 
     /**
      * Returns the lowest value (exclusive) of the leading source.
      */
     Comparable<?> getLowerValueLeadSource() {
+        if (finalized) {
+            throw new IllegalStateException("Queue has been drained by getSortedSlot()");
+        }
         return afterKeyIsSet ? arrays[0].getAfter() : null;
     }
 
@@ -120,7 +129,10 @@ final class CompositeValuesCollectorQueue implements Releasable {
      * Returns the upper value (inclusive) of the leading source.
      */
     Comparable<?> getUpperValueLeadSource() throws IOException {
-        return size() >= maxSize ? arrays[0].toComparable(keys.lastKey()) : null;
+        if (finalized) {
+            throw new IllegalStateException("Queue has been drained by getSortedSlot()");
+        }
+        return size() >= maxSize ? arrays[0].toComparable(queue.getSlot(queue.top())) : null;
     }
     /**
      * Returns the document count in <code>slot</code>.
@@ -138,20 +150,6 @@ final class CompositeValuesCollectorQueue implements Releasable {
         }
         docCounts = bigArrays.grow(docCounts, slot+1);
         docCounts.set(slot, 1);
-    }
-
-    /**
-     * Compares the values in <code>slot1</code> with <code>slot2</code>.
-     */
-    int compare(int slot1, int slot2) {
-        for (int i = 0; i < arrays.length; i++) {
-            int cmp = (slot1 == CANDIDATE_SLOT) ? arrays[i].compareCurrent(slot2) :
-                arrays[i].compare(slot1, slot2);
-            if (cmp != 0) {
-                return cmp;
-            }
-        }
-        return 0;
     }
 
     /**
@@ -179,20 +177,13 @@ final class CompositeValuesCollectorQueue implements Releasable {
         return new CompositeKey(values);
     }
 
-    long hashAt(int slot) {
-        long hash = 19;
+    private void calculateCurrentHash() {
+        long hash = 0;
         for (SingleDimensionValuesSource<?> array : arrays) {
-            hash ^= array.hashAt(slot);
+            hash = 31 * hash + array.currentHash();
+            //hash = array.currentHash();
         }
-        return hash;
-    }
-
-    long currentHash() {
-        long hash = 19;
-        for (SingleDimensionValuesSource<?> array : arrays) {
-            hash ^= array.currentHash();
-        }
-        return hash;
+        currentHash = hash;
     }
 
     /**
@@ -228,44 +219,123 @@ final class CompositeValuesCollectorQueue implements Releasable {
      * @return The target slot of the candidate or -1 is the candidate is not competitive.
      */
     int addIfCompetitive() {
-        // checks if the candidate key is competitive
-        Integer topSlot = compareCurrent();
+        // Do we already have this key?
+        calculateCurrentHash();
+        Integer topSlot = queue.getSlot(currentHash);
         if (topSlot != null) {
-            // this key is already in the top N, skip it
             docCounts.increment(topSlot, 1);
             return topSlot;
         }
+
+        // checks if the candidate key is competitive
+        if (queue.compareTop() == false) {
+            return -1;
+        }
+
         if (afterKeyIsSet && compareCurrentWithAfter() <= 0) {
             // this key is greater than the top value collected in the previous round, skip it
             return -1;
         }
-        if (keys.size() >= maxSize) {
-            // the tree map is full, check if the candidate key should be kept
-            if (compare(CANDIDATE_SLOT, keys.lastKey()) > 0) {
-                // the candidate key is not competitive, skip it
-                return -1;
-            }
-        }
 
         // the candidate key is competitive
-        final int newSlot;
-        if (keys.size() >= maxSize) {
-            // the tree map is full, we replace the last key with this candidate
-            int slot = keys.pollLastEntry().getKey();
-            // and we recycle the deleted slot
-            newSlot = slot;
-        } else {
-            newSlot = keys.size();
-            assert newSlot < maxSize;
+        final int newSlot = queue.insertWithOverflowFlagged(currentHash);
+        switch (lastInsertFlag) {
+            case CONTAINS:
+                // This should be taken care of before inserting, but just in case
+                docCounts.increment(newSlot, 1);
+                return newSlot;
+            case FELL_THROUGH:
+                return -1;
+            case ADDED:
+            case UNDERFLOW:
+                assert newSlot < maxSize;
+                // move the candidate key to its new slot
+                copyCurrent(newSlot);
+                return newSlot;
+            case NONE:
+            default:
+                return -1;
         }
-        // move the candidate key to its new slot
-        copyCurrent(newSlot);
-        keys.put(newSlot, newSlot);
-        return newSlot;
     }
 
     @Override
     public void close() {
         Releasables.close(docCounts);
+    }
+
+    private class CompositeKeyQueue extends PriorityQueue<Long> {
+
+        private HashMap<Long, Integer> hashToSlot;
+        public CompositeKeyQueue(int maxSize) {
+            super(maxSize);
+            hashToSlot = new HashMap<>(maxSize);
+        }
+
+        public Integer getSlot(long hash) {
+            return hashToSlot.get(hash);
+        }
+
+        public boolean compareTop() {
+            if (size() < maxSize) {
+                return true;
+            }
+
+            int slot = hashToSlot.get(top());
+            for (SingleDimensionValuesSource<?> array : arrays) {
+                int cmp = array.compareCurrent(slot);
+                if (cmp != 0) {
+                    return cmp < 0;
+                }
+            }
+            // all equal means it's the same key
+            return true;
+        }
+
+        @Override
+        protected boolean lessThan(Long hash1, Long hash2) {
+            for (SingleDimensionValuesSource<?> array : arrays) {
+                int cmp;
+                if (hash1 == currentHash) {
+                    cmp = array.compareCurrent(hashToSlot.get(hash2));
+                } else if (hash2 == currentHash) {
+                    cmp = -array.compareCurrent(hashToSlot.get(hash1));
+                } else {
+                    cmp = array.compare(hashToSlot.get(hash1), hashToSlot.get(hash2));
+                }
+
+                if (cmp != 0) {
+                    return cmp > 0;
+                }
+            }
+            return true;
+        }
+
+
+        public int insertWithOverflowFlagged(Long element) {
+            if (size() < maxSize) {
+                super.add(currentHash);
+                hashToSlot.put(currentHash, size() - 1);
+                lastInsertFlag = InsertFlag.UNDERFLOW;
+                return size() - 1;
+            }
+
+            Integer slot = hashToSlot.get(currentHash);
+            if (slot != null) {
+                lastInsertFlag = InsertFlag.CONTAINS;
+                return slot;
+            }
+
+            Long e = super.insertWithOverflow(currentHash);
+            if (e.equals(element)) {
+                lastInsertFlag = InsertFlag.FELL_THROUGH;
+                return -1;
+            }
+
+            slot = hashToSlot.remove(e);
+            hashToSlot.put(currentHash, slot);
+            lastInsertFlag = InsertFlag.ADDED;
+            return slot;
+
+        }
     }
 }

@@ -218,7 +218,6 @@ final class CompositeAggregator extends BucketsAggregator {
                 continue;
             }
             final LeafBucketCollector subCollector = deferredCollectors.getLeafCollector(entry.context);
-            queue.finishFirstPass();
             final LeafBucketCollector collector = queue.getLeafCollector(entry.context, getSecondPassCollector(subCollector));
             DocIdSetIterator scorerIt = null;
             if (needsScores) {

@@ -52,6 +52,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.elasticsearch.index.mapper.NumberFieldMapper.NumberType.DOUBLE;
 import static org.elasticsearch.index.mapper.NumberFieldMapper.NumberType.LONG;
@@ -297,11 +298,16 @@ public class CompositeValuesCollectorQueueTests extends AggregatorTestCase {
                     }
                     assertEquals(size, Math.min(queue.size(), expected.length - pos));
                     int ptr = 0;
-                    for (int slot : queue.getSortedSlot()) {
+                    List<Integer> slots = queue.getSortedSlot();
+                    List<CompositeKey> testKeys = new ArrayList<>(queue.size());
+                    for (int slot : slots) {
                         CompositeKey key = queue.toCompositeKey(slot);
-                        assertThat(key, equalTo(expected[ptr++]));
+                        testKeys.add(key);
+                        assertThat(Arrays.toString(key.values()) + " does not match " + Arrays.toString(expected[ptr].values()), key, equalTo(expected[ptr]));
+                        ptr += 1;
                         last = key;
                     }
+
                     pos += queue.size();
                 }
             }

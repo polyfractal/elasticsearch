@@ -135,6 +135,16 @@ class BinaryValuesSource extends SingleDimensionValuesSource<BytesRef> {
     }
 
     @Override
+    long hashAt(int slot) {
+        return values.get(slot).hashCode();
+    }
+
+    @Override
+    long currentHash() {
+        return currentValue.hashCode();
+    }
+
+    @Override
     LeafBucketCollector getLeafCollector(LeafReaderContext context, LeafBucketCollector next) throws IOException {
         final SortedBinaryDocValues dvs = docValuesFunc.apply(context);
         return new LeafBucketCollector() {

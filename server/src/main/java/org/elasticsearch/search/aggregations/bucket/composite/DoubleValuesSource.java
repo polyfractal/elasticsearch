@@ -130,6 +130,16 @@ class DoubleValuesSource extends SingleDimensionValuesSource<Double> {
     }
 
     @Override
+    long hashAt(int slot) {
+        return Double.doubleToRawLongBits(values.get(slot));
+    }
+
+    @Override
+    long currentHash() {
+        return Double.doubleToRawLongBits(currentValue);
+    }
+
+    @Override
     LeafBucketCollector getLeafCollector(LeafReaderContext context, LeafBucketCollector next) throws IOException {
         final SortedNumericDoubleValues dvs = docValuesFunc.apply(context);
         return new LeafBucketCollector() {

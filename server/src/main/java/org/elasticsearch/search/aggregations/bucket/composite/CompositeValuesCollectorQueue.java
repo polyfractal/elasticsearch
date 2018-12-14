@@ -27,8 +27,10 @@ import org.elasticsearch.common.util.IntArray;
 import org.elasticsearch.search.aggregations.LeafBucketCollector;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.BiConsumer;
 
 /**
  * A specialized queue implementation for composite buckets
@@ -40,6 +42,7 @@ final class CompositeValuesCollectorQueue implements Releasable {
     private final BigArrays bigArrays;
     private final int maxSize;
     private final TreeMap<Integer, Integer> keys;
+    private HashMap<Long, Integer> fastKeys;
     private final SingleDimensionValuesSource<?>[] arrays;
     private IntArray docCounts;
     private boolean afterKeyIsSet = false;
@@ -93,6 +96,17 @@ final class CompositeValuesCollectorQueue implements Releasable {
      */
     Integer compareCurrent() {
         return keys.get(CANDIDATE_SLOT);
+    }
+
+    void finishFirstPass() {
+        if (fastKeys == null) {
+            fastKeys = new HashMap<>(keys.size());
+            keys.forEach((s1, s2) -> fastKeys.put(hashAt(s1), s1));
+        }
+    }
+
+    Integer fastCompareCurrent() {
+        return fastKeys.get(currentHash());
     }
 
     /**
@@ -163,6 +177,22 @@ final class CompositeValuesCollectorQueue implements Releasable {
             values[i] = arrays[i].toComparable(slot);
         }
         return new CompositeKey(values);
+    }
+
+    long hashAt(int slot) {
+        long hash = 19;
+        for (SingleDimensionValuesSource<?> array : arrays) {
+            hash ^= array.hashAt(slot);
+        }
+        return hash;
+    }
+
+    long currentHash() {
+        long hash = 19;
+        for (SingleDimensionValuesSource<?> array : arrays) {
+            hash ^= array.currentHash();
+        }
+        return hash;
     }
 
     /**

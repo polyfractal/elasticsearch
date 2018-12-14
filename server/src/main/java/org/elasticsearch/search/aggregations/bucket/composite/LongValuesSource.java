@@ -148,6 +148,16 @@ class LongValuesSource extends SingleDimensionValuesSource<Long> {
     }
 
     @Override
+    long hashAt(int slot) {
+        return values.get(slot);
+    }
+
+    @Override
+    long currentHash() {
+        return currentValue;
+    }
+
+    @Override
     LeafBucketCollector getLeafCollector(LeafReaderContext context, LeafBucketCollector next) throws IOException {
         final SortedNumericDocValues dvs = docValuesFunc.apply(context);
         return new LeafBucketCollector() {

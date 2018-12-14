@@ -218,6 +218,7 @@ final class CompositeAggregator extends BucketsAggregator {
                 continue;
             }
             final LeafBucketCollector subCollector = deferredCollectors.getLeafCollector(entry.context);
+            queue.finishFirstPass();
             final LeafBucketCollector collector = queue.getLeafCollector(entry.context, getSecondPassCollector(subCollector));
             DocIdSetIterator scorerIt = null;
             if (needsScores) {
@@ -249,7 +250,7 @@ final class CompositeAggregator extends BucketsAggregator {
             @Override
             public void collect(int doc, long zeroBucket) throws IOException {
                 assert zeroBucket == 0;
-                Integer slot = queue.compareCurrent();
+                Integer slot = queue.fastCompareCurrent();
                 if (slot != null) {
                     // The candidate key is a top bucket.
                     // We can defer the collection of this document/bucket to the sub collector

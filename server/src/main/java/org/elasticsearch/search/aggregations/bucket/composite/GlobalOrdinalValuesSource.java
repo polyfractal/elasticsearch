@@ -115,6 +115,16 @@ class GlobalOrdinalValuesSource extends SingleDimensionValuesSource<BytesRef> {
     }
 
     @Override
+    long hashAt(int slot) {
+        return values.get(slot);
+    }
+
+    @Override
+    long currentHash() {
+        return currentValue;
+    }
+
+    @Override
     LeafBucketCollector getLeafCollector(LeafReaderContext context, LeafBucketCollector next) throws IOException {
         final SortedSetDocValues dvs = docValuesFunc.apply(context);
         if (lookup == null) {

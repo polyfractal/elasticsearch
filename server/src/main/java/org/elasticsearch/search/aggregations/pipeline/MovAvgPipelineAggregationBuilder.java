@@ -147,7 +147,9 @@ public class MovAvgPipelineAggregationBuilder extends AbstractPipelineAggregatio
         if (window <= 0) {
             throw new IllegalArgumentException("[window] must be a positive integer: [" + name + "]");
         }
-        HoltWintersModel.validateHWParams(model, window);
+        if (model != null) {
+            model.validate(window);
+        }
         this.window = window;
         return this;
     }
@@ -173,7 +175,7 @@ public class MovAvgPipelineAggregationBuilder extends AbstractPipelineAggregatio
             throw new IllegalArgumentException("[model] must not be null: [" + name + "]");
         }
         MovAvgModel tempModel = model.build();
-        HoltWintersModel.validateHWParams(tempModel, window);
+        tempModel.validate(window);
         this.model = tempModel;
         return this;
     }
@@ -189,7 +191,7 @@ public class MovAvgPipelineAggregationBuilder extends AbstractPipelineAggregatio
         if (model == null) {
             throw new IllegalArgumentException("[model] must not be null: [" + name + "]");
         }
-        HoltWintersModel.validateHWParams(model, window);
+        model.validate(window);
         this.model = model;
         return this;
     }
@@ -269,7 +271,7 @@ public class MovAvgPipelineAggregationBuilder extends AbstractPipelineAggregatio
             throw new IllegalStateException(PipelineAggregator.Parser.BUCKETS_PATH.getPreferredName()
                     + " must contain a single entry for aggregation [" + name + "]");
         }
-        HoltWintersModel.validateHWParams(model, window);
+        model.validate(window);
         validateSequentiallyOrderedParentAggs(parent, NAME, name);
     }
 

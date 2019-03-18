@@ -21,7 +21,7 @@ package org.elasticsearch.search.aggregations.bucket.terms;
 
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.util.ExactBloomFilter;
+import org.elasticsearch.common.util.SetBackedBloomFilter;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.BucketOrder;
@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Predicate;
 
 /**
  * Result of the RareTerms aggregation when the field is some kind of whole number like a integer, long, or a date.
@@ -107,8 +108,8 @@ public class LongRareTerms extends InternalMappedRareTerms<LongRareTerms, LongRa
 
     LongRareTerms(String name, BucketOrder order, List<PipelineAggregator> pipelineAggregators,
                          Map<String, Object> metaData, DocValueFormat format,
-                         List<LongRareTerms.Bucket> buckets, long maxDocCount, ExactBloomFilter bloom) {
-        super(name, order, pipelineAggregators, metaData, format, buckets, maxDocCount, bloom);
+                         List<LongRareTerms.Bucket> buckets, long maxDocCount, List<SetBackedBloomFilter> bloomFilters) {
+        super(name, order, pipelineAggregators, metaData, format, buckets, maxDocCount, bloomFilters);
     }
 
     /**
@@ -134,9 +135,9 @@ public class LongRareTerms extends InternalMappedRareTerms<LongRareTerms, LongRa
     }
 
     @Override
-    protected LongRareTerms createWithBloom(String name, List<LongRareTerms.Bucket> buckets, ExactBloomFilter bloomFilter) {
+    protected LongRareTerms createWithBloom(String name, List<LongRareTerms.Bucket> buckets, List<SetBackedBloomFilter> bloomFilters) {
         return new LongRareTerms(name, order, pipelineAggregators(), getMetaData(), format,
-            buckets, maxDocCount, bloomFilter);
+            buckets, maxDocCount, bloomFilters);
     }
 
     @Override
@@ -145,12 +146,12 @@ public class LongRareTerms extends InternalMappedRareTerms<LongRareTerms, LongRa
     }
 
     @Override
-    public boolean containsTerm(ExactBloomFilter bloom, LongRareTerms.Bucket bucket) {
-        return bloom.mightContain((long) bucket.getKey());
+    public boolean containsTerm(BloomSet bloom, LongRareTerms.Bucket bucket) {
+        return bloom.getBloomFilters().entrySet().stream().anyMatch(b -> b.getValue().mightContain((long) bucket.getKey()));
     }
 
     @Override
-    public void addToBloom(ExactBloomFilter bloom, LongRareTerms.Bucket bucket) {
-        bloom.put((long) bucket.getKey());
+    public void addToBloom(BloomSet bloom, LongRareTerms.Bucket bucket) {
+        bloom.getBloomFilters().entrySet().iterator().next().getValue().put((long) bucket.getKey());
     }
 }

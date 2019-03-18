@@ -19,7 +19,7 @@
 
 package org.elasticsearch.search.aggregations.bucket.terms;
 
-import org.elasticsearch.common.util.ExactBloomFilter;
+import org.elasticsearch.common.util.SetBackedBloomFilter;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
@@ -57,7 +57,7 @@ public abstract class AbstractRareTermsAggregator<T extends ValuesSource, U exte
 
     MergingBucketsDeferringCollector deferringCollector;
     LeafBucketCollector subCollectors;
-    final ExactBloomFilter bloom;
+    final SetBackedBloomFilter bloom;
 
     AbstractRareTermsAggregator(String name, AggregatorFactories factories, SearchContext context,
                                           Aggregator parent, List<PipelineAggregator> pipelineAggregators,
@@ -65,9 +65,11 @@ public abstract class AbstractRareTermsAggregator<T extends ValuesSource, U exte
                                           T valuesSource, U includeExclude) throws IOException {
         super(name, factories, context, parent, pipelineAggregators, metaData);
 
-        // TODO review: should we expose the BF settings?  What's a good default?
-        this.bloom = new ExactBloomFilter(1000000, 0.03, 7000); // ~7mb
+        // Round up to next power of 2
+        int size = Math.max(2, 31 - Integer.numberOfLeadingZeros(context.searcher().getIndexReader().numDocs() - 1));
+        this.bloom = new SetBackedBloomFilter(size, 0.03, 7000);
         this.addRequestCircuitBreakerBytes(bloom.getSizeInBytes());
+
         this.maxDocCount = maxDocCount;
         this.format = format;
         this.valuesSource = valuesSource;

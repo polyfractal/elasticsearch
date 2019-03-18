@@ -21,7 +21,8 @@ package org.elasticsearch.search.aggregations.bucket.terms;
 import org.apache.lucene.util.CollectionUtil;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.util.ExactBloomFilter;
+import org.elasticsearch.common.io.stream.Writeable;
+import org.elasticsearch.common.util.SetBackedBloomFilter;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
@@ -31,11 +32,16 @@ import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public abstract class InternalMappedRareTerms<A extends InternalRareTerms<A, B>, B extends InternalRareTerms.Bucket<B>>
@@ -45,23 +51,61 @@ public abstract class InternalMappedRareTerms<A extends InternalRareTerms<A, B>,
     protected List<B> buckets;
     protected Map<String, B> bucketMap;
 
-    final ExactBloomFilter bloom;
+    final BloomSet bloomSet;
+
+    public static class BloomSet implements Writeable {
+        private Map<Integer, SetBackedBloomFilter> bloomFilters = new TreeMap<>();
+
+        public BloomSet() {
+        }
+
+        public BloomSet(StreamInput in) throws IOException {
+            this.bloomFilters = in.readMap(StreamInput::readVInt, SetBackedBloomFilter::new);
+        }
+
+        public void add(BloomSet filters) {
+            filters.getBloomFilters().forEach((key, value) -> {
+                // if we have a bloom stored and the incoming bloom is still in set-mode,
+                // we can replay that set into the existing bloom and sidestep numBit issues
+                if (bloomFilters.isEmpty() == false && value.isSetMode()) {
+                    // treemap sorts according to key, so this will give us the largest bloom
+                    boolean success = bloomFilters.entrySet().iterator().next().getValue().merge(value);
+                    assert success;
+                } else {
+                    // Otherwise, merge same numBit blooms together
+                    bloomFilters.merge(key, value, (b1, b2) -> {
+                        b1.merge(b2);
+                        return b1;
+                    });
+                }
+            });
+        }
+
+        public Map<Integer, SetBackedBloomFilter> getBloomFilters() {
+            return bloomFilters;
+        }
+
+        @Override
+        public void writeTo(StreamOutput out) throws IOException {
+            out.writeMap(bloomFilters, StreamOutput::writeVInt, (out1, value) -> value.writeTo(out1));
+        }
+    }
 
     InternalMappedRareTerms(String name, BucketOrder order, List<PipelineAggregator> pipelineAggregators,
                             Map<String, Object> metaData, DocValueFormat format,
-                            List<B> buckets, long maxDocCount, ExactBloomFilter bloom) {
+                            List<B> buckets, long maxDocCount, BloomSet bloomSet) {
         super(name, order, maxDocCount, pipelineAggregators, metaData);
         this.format = format;
         this.buckets = buckets;
-        this.bloom = bloom;
+        this.bloomSet = bloomSet;
     }
 
     public long getMaxDocCount() {
         return maxDocCount;
     }
 
-    ExactBloomFilter getBloom() {
-        return bloom;
+    private BloomSet getBloomSet() {
+        return bloomSet;
     }
 
     /**
@@ -71,21 +115,22 @@ public abstract class InternalMappedRareTerms<A extends InternalRareTerms<A, B>,
         super(in);
         format = in.readNamedWriteable(DocValueFormat.class);
         buckets = in.readList(stream -> bucketReader.read(stream, format));
-        bloom = new ExactBloomFilter(in);
+        bloomSet = new BloomSet(in);
     }
 
     @Override
     protected void writeTermTypeInfoTo(StreamOutput out) throws IOException {
         out.writeNamedWriteable(format);
         out.writeList(buckets);
-        bloom.writeTo(out);
+        bloomSet.writeTo(out);
     }
 
     @Override
     public InternalAggregation doReduce(List<InternalAggregation> aggregations, ReduceContext reduceContext) {
         Map<Object, List<B>> buckets = new HashMap<>();
         InternalRareTerms<A, B> referenceTerms = null;
-        ExactBloomFilter bloomFilter = null;
+        BloomSet blooms = new BloomSet();
+
 
         for (InternalAggregation aggregation : aggregations) {
             // Unmapped rare terms don't have a bloom filter so we'll skip all this work
@@ -113,33 +158,29 @@ public abstract class InternalMappedRareTerms<A extends InternalRareTerms<A, B>,
                 bucketList.add(bucket);
             }
 
-            ExactBloomFilter otherBloom = ((InternalMappedRareTerms)aggregation).getBloom();
-            if (bloomFilter == null) {
-                bloomFilter = new ExactBloomFilter(otherBloom);
-            } else {
-                bloomFilter.merge(otherBloom);
-            }
+            blooms.add(((InternalMappedRareTerms)aggregation).getBloomSet());
         }
 
         final List<B> rare = new ArrayList<>();
         for (List<B> sameTermBuckets : buckets.values()) {
             final B b = sameTermBuckets.get(0).reduce(sameTermBuckets, reduceContext);
-            if ((b.getDocCount() <= maxDocCount && containsTerm(bloomFilter, b) == false)) {
+            if (b.getDocCount() <= maxDocCount && containsTerm(blooms, b) == false) {
                 rare.add(b);
                 reduceContext.consumeBucketsAndMaybeBreak(1);
             } else if (b.getDocCount() > maxDocCount) {
                 // this term has gone over threshold while merging, so add it to the bloom.
                 // Note this may happen during incremental reductions too
-                addToBloom(bloomFilter, b);
+                // Add into our first and largest bloom
+                addToBloom(bloomSet, b);
             }
         }
         CollectionUtil.introSort(rare, order.comparator(null));
-        return createWithBloom(name, rare, bloomFilter);
+        return createWithBloom(name, rare, bloomFilters);
     }
 
-    public abstract boolean containsTerm(ExactBloomFilter bloom, B bucket);
+    public abstract boolean containsTerm(BloomSet bloom, B bucket);
 
-    public abstract void addToBloom(ExactBloomFilter bloom, B bucket);
+    public abstract void addToBloom(BloomSet bloom, B bucket);
 
     @Override
     public List<B> getBuckets() {
@@ -160,12 +201,12 @@ public abstract class InternalMappedRareTerms<A extends InternalRareTerms<A, B>,
         return super.doEquals(obj)
             && Objects.equals(buckets, that.buckets)
             && Objects.equals(format, that.format)
-            && Objects.equals(bloom, that.bloom);
+            && Objects.equals(bloomSet, that.bloomSet);
     }
 
     @Override
     protected int doHashCode() {
-        return Objects.hash(super.doHashCode(), buckets, format, bloom);
+        return Objects.hash(super.doHashCode(), buckets, format, bloomSet);
     }
 
     @Override

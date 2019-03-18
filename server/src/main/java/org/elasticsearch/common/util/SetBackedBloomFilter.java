@@ -36,7 +36,7 @@ import java.util.Set;
  * A bloom filter which keeps an exact set of values until a threshold is reached, then the values
  * are replayed into a traditional bloom filter for approximate tracking
  */
-public class ExactBloomFilter implements Writeable {
+public class SetBackedBloomFilter implements Writeable {
 
     // Some anecdotal sizing numbers:
     // expected insertions, false positive probability, bloom size, num hashes
@@ -58,7 +58,7 @@ public class ExactBloomFilter implements Writeable {
     //  50m,  0.10, 228.5mb,  3 Hashes
 
     /**
-     * The bit set of the ExactBloomFilter (not necessarily power of 2!)
+     * The bit set of the SetBackedBloomFilter (not necessarily power of 2!)
      */
     BitArray bits;
     Set<MurmurHash3.Hash128> hashedValues = new HashSet<>();
@@ -91,7 +91,7 @@ public class ExactBloomFilter implements Writeable {
      * @param fpp                the desired false positive probability (must be positive and less than 1.0)
      * @param threshold          number of bytes to record exactly before converting to Bloom filter
      */
-    public ExactBloomFilter(int expectedInsertions, double fpp, long threshold) {
+    public SetBackedBloomFilter(int expectedInsertions, double fpp, long threshold) {
         if (threshold <= 0) {
             throw new IllegalArgumentException("BloomFilter threshold must be a non-negative number");
         }
@@ -100,25 +100,14 @@ public class ExactBloomFilter implements Writeable {
             expectedInsertions = 1;
         }
         this.threshold = threshold;
-        /*
-         * TODO(user): Put a warning in the javadoc about tiny fpp values,
-         * since the resulting size is proportional to -log(p), but there is not
-         * much of a point after all, e.g. optimalNumOfBits(1000, 0.0000000000000001) = 76680
-         * which is less that 10kb. Who cares!
-         */
         this.numBits = optimalNumOfBits(expectedInsertions, fpp);
-
-        // calculate the optimal number of hash functions
         this.numHashFunctions = optimalNumOfHashFunctions(expectedInsertions, numBits);
-        if (numHashFunctions > 255) {
-            throw new IllegalArgumentException("BloomFilters with more than 255 hash functions are not allowed.");
-        }
     }
 
     /**
      * Copy constructor.  The new Bloom will be an identical copy of the provided bloom
      */
-    public ExactBloomFilter(ExactBloomFilter otherBloom) {
+    public SetBackedBloomFilter(SetBackedBloomFilter otherBloom) {
         this.numHashFunctions = otherBloom.getNumHashFunctions();
         this.threshold = otherBloom.getThreshold();
         this.numBits = otherBloom.getNumBits();
@@ -130,7 +119,7 @@ public class ExactBloomFilter implements Writeable {
         }
     }
 
-    public ExactBloomFilter(StreamInput in) throws IOException {
+    public SetBackedBloomFilter(StreamInput in) throws IOException {
         this.setMode = in.readBoolean();
         if (setMode) {
             this.hashedValues = in.readSet(in1 -> {
@@ -166,24 +155,36 @@ public class ExactBloomFilter implements Writeable {
      * Merge `other` bloom filter into this bloom.  After merging, this bloom's state will
      * be the union of the two.  During the merging process, the internal Set may be upgraded
      * to a Bloom if it goes over threshold
+     *
+     * Returns true if the blooms could be merged, false otherwise (e.g. if numBits don't match)
      */
-    public void merge(ExactBloomFilter other) {
-        assert this.numBits == other.numBits;
+    public boolean merge(SetBackedBloomFilter other) {
+
         if (setMode && other.setMode) {
             // Both in sets, merge collections then see if we need to convert to bloom
             hashedValues.addAll(other.hashedValues);
             checkAndConvertToBloom();
         } else if (setMode && other.setMode == false) {
-            // Other is in bloom mode, so we convert our set to a bloom then merge
+            // Other is in bloom mode, so we convert our set to a bloom then merge.
+            // bits must be identical to merge
+            if (this.numBits != other.numBits) {
+                return false;
+            }
             convertToBloom();
             this.bits.putAll(other.bits);
         } else if (setMode == false && other.setMode) {
-            // we're in bloom mode, so convert other's set and merge
-            other.convertToBloom();
-            this.bits.putAll(other.bits);
+            // Rather than converting the other to a bloom, we can just
+            // replay the values directly into our bloom.  This potentially allows
+            // us to merge incompatibly-sized blooms
+            other.replaySetIntoBloom(this);
         } else {
+            // If both are bloom, bits must be identical to merge
+            if (this.numBits != other.numBits) {
+                return false;
+            }
             this.bits.putAll(other.bits);
         }
+        return true;
     }
 
     public boolean put(BytesRef value) {
@@ -257,12 +258,16 @@ public class ExactBloomFilter implements Writeable {
         return this.numHashFunctions;
     }
 
-    private long getNumBits() {
+    public long getNumBits() {
         return numBits;
     }
 
     public long getThreshold() {
         return threshold;
+    }
+
+    public boolean isSetMode() {
+        return setMode;
     }
 
     /**
@@ -292,6 +297,14 @@ public class ExactBloomFilter implements Writeable {
         hashedValues.clear();
     }
 
+    private void replaySetIntoBloom(SetBackedBloomFilter otherBloom) {
+        if (setMode) {
+            for (MurmurHash3.Hash128 hash : hashedValues) {
+                otherBloom.put(hash);
+            }
+        }
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(numHashFunctions, hashedValues, bits, setMode, threshold, numBits);
@@ -306,7 +319,7 @@ public class ExactBloomFilter implements Writeable {
             return false;
         }
 
-        final ExactBloomFilter that = (ExactBloomFilter) other;
+        final SetBackedBloomFilter that = (SetBackedBloomFilter) other;
         return Objects.equals(this.bits, that.bits)
             && Objects.equals(this.numHashFunctions, that.numHashFunctions)
             && Objects.equals(this.threshold, that.threshold)

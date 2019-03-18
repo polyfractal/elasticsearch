@@ -21,7 +21,7 @@ package org.elasticsearch.search.aggregations.bucket.terms;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.util.ExactBloomFilter;
+import org.elasticsearch.common.util.SetBackedBloomFilter;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.BucketOrder;
@@ -109,7 +109,7 @@ public class StringRareTerms extends InternalMappedRareTerms<StringRareTerms, St
 
     public StringRareTerms(String name, BucketOrder order, List<PipelineAggregator> pipelineAggregators,
                            Map<String, Object> metaData, DocValueFormat format,
-                           List<StringRareTerms.Bucket> buckets, long maxDocCount, ExactBloomFilter bloom) {
+                           List<StringRareTerms.Bucket> buckets, long maxDocCount, SetBackedBloomFilter bloom) {
         super(name, order, pipelineAggregators, metaData, format, buckets, maxDocCount, bloom);
     }
 
@@ -136,7 +136,7 @@ public class StringRareTerms extends InternalMappedRareTerms<StringRareTerms, St
     }
 
     @Override
-    protected StringRareTerms createWithBloom(String name, List<StringRareTerms.Bucket> buckets, ExactBloomFilter bloomFilter) {
+    protected StringRareTerms createWithBloom(String name, List<StringRareTerms.Bucket> buckets, SetBackedBloomFilter bloomFilter) {
         return new StringRareTerms(name, order, pipelineAggregators(), metaData, format,
             buckets, maxDocCount, bloomFilter);
     }
@@ -147,12 +147,12 @@ public class StringRareTerms extends InternalMappedRareTerms<StringRareTerms, St
     }
 
     @Override
-    public boolean containsTerm(ExactBloomFilter bloom, StringRareTerms.Bucket bucket) {
+    public boolean containsTerm(SetBackedBloomFilter bloom, StringRareTerms.Bucket bucket) {
         return bloom.mightContain(bucket.termBytes);
     }
 
     @Override
-    public void addToBloom(ExactBloomFilter bloom, StringRareTerms.Bucket bucket) {
+    public void addToBloom(SetBackedBloomFilter bloom, StringRareTerms.Bucket bucket) {
         bloom.put(bucket.termBytes);
     }
 }

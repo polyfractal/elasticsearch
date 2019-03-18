@@ -20,7 +20,7 @@ package org.elasticsearch.search.aggregations.bucket.terms;
 
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
-import org.elasticsearch.common.util.ExactBloomFilter;
+import org.elasticsearch.common.util.SetBackedBloomFilter;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.InternalAggregation;
@@ -83,7 +83,7 @@ public class UnmappedRareTerms extends InternalRareTerms<UnmappedRareTerms, Unma
     }
 
     @Override
-    protected UnmappedRareTerms createWithBloom(String name, List<UnmappedRareTerms.Bucket> buckets, ExactBloomFilter bloomFilter) {
+    protected UnmappedRareTerms createWithBloom(String name, List<UnmappedRareTerms.Bucket> buckets, SetBackedBloomFilter bloomFilter) {
         throw new UnsupportedOperationException("not supported for UnmappedRareTerms");
     }
 

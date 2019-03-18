@@ -30,11 +30,11 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 
-public class ExactBloomFilterTests extends AbstractWireSerializingTestCase<ExactBloomFilter> {
+public class SetBackedBloomFilterTests extends AbstractWireSerializingTestCase<SetBackedBloomFilter> {
 
     @Override
-    protected ExactBloomFilter createTestInstance() {
-        ExactBloomFilter bloom = new ExactBloomFilter(randomIntBetween(1, 100000000),
+    protected SetBackedBloomFilter createTestInstance() {
+        SetBackedBloomFilter bloom = new SetBackedBloomFilter(randomIntBetween(1, 100000000),
             ((float)randomIntBetween(1, 50)) / 100.0, randomNonNegativeLong());
 
         int num = randomIntBetween(0, 10);
@@ -46,13 +46,13 @@ public class ExactBloomFilterTests extends AbstractWireSerializingTestCase<Exact
     }
 
     @Override
-    protected Writeable.Reader<ExactBloomFilter> instanceReader() {
-        return ExactBloomFilter::new;
+    protected Writeable.Reader<SetBackedBloomFilter> instanceReader() {
+        return SetBackedBloomFilter::new;
     }
 
     @Override
-    protected ExactBloomFilter mutateInstance(ExactBloomFilter instance) {
-        ExactBloomFilter newInstance = new ExactBloomFilter(instance);
+    protected SetBackedBloomFilter mutateInstance(SetBackedBloomFilter instance) {
+        SetBackedBloomFilter newInstance = new SetBackedBloomFilter(instance);
         int num = randomIntBetween(1, 10);
         for (int i = 0; i < num; i++) {
             newInstance.put(randomLong());
@@ -62,7 +62,7 @@ public class ExactBloomFilterTests extends AbstractWireSerializingTestCase<Exact
 
     public void testExact() {
         long threshold = randomLongBetween(1000, 10000);
-        ExactBloomFilter bloom = new ExactBloomFilter(1000000, 0.03, threshold);
+        SetBackedBloomFilter bloom = new SetBackedBloomFilter(1000000, 0.03, threshold);
 
         int size = 0;
         Set<Long> values = new HashSet<>();
@@ -89,7 +89,7 @@ public class ExactBloomFilterTests extends AbstractWireSerializingTestCase<Exact
 
     public void testConvert() {
         long threshold = randomLongBetween(1000, 10000);
-        ExactBloomFilter bloom = new ExactBloomFilter(1000000, 0.03, threshold);
+        SetBackedBloomFilter bloom = new SetBackedBloomFilter(1000000, 0.03, threshold);
 
         int size = 0;
         Set<Long> values = new HashSet<>();

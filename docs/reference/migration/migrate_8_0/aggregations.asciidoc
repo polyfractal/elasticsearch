@@ -1,0 +1,15 @@
+[float]
+[[breaking_80_aggregations_changes]]
+=== Aggregation changes
+
+[float]
+==== The `moving_avg` aggregation has been removed
+
+The `moving_avg` has been deprecated since version 6.4.0 and has now been removed.
+Please use the `moving_function` aggregation instead.
+
+[float]
+==== `_term` and `_time` sort orders have been removed
+
+The sort orders `_term` and `_time` for the `date_histogram` aggregation
+were deprecated in 6.0.0, and have now been removed.  Please use `_key` instead.

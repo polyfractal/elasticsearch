@@ -32,7 +32,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Predicate;
 
 /**
  * Result of the RareTerms aggregation when the field is some kind of whole number like a integer, long, or a date.
@@ -107,9 +106,9 @@ public class LongRareTerms extends InternalMappedRareTerms<LongRareTerms, LongRa
     }
 
     LongRareTerms(String name, BucketOrder order, List<PipelineAggregator> pipelineAggregators,
-                         Map<String, Object> metaData, DocValueFormat format,
-                         List<LongRareTerms.Bucket> buckets, long maxDocCount, List<SetBackedBloomFilter> bloomFilters) {
-        super(name, order, pipelineAggregators, metaData, format, buckets, maxDocCount, bloomFilters);
+                  Map<String, Object> metaData, DocValueFormat format,
+                  List<LongRareTerms.Bucket> buckets, long maxDocCount, SetBackedBloomFilter bloom) {
+        super(name, order, pipelineAggregators, metaData, format, buckets, maxDocCount, bloom);
     }
 
     /**
@@ -135,9 +134,9 @@ public class LongRareTerms extends InternalMappedRareTerms<LongRareTerms, LongRa
     }
 
     @Override
-    protected LongRareTerms createWithBloom(String name, List<LongRareTerms.Bucket> buckets, List<SetBackedBloomFilter> bloomFilters) {
+    protected LongRareTerms createWithBloom(String name, List<LongRareTerms.Bucket> buckets, SetBackedBloomFilter bloomFilter) {
         return new LongRareTerms(name, order, pipelineAggregators(), getMetaData(), format,
-            buckets, maxDocCount, bloomFilters);
+            buckets, maxDocCount, bloomFilter);
     }
 
     @Override
@@ -146,12 +145,12 @@ public class LongRareTerms extends InternalMappedRareTerms<LongRareTerms, LongRa
     }
 
     @Override
-    public boolean containsTerm(BloomSet bloom, LongRareTerms.Bucket bucket) {
-        return bloom.getBloomFilters().entrySet().stream().anyMatch(b -> b.getValue().mightContain((long) bucket.getKey()));
+    public boolean containsTerm(SetBackedBloomFilter bloom, LongRareTerms.Bucket bucket) {
+        return bloom.mightContain((long) bucket.getKey());
     }
 
     @Override
-    public void addToBloom(BloomSet bloom, LongRareTerms.Bucket bucket) {
-        bloom.getBloomFilters().entrySet().iterator().next().getValue().put((long) bucket.getKey());
+    public void addToBloom(SetBackedBloomFilter bloom, LongRareTerms.Bucket bucket) {
+        bloom.put((long) bucket.getKey());
     }
 }

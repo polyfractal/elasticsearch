@@ -18,102 +18,132 @@
  */
 package org.elasticsearch.common.util;
 
-import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.store.DataInput;
+import org.apache.lucene.store.DataOutput;
 import org.apache.lucene.util.packed.PackedInts;
-import org.elasticsearch.common.Numbers;
+import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.hash.MurmurHash3;
+import org.elasticsearch.common.io.stream.StreamInput;
+import org.elasticsearch.common.io.stream.StreamOutput;
 
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.Random;
+import java.util.function.LongPredicate;
 
-public class CuckooFilter {
+public class CuckooFilter extends ApproximateSetMembership {
 
     private static final double LN_2 = Math.log(2);
     private static final int MAX_EVICTIONS = 500;
-    private static final long EMPTY = 0;
+    private static final int EMPTY = 0;
 
-    private PackedInts.Mutable data;
-    private int numBuckets;
-    private int bitsPerEntry;
-    private int fingerprintMask;
-    private int entriesPerBucket;
-    private Random rng;
-    private long count;
+    private final PackedInts.Mutable data;
+    private final int numBuckets;
+    private final int bitsPerEntry;
+    private final int fingerprintMask;
+    private final int entriesPerBucket;
 
-    private long evictedBucket;
-    private long evictedAlternate;
-    private long evictedFingerprint = EMPTY;
+    private final Random rng;
+    private int count;
+    private int evictedFingerprint = EMPTY;
 
-    public void SetBackedCuckooFilter(long capacity, double fpp, Random rng) {
+    CuckooFilter(long capacity, double fpp, Random rng) {
         this.rng = rng;
         this.entriesPerBucket = entriesPerBucket(fpp);
         double loadFactor = getLoadFactor(entriesPerBucket);
         this.bitsPerEntry = bitsPerEntry(fpp, loadFactor);
         this.numBuckets = getNumBuckets(capacity, loadFactor, entriesPerBucket);
-        this.data = PackedInts.getMutable(1000000, bitsPerEntry, PackedInts.COMPACT);
+
+        // This shouldn't happen, but as a sanity check
+        if (numBuckets * entriesPerBucket > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Attempted to create [" + numBuckets * entriesPerBucket
+                + "] entries which is > Integer.MAX_VALUE");
+        }
+        this.data = PackedInts.getMutable(numBuckets * entriesPerBucket, bitsPerEntry, PackedInts.COMPACT);
 
         // puts the bits at the right side of the mask, e.g. `0000000000001111` for bitsPerEntry = 4
         this.fingerprintMask = (0x80000000 >> (bitsPerEntry - 1)) >>> (Integer.SIZE - bitsPerEntry);
+    }
+
+    CuckooFilter(StreamInput in) throws IOException {
+
+        this.numBuckets = in.readVInt();
+        this.bitsPerEntry = in.readVInt();
+        this.entriesPerBucket = in.readVInt();
+        this.count = in.readVInt();
+        this.evictedFingerprint = in.readVInt();
+        this.rng = Randomness.get(); // TODO ok to generate this?
+
+        this.fingerprintMask = (0x80000000 >> (bitsPerEntry - 1)) >>> (Integer.SIZE - bitsPerEntry);
+
+        data = (PackedInts.Mutable) PackedInts.getReader(new DataInput() {
+            @Override
+            public byte readByte() throws IOException {
+                return in.readByte();
+            }
+
+            @Override
+            public void readBytes(byte[] b, int offset, int len) throws IOException {
+                in.readBytes(b, offset, len);
+            }
+        });
+    }
+
+    CuckooFilter(CuckooFilter other) {
+        this.numBuckets = other.numBuckets;
+        this.bitsPerEntry = other.bitsPerEntry;
+        this.entriesPerBucket = other.entriesPerBucket;
+        this.count = other.count;
+        this.evictedFingerprint = other.evictedFingerprint;
+        this.rng = other.rng;
+        this.fingerprintMask = other.fingerprintMask;
+
+        // This shouldn't happen, but as a sanity check
+        if (numBuckets * entriesPerBucket > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("Attempted to create [" + numBuckets * entriesPerBucket
+                + "] entries which is > Integer.MAX_VALUE");
+        }
+        // TODO this is probably super slow, but just used for testing atm
+        this.data = PackedInts.getMutable(numBuckets * entriesPerBucket, bitsPerEntry, PackedInts.COMPACT);
+        for (int i = 0; i < other.data.size(); i++) {
+            data.set(i, other.data.get(i));
+        }
     }
 
     public int getCount() {
         return count;
     }
 
-    public boolean mightContain(BytesRef value) {
-        return mightContain(value.bytes, value.offset, value.length);
-    }
-
-    public boolean mightContain(byte[] value) {
-        return mightContain(value, 0, value.length);
-    }
-
-    public boolean mightContain(long value) {
-        return mightContain(Numbers.longToBytes(value));
-    }
-
-    private boolean mightContain(byte[] bytes, int offset, int length) {
-        MurmurHash3.Hash128 hash = MurmurHash3.hash128(bytes, offset, length, 0, new MurmurHash3.Hash128());
-
-        int bucket = (int)hash.h1 % numBuckets;
+    boolean mightContain(MurmurHash3.Hash128 hash) {
+        int bucket = hashToIndex((int) hash.h1);
         int fingerprint = fingerprint((int) hash.h2);
         int alternateBucket = alternateIndex(bucket, fingerprint);
 
         // check all entries for both buckets
-        for (int i = 0; i < entriesPerBucket; i++) {
-            if (hasFingerprint(bucket, i, fingerprint)) {
-                return true;
-            }
-            if (hasFingerprint(alternateBucket, i, fingerprint)) {
-                return true;
-            }
+        if (hasFingerprint(bucket, fingerprint)) {
+            return true;
         }
+        if (hasFingerprint(alternateBucket, fingerprint)) {
+            return true;
+        }
+
         // no match in the main datastructure, check eviction too
         return evictedFingerprint != EMPTY && evictedFingerprint == fingerprint;
     }
 
-    private boolean hasFingerprint(int bucket, int position, long fingerprint) {
-        int offset = getOffset(bucket, position);
-        return data.get(offset) == fingerprint;
+    private boolean hasFingerprint(int bucket, long fingerprint) {
+        long[] values = new long[entriesPerBucket];
+        int offset = getOffset(bucket, 0);
+        data.get(offset, values, 0, entriesPerBucket);
+
+        return Arrays.stream(values).anyMatch(value -> value == fingerprint);
     }
 
-    public boolean add(BytesRef value) {
-        MurmurHash3.Hash128 hash = MurmurHash3.hash128(value.bytes, value.offset, value.length, 0, new MurmurHash3.Hash128());
-        return add(hash);
-    }
-
-    public boolean add(byte[] value) {
-        MurmurHash3.Hash128 hash = MurmurHash3.hash128(value, 0, value.length, 0, new MurmurHash3.Hash128());
-        return add(hash);
-    }
-
-    public boolean add(long value) {
-        return add(Numbers.longToBytes(value));
-    }
-
-    private boolean add(MurmurHash3.Hash128 hash) {
+    boolean add(MurmurHash3.Hash128 hash) {
         // can only use 64 of 128 bytes unfortunately (32 for each bucket), simplest
         // to just truncate h1 and h2 appropriately
-        int bucket = ((int) hash.h1) % numBuckets;
+        int bucket = hashToIndex((int) hash.h1);
         int fingerprint = fingerprint((int) hash.h2);
         int alternateBucket = alternateIndex(bucket, fingerprint);
 
@@ -130,7 +160,7 @@ public class CuckooFilter {
 
         for (int i = 0; i < MAX_EVICTIONS; i++) {
             // overwrite our alternate bucket, and a random entry
-            int offset = getOffset(alternateBucket, rng.nextInt(entriesPerBucket));
+            int offset = getOffset(alternateBucket, rng.nextInt(entriesPerBucket - 1));
             int oldFingerprint = (int) data.get(offset);
             data.set(offset, fingerprint);
 
@@ -138,7 +168,9 @@ public class CuckooFilter {
             fingerprint = oldFingerprint;
             bucket = alternateBucket;
             alternateBucket = alternateIndex(bucket, fingerprint);
-            if (tryInsert(bucket, fingerprint) || tryInsert(alternateBucket, fingerprint)) {
+
+            // Only try to insert into alternate bucket
+            if (tryInsert(alternateBucket, fingerprint)) {
                 count += 1;
                 return true;
             }
@@ -146,8 +178,6 @@ public class CuckooFilter {
 
         // If we get this far, we failed to insert the value after MAX_EVICTION rounds,
         // so cache the last evicted value (so we don't lose it) and signal we failed
-        evictedBucket = bucket;
-        evictedAlternate = alternateBucket;
         evictedFingerprint = fingerprint;
 
         return false;
@@ -156,7 +186,7 @@ public class CuckooFilter {
     private boolean tryInsert(int bucket, int fingerprint) {
         long[] values = new long[entriesPerBucket];
         int offset = getOffset(bucket, 0);
-        data.get(bucket, values, 0, entriesPerBucket);
+        data.get(offset, values, 0, entriesPerBucket);
 
         // TODO implement semi-sorting
         for (int i = 0; i < values.length; i++) {
@@ -168,6 +198,13 @@ public class CuckooFilter {
         return false;
     }
 
+    private int hashToIndex(int hash) {
+        // invert the bits if we're negative
+        if (hash < 0) {
+            hash = ~hash;
+        }
+        return hash % numBuckets;
+    }
     private int alternateIndex(int bucket, int fingerprint) {
         /*
             Reference impl uses murmur2 mixing constant:
@@ -178,8 +215,8 @@ public class CuckooFilter {
                 // 0x5bd1e995 is the hash constant from MurmurHash2
                 return IndexHash((uint32_t)(index ^ (tag * 0x5bd1e995)));
          */
-        int index = Math.abs(bucket ^ (fingerprint * 0x5bd1e995));
-        return index % numBuckets;
+        int index = bucket ^ (fingerprint * 0x5bd1e995);
+        return hashToIndex(index);
     }
 
     private int getOffset(int bucket, int position) {
@@ -193,7 +230,7 @@ public class CuckooFilter {
             return 1;
         }
 
-        for (int i = 0; i + bitsPerEntry <= Long.SIZE; i++) {
+        for (int i = 0; i + bitsPerEntry <= Long.SIZE; i += bitsPerEntry) {
             int v = (hash >> i) & this.fingerprintMask;
             if (v != 0) {
                 return v;
@@ -257,4 +294,48 @@ public class CuckooFilter {
         return Math.log(x) / LN_2;
     }
 
+    @Override
+    public void writeTo(StreamOutput out) throws IOException {
+        out.writeVInt(numBuckets);
+        out.writeVInt(bitsPerEntry);
+        out.writeVInt(entriesPerBucket);
+        out.writeVInt(count);
+        out.writeVInt(evictedFingerprint);
+
+        out.writeVInt(data.size());
+        data.save(new DataOutput() {
+            @Override
+            public void writeByte(byte b) throws IOException {
+                out.writeByte(b);
+            }
+
+            @Override
+            public void writeBytes(byte[] b, int offset, int length) throws IOException {
+                out.writeBytes(b, offset, length);
+            }
+        });
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(data, numBuckets, bitsPerEntry, entriesPerBucket, count, evictedFingerprint);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (other == null || getClass() != other.getClass()) {
+            return false;
+        }
+
+        final CuckooFilter that = (CuckooFilter) other;
+        return Objects.equals(this.data, that.data)
+            && Objects.equals(this.numBuckets, that.numBuckets)
+            && Objects.equals(this.bitsPerEntry, that.bitsPerEntry)
+            && Objects.equals(this.entriesPerBucket, that.entriesPerBucket)
+            && Objects.equals(this.count, that.count)
+            && Objects.equals(this.evictedFingerprint, that.evictedFingerprint);
+    }
 }

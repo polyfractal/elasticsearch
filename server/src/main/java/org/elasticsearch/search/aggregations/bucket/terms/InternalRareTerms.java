@@ -171,7 +171,7 @@ public abstract class InternalRareTerms<A extends InternalRareTerms<A, B>, B ext
         throw new UnsupportedOperationException();
     }
 
-    protected abstract A createWithBloom(String name, List<B> buckets, List<SetBackedBloomFilter> bloomFilters);
+    protected abstract A createWithBloom(String name, List<B> buckets, SetBackedBloomFilter bloomFilter);
 
     /**
      * Create an array to hold some buckets. Used in collecting the results.

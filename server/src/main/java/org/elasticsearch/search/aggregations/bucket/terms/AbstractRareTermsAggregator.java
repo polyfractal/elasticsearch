@@ -19,7 +19,8 @@
 
 package org.elasticsearch.search.aggregations.bucket.terms;
 
-import org.elasticsearch.common.util.SetBackedBloomFilter;
+import org.elasticsearch.common.Randomness;
+import org.elasticsearch.common.util.SetBackedScalingCuckooFilter;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
@@ -48,6 +49,7 @@ public abstract class AbstractRareTermsAggregator<T extends ValuesSource, U exte
     static final BucketOrder ORDER = BucketOrder.compound(BucketOrder.count(true), BucketOrder.key(true)); // sort by count ascending
 
     protected final long maxDocCount;
+    protected final double precision;
     protected final DocValueFormat format;
     protected final T valuesSource;
     protected final U includeExclude;
@@ -57,20 +59,19 @@ public abstract class AbstractRareTermsAggregator<T extends ValuesSource, U exte
 
     MergingBucketsDeferringCollector deferringCollector;
     LeafBucketCollector subCollectors;
-    final SetBackedBloomFilter bloom;
+    final SetBackedScalingCuckooFilter filter;
 
     AbstractRareTermsAggregator(String name, AggregatorFactories factories, SearchContext context,
-                                          Aggregator parent, List<PipelineAggregator> pipelineAggregators,
-                                          Map<String, Object> metaData, long maxDocCount, DocValueFormat format,
-                                          T valuesSource, U includeExclude) throws IOException {
+                                Aggregator parent, List<PipelineAggregator> pipelineAggregators,
+                                Map<String, Object> metaData, long maxDocCount, double precision,
+                                DocValueFormat format, T valuesSource, U includeExclude) throws IOException {
         super(name, factories, context, parent, pipelineAggregators, metaData);
 
-        // Round up to next power of 2
-        int size = Math.max(2, 31 - Integer.numberOfLeadingZeros(context.searcher().getIndexReader().numDocs() - 1));
-        this.bloom = new SetBackedBloomFilter(size, 0.03, 7000);
-        this.addRequestCircuitBreakerBytes(bloom.getSizeInBytes());
+        this.filter = new SetBackedScalingCuckooFilter(10000, Randomness.get());
+        this.filter.registerBreaker(this::addRequestCircuitBreakerBytes);
 
         this.maxDocCount = maxDocCount;
+        this.precision = precision;
         this.format = format;
         this.valuesSource = valuesSource;
         this.includeExclude = includeExclude;

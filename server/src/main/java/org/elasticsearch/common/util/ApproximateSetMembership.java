@@ -36,6 +36,21 @@ public abstract class ApproximateSetMembership implements Writeable {
         return add(Numbers.longToBytes(value));
     }
 
+    public boolean addUnchecked(BytesRef value) {
+        MurmurHash3.Hash128 hash = MurmurHash3.hash128(value.bytes, value.offset, value.length, 0, new MurmurHash3.Hash128());
+        return addUnchecked(hash);
+    }
+
+    public boolean addUnchecked(byte[] value) {
+        MurmurHash3.Hash128 hash = MurmurHash3.hash128(value, 0, value.length, 0, new MurmurHash3.Hash128());
+        return addUnchecked(hash);
+    }
+
+    public boolean addUnchecked(long value) {
+        return addUnchecked(Numbers.longToBytes(value));
+    }
+
     abstract boolean mightContain(MurmurHash3.Hash128 hash);
     abstract boolean add(MurmurHash3.Hash128 hash);
+    abstract boolean addUnchecked(MurmurHash3.Hash128 hash);
 }

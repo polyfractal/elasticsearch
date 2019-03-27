@@ -24,28 +24,19 @@ import org.elasticsearch.common.hash.MurmurHash3;
 import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.test.AbstractWireSerializingTestCase;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 
 public class CuckooFilterTests extends AbstractWireSerializingTestCase<CuckooFilter> {
 
     @Override
     protected CuckooFilter createTestInstance() {
-        CuckooFilter filter = new CuckooFilter(randomIntBetween(1, 100000000),
+        CuckooFilter filter = new CuckooFilter(randomIntBetween(1, 100000),
             ((float)randomIntBetween(1, 50)) / 100.0, Randomness.get());
 
         int num = randomIntBetween(0, 10);
         for (int i = 0; i < num; i++) {
-            filter.add(randomLong());
+            filter.add(hash(randomLong()));
         }
 
         return filter;
@@ -61,7 +52,7 @@ public class CuckooFilterTests extends AbstractWireSerializingTestCase<CuckooFil
         CuckooFilter newInstance = new CuckooFilter(instance);
         int num = randomIntBetween(1, 10);
         for (int i = 0; i < num; i++) {
-            newInstance.add(randomLong());
+            newInstance.add(hash(randomLong()));
         }
         return newInstance;
     }
@@ -70,12 +61,12 @@ public class CuckooFilterTests extends AbstractWireSerializingTestCase<CuckooFil
         CuckooFilter filter = new CuckooFilter(10000, 0.03, Randomness.get());
 
         for (int i = 0; i < 100; i++) {
-            filter.add(i);
+            filter.add(hash(i));
         }
 
         // Was sized sufficiently large that all of these values should be retained
         for (int i = 0; i < 100; i++) {
-            assertThat(filter.mightContain(i), equalTo(true));
+            assertThat(filter.mightContain(hash(i)), equalTo(true));
         }
     }
 
@@ -85,7 +76,7 @@ public class CuckooFilterTests extends AbstractWireSerializingTestCase<CuckooFil
         boolean saturated = false;
         for (int i = 0; i < 100; i++) {
             logger.info("Value: " + i);
-            if (filter.add(i) == false) {
+            if (filter.add(hash(i)) == false) {
                 saturated = true;
             }
             counter += 1;
@@ -99,7 +90,7 @@ public class CuckooFilterTests extends AbstractWireSerializingTestCase<CuckooFil
 
         for (int i = 0; i < counter; i++) {
             logger.info("Value: " + i);
-            assertThat(filter.mightContain(i), equalTo(true));
+            assertThat(filter.mightContain(hash(i)), equalTo(true));
         }
     }
 
@@ -107,13 +98,13 @@ public class CuckooFilterTests extends AbstractWireSerializingTestCase<CuckooFil
         CuckooFilter filter = new CuckooFilter(1000000, 0.001, Randomness.get());
 
         for (int i = 0; i < 10000; i++) {
-            filter.add(i);
+            filter.add(hash(i));
         }
 
         int correct = 0;
         int incorrect = 0;
         for (int i = 0; i < 10000; i++) {
-            if (filter.mightContain(i)) {
+            if (filter.mightContain(hash(i))) {
                 correct += 1;
             } else {
                 incorrect += 1;
@@ -124,7 +115,7 @@ public class CuckooFilterTests extends AbstractWireSerializingTestCase<CuckooFil
         assertThat(incorrect, equalTo(0));
 
         for (int i = 10000; i < 100000; i++) {
-            if (filter.mightContain(i)) {
+            if (filter.mightContain(hash(i))) {
                 incorrect += 1;
             } else {
                 correct += 1;
@@ -135,4 +126,7 @@ public class CuckooFilterTests extends AbstractWireSerializingTestCase<CuckooFil
         assertThat(fppRate, lessThanOrEqualTo(0.001));
     }
 
+    private MurmurHash3.Hash128 hash(long i) {
+        return MurmurHash3.hash128(Numbers.longToBytes(i), 0, 8, 0, new MurmurHash3.Hash128());
+    }
 }

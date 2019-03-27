@@ -20,23 +20,33 @@ package org.elasticsearch.common.util;
 
 import org.apache.lucene.store.DataInput;
 import org.apache.lucene.store.DataOutput;
+import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.packed.PackedInts;
 import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.hash.MurmurHash3;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.io.stream.Writeable;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Objects;
 import java.util.Random;
-import java.util.function.LongPredicate;
 
-public class CuckooFilter extends ApproximateSetMembership {
+/**
+ * Implements a CuckooFilter
+ *
+ * NOTE: this version does not support deletions, and as such does not save duplicate
+ * fingerprints (e.g. when inserting, if the fingerprint is already present in the
+ * candidate buckets, it is not inserted).  By not saving duplicates, the CuckooFilter
+ * loses the ability to delete values.
+ */
+public class CuckooFilter implements Writeable {
 
     private static final double LN_2 = Math.log(2);
     private static final int MAX_EVICTIONS = 500;
-    private static final int EMPTY = 0;
+    static final int EMPTY = 0;
 
     private final PackedInts.Mutable data;
     private final int numBuckets;
@@ -52,7 +62,7 @@ public class CuckooFilter extends ApproximateSetMembership {
         this.rng = rng;
         this.entriesPerBucket = entriesPerBucket(fpp);
         double loadFactor = getLoadFactor(entriesPerBucket);
-        this.bitsPerEntry = bitsPerEntry(fpp, loadFactor);
+        this.bitsPerEntry = bitsPerEntry(fpp, entriesPerBucket);
         this.numBuckets = getNumBuckets(capacity, loadFactor, entriesPerBucket);
 
         // This shouldn't happen, but as a sanity check
@@ -115,6 +125,30 @@ public class CuckooFilter extends ApproximateSetMembership {
         return count;
     }
 
+    int getSize() {
+        return data.size();
+    }
+
+    Iterator<long[]> getBuckets() {
+        return new Iterator<long[]>() {
+            int current = 0;
+
+            @Override
+            public boolean hasNext() {
+                return current < numBuckets;
+            }
+
+            @Override
+            public long[] next() {
+                long[] values = new long[entriesPerBucket];
+                int offset = getOffset(current, 0);
+                data.get(offset, values, 0, entriesPerBucket);
+                current += 1;
+                return values;
+            }
+        };
+    }
+
     boolean mightContain(MurmurHash3.Hash128 hash) {
         int bucket = hashToIndex((int) hash.h1);
         int fingerprint = fingerprint((int) hash.h2);
@@ -145,8 +179,12 @@ public class CuckooFilter extends ApproximateSetMembership {
         // to just truncate h1 and h2 appropriately
         int bucket = hashToIndex((int) hash.h1);
         int fingerprint = fingerprint((int) hash.h2);
-        int alternateBucket = alternateIndex(bucket, fingerprint);
+        return mergeFingerprint(bucket, fingerprint);
+    }
 
+    boolean mergeFingerprint(int bucket, int fingerprint) {
+
+        int alternateBucket = alternateIndex(bucket, fingerprint);
         if (tryInsert(bucket, fingerprint) || tryInsert(alternateBucket, fingerprint)) {
             count += 1;
             return true;
@@ -179,7 +217,6 @@ public class CuckooFilter extends ApproximateSetMembership {
         // If we get this far, we failed to insert the value after MAX_EVICTION rounds,
         // so cache the last evicted value (so we don't lose it) and signal we failed
         evictedFingerprint = fingerprint;
-
         return false;
     }
 
@@ -192,6 +229,9 @@ public class CuckooFilter extends ApproximateSetMembership {
         for (int i = 0; i < values.length; i++) {
             if (values[i] == EMPTY) {
                 data.set(offset + i, fingerprint);
+                return true;
+            } else if (values[i] == fingerprint) {
+                // Already have the fingerprint, no need to save
                 return true;
             }
         }
@@ -219,7 +259,7 @@ public class CuckooFilter extends ApproximateSetMembership {
         return hashToIndex(index);
     }
 
-    private int getOffset(int bucket, int position) {
+    int getOffset(int bucket, int position) {
         return (bucket * entriesPerBucket) + position;
     }
 
@@ -239,22 +279,22 @@ public class CuckooFilter extends ApproximateSetMembership {
         return 1;
     }
 
-    private int bitsPerEntry(double fp, double loadFactor) {
-        return (int) Math.ceil(log2(((1 / fp) + 3) / loadFactor));
+    private int bitsPerEntry(double fp, int numEntriesPerBucket) {
+        return (int) Math.round(log2((2 * numEntriesPerBucket) / fp));
     }
 
     private int entriesPerBucket(double fpp) {
         /*
           Empirical constants from paper:
             "the space-optimal bucket size depends on the target false positive rate ε:
-             when ε > 0.002, having two entries per bucket yeilds slightly better results
+             when ε > 0.002, having two entries per bucket yields slightly better results
              than using four entries per bucket; when ε decreases to 0.00001 < ε <= 0.002,
              four entries per bucket minimzes space"
          */
 
         if (fpp > 0.002) {
             return 2;
-        } else if (fpp >= 0.002 && fpp < 0.00001) {
+        } else if (fpp > 0.00001 && fpp <= 0.002) {
             return 4;
         }
         return 8;
@@ -281,7 +321,7 @@ public class CuckooFilter extends ApproximateSetMembership {
 
     private int getNumBuckets(long capacity, double loadFactor, int b) {
         // Rounds up to nearest power of 2
-        long buckets = Math.round(((1.0 / loadFactor) * (double) capacity ) / (double) b);
+        long buckets = Math.round((((double) capacity / loadFactor)) / (double) b);
 
         // Make sure it isn't larger than the largest signed power of 2 for an int
         if ((1 << -Long.numberOfLeadingZeros(buckets - 1)) > (1 << (Integer.SIZE - 2))) {
@@ -294,6 +334,10 @@ public class CuckooFilter extends ApproximateSetMembership {
         return Math.log(x) / LN_2;
     }
 
+    public long getSizeInBytes() {
+        return data.ramBytesUsed() + 24;
+    }
+
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeVInt(numBuckets);
@@ -302,7 +346,6 @@ public class CuckooFilter extends ApproximateSetMembership {
         out.writeVInt(count);
         out.writeVInt(evictedFingerprint);
 
-        out.writeVInt(data.size());
         data.save(new DataOutput() {
             @Override
             public void writeByte(byte b) throws IOException {
@@ -318,7 +361,7 @@ public class CuckooFilter extends ApproximateSetMembership {
 
     @Override
     public int hashCode() {
-        return Objects.hash(data, numBuckets, bitsPerEntry, entriesPerBucket, count, evictedFingerprint);
+        return Objects.hash(numBuckets, bitsPerEntry, entriesPerBucket, count, evictedFingerprint);
     }
 
     @Override
@@ -331,8 +374,7 @@ public class CuckooFilter extends ApproximateSetMembership {
         }
 
         final CuckooFilter that = (CuckooFilter) other;
-        return Objects.equals(this.data, that.data)
-            && Objects.equals(this.numBuckets, that.numBuckets)
+        return Objects.equals(this.numBuckets, that.numBuckets)
             && Objects.equals(this.bitsPerEntry, that.bitsPerEntry)
             && Objects.equals(this.entriesPerBucket, that.entriesPerBucket)
             && Objects.equals(this.count, that.count)

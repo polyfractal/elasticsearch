@@ -18,6 +18,8 @@
  */
 package org.elasticsearch.search.aggregations.bucket.terms;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.lucene.util.CollectionUtil;
 import org.elasticsearch.common.Randomness;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -47,6 +49,8 @@ public abstract class InternalMappedRareTerms<A extends InternalRareTerms<A, B>,
     protected Map<String, B> bucketMap;
 
     final SetBackedScalingCuckooFilter filter;
+
+    protected final Logger logger = LogManager.getLogger(getClass());
 
     InternalMappedRareTerms(String name, BucketOrder order, List<PipelineAggregator> pipelineAggregators,
                             Map<String, Object> metaData, DocValueFormat format,
@@ -133,6 +137,9 @@ public abstract class InternalMappedRareTerms<A extends InternalRareTerms<A, B>,
                 // Note this may happen during incremental reductions too
                 addToFilter(filter, b);
             }
+        }
+        if (reduceContext.isFinalReduce() & filter != null) {
+            logger.error("Size: " + filter.getSizeInBytes() + "  :  filter count:" + filter.filterCount() + "  :  \n" + filter.getDetails());
         }
         CollectionUtil.introSort(rare, order.comparator(null));
         return createWithFilter(name, rare, filter);

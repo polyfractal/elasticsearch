@@ -121,6 +121,11 @@ public class CuckooFilter implements Writeable {
         }
     }
 
+    public String getDetails() {
+        // TODO remove this just for debug
+        return "numBuckets: " + numBuckets + "  :  bitsPerEntry: " + bitsPerEntry + "  :  entriesPerBucket:" + entriesPerBucket;
+    }
+
     public int getCount() {
         return count;
     }
@@ -152,18 +157,15 @@ public class CuckooFilter implements Writeable {
     boolean mightContain(MurmurHash3.Hash128 hash) {
         int bucket = hashToIndex((int) hash.h1);
         int fingerprint = fingerprint((int) hash.h2);
+
+        return mightContainFingerprint(bucket, fingerprint);
+    }
+
+    boolean mightContainFingerprint(int bucket, int fingerprint) {
         int alternateBucket = alternateIndex(bucket, fingerprint);
 
-        // check all entries for both buckets
-        if (hasFingerprint(bucket, fingerprint)) {
-            return true;
-        }
-        if (hasFingerprint(alternateBucket, fingerprint)) {
-            return true;
-        }
-
-        // no match in the main datastructure, check eviction too
-        return evictedFingerprint != EMPTY && evictedFingerprint == fingerprint;
+        // check all entries for both buckets and the evicted slot
+        return hasFingerprint(bucket, fingerprint) || hasFingerprint(alternateBucket, fingerprint) || evictedFingerprint == fingerprint;
     }
 
     private boolean hasFingerprint(int bucket, long fingerprint) {
@@ -184,16 +186,15 @@ public class CuckooFilter implements Writeable {
 
     boolean mergeFingerprint(int bucket, int fingerprint) {
 
+        // If we already have an evicted fingerprint we are full, no need to try
+        if (evictedFingerprint != EMPTY) {
+            return false;
+        }
+
         int alternateBucket = alternateIndex(bucket, fingerprint);
         if (tryInsert(bucket, fingerprint) || tryInsert(alternateBucket, fingerprint)) {
             count += 1;
             return true;
-        }
-
-        // All the entries were occupied, start evicting but only if we don't
-        // already have an evicted tenant
-        if (evictedFingerprint != EMPTY) {
-            return false;
         }
 
         for (int i = 0; i < MAX_EVICTIONS; i++) {

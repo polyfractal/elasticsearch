@@ -45,7 +45,7 @@ public abstract class AbstractRareTermsAggregator<T extends ValuesSource, U exte
      Sets the number of "removed" values to accumulate before we purge ords
      via the MergingBucketCollector's mergeBuckets() method
      */
-    static final long GC_THRESHOLD = 1000;
+    static final long GC_THRESHOLD = 100000;
     static final BucketOrder ORDER = BucketOrder.compound(BucketOrder.count(true), BucketOrder.key(true)); // sort by count ascending
 
     protected final long maxDocCount;
@@ -67,7 +67,7 @@ public abstract class AbstractRareTermsAggregator<T extends ValuesSource, U exte
                                 DocValueFormat format, T valuesSource, U includeExclude) throws IOException {
         super(name, factories, context, parent, pipelineAggregators, metaData);
 
-        this.filter = new SetBackedScalingCuckooFilter(10000, Randomness.get());
+        this.filter = new SetBackedScalingCuckooFilter(10000, Randomness.get(), precision);
         this.filter.registerBreaker(this::addRequestCircuitBreakerBytes);
 
         this.maxDocCount = maxDocCount;

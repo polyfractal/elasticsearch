@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 public class SetBackedScalingCuckooFilter implements Writeable {
 
@@ -174,6 +175,16 @@ public class SetBackedScalingCuckooFilter implements Writeable {
         return bytes;
     }
 
+    public long filterCount() {
+        // TODO remove this just for debug
+        return filters.size();
+    }
+
+    public String getDetails() {
+        // TODO remove this just for debug
+        return filters.get(0).getDetails();
+    }
+
     /**
      * Merge `other` cuckoo filter into this cuckoo.  After merging, this filter's state will
      * be the union of the two.  During the merging process, the internal Set may be upgraded
@@ -201,23 +212,20 @@ public class SetBackedScalingCuckooFilter implements Writeable {
             other.hashes.forEach(this::add);
         } else {
             // Both are in cuckoo mode, merge raw fingerprints
+            //filters.addAll(other.filters);
+
+
 
             int current = 0;
-            boolean fastTrack = false;
             CuckooFilter currentFilter = filters.get(current);
             for (CuckooFilter filter : other.filters) {
-                // If we are in fast-track we can just add the filter directly
-                if (fastTrack) {
-                    filters.add(filter);
-                    continue;
-                }
 
                 Iterator<long[]> iter = filter.getBuckets();
                 int bucket = 0;
                 while (iter.hasNext()) {
                     long[] fingerprints = iter.next();
                     for (long fingerprint : fingerprints) {
-                        if (fingerprint == CuckooFilter.EMPTY) {
+                        if (fingerprint == CuckooFilter.EMPTY || mightContainFingerprint(bucket, (int) fingerprint)) {
                             continue;
                         }
                         boolean success = false;
@@ -234,11 +242,6 @@ public class SetBackedScalingCuckooFilter implements Writeable {
                                     filters.add(t);
                                     breaker.accept(t.getSizeInBytes()); // make sure we account for the new filter
 
-                                    // If we had to add a new filter mid-stream, we need to finish slow-inserting
-                                    // the current filter we are processing... but after that there is no reason
-                                    // to shuffle from an existing filter to a new filter... we can "fast-track"
-                                    // those and just add the filters directly
-                                    fastTrack = true;
                                 }
                                 currentFilter = filters.get(current);
                             }
@@ -247,7 +250,12 @@ public class SetBackedScalingCuckooFilter implements Writeable {
                     bucket += 1;
                 }
             }
+
         }
+    }
+
+    private boolean mightContainFingerprint(int bucket, int fingerprint) {
+        return filters.stream().anyMatch(filter -> filter.mightContainFingerprint(bucket, fingerprint));
     }
 
     @Override

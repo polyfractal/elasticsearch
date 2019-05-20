@@ -139,7 +139,7 @@ public abstract class AggregationScript implements ScorerAware {
      * A factory to construct {@link AggregationScript} instances.
      */
     public interface LeafFactory {
-        AggregationScript newInstance(LeafReaderContext ctx) throws IOException;
+        AggregationScript newInstance(LeafReaderContext ctx);
 
         /**
          * Return {@code true} if the script needs {@code _score} calculated, or {@code false} otherwise.

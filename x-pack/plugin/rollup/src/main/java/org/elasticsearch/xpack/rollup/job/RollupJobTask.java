@@ -36,8 +36,10 @@ import org.elasticsearch.xpack.core.rollup.job.RollupJobStatus;
 import org.elasticsearch.xpack.core.scheduler.SchedulerEngine;
 import org.elasticsearch.xpack.rollup.Rollup;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 /**
  * This class contains the high-level logic that drives the rollup job. The allocated task contains transient state
@@ -105,9 +107,11 @@ public class RollupJobTask extends AllocatedPersistentTask implements SchedulerE
         }
 
         @Override
-        protected void doNextSearch(SearchRequest request, ActionListener<SearchResponse> nextPhase) {
-            ClientHelper.executeWithHeadersAsync(job.getHeaders(), ClientHelper.ROLLUP_ORIGIN, client, SearchAction.INSTANCE, request,
-                    nextPhase);
+        protected void doNextSearch(List<SearchRequest> requests, ActionListener<SearchResponse> nextPhase) {
+            requests.forEach(request -> ClientHelper.executeWithHeadersAsync(job.getHeaders(),
+                ClientHelper.ROLLUP_ORIGIN, client, SearchAction.INSTANCE, request, nextPhase)
+            );
+
         }
 
         @Override

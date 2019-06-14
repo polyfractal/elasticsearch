@@ -46,10 +46,12 @@ import org.elasticsearch.xpack.dataframe.persistence.DataFrameTransformsConfigMa
 import org.elasticsearch.xpack.dataframe.transforms.pivot.AggregationResultUtils;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 
 public class DataFrameTransformTask extends AllocatedPersistentTask implements SchedulerEngine.Listener {
@@ -535,9 +537,9 @@ public class DataFrameTransformTask extends AllocatedPersistentTask implements S
         }
 
         @Override
-        protected void doNextSearch(SearchRequest request, ActionListener<SearchResponse> nextPhase) {
-            ClientHelper.executeWithHeadersAsync(transformConfig.getHeaders(), ClientHelper.DATA_FRAME_ORIGIN, client,
-                    SearchAction.INSTANCE, request, nextPhase);
+        protected void doNextSearch(List<SearchRequest> requests, ActionListener<SearchResponse> nextPhase) {
+           requests.forEach(request -> ClientHelper.executeWithHeadersAsync(transformConfig.getHeaders(),
+               ClientHelper.DATA_FRAME_ORIGIN, client, SearchAction.INSTANCE, request, nextPhase));
         }
 
         @Override

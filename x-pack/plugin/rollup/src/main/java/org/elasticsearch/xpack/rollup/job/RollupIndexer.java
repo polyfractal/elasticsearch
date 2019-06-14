@@ -110,7 +110,7 @@ public abstract class RollupIndexer extends AsyncTwoPhaseIndexer<Map<String, Obj
     }
 
     @Override
-    protected SearchRequest buildSearchRequest() {
+    protected List<SearchRequest> buildSearchRequests() {
         final Map<String, Object> position = getPosition();
         SearchSourceBuilder searchSource = new SearchSourceBuilder()
                 .size(0)
@@ -118,12 +118,12 @@ public abstract class RollupIndexer extends AsyncTwoPhaseIndexer<Map<String, Obj
                 // make sure we always compute complete buckets that appears before the configured delay
                 .query(createBoundaryQuery(position))
                 .aggregation(compositeBuilder.aggregateAfter(position));
-        return new SearchRequest(job.getConfig().getIndexPattern()).source(searchSource);
+        return Collections.singletonList(new SearchRequest(job.getConfig().getIndexPattern()).source(searchSource));
     }
 
     @Override
-    protected IterationResult<Map<String, Object>> doProcess(SearchResponse searchResponse) {
-        final CompositeAggregation response = searchResponse.getAggregations().get(AGGREGATION_NAME);
+    protected IterationResult<Map<String, Object>> doProcess(List<SearchResponse> searchResponses) {
+        final CompositeAggregation response = searchResponses.get(0).getAggregations().get(AGGREGATION_NAME);
 
         if (response.getBuckets().isEmpty()) {
             // do not reset the position as we want to continue from where we stopped

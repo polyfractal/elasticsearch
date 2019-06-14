@@ -15,10 +15,12 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 /**
  * An abstract class that builds an index incrementally. A background job can be launched using {@link #maybeTriggerAsyncJob(long)},
@@ -43,6 +45,7 @@ public abstract class AsyncTwoPhaseIndexer<JobPosition, JobStats extends Indexer
     private final AtomicReference<IndexerState> state;
     private final AtomicReference<JobPosition> position;
     private final Executor executor;
+    private final ResultsConsumer resultsConsumer = new ResultsConsumer();
 
     protected AsyncTwoPhaseIndexer(Executor executor, AtomicReference<IndexerState> initialState,
                                    JobPosition initialPosition, JobStats jobStats) {
@@ -186,14 +189,14 @@ public abstract class AsyncTwoPhaseIndexer<JobPosition, JobStats extends Indexer
      * @param searchResponse response from the search phase.
      * @return Iteration object to be passed to indexing phase.
      */
-    protected abstract IterationResult<JobPosition> doProcess(SearchResponse searchResponse);
+    protected abstract IterationResult<JobPosition> doProcess(List<SearchResponse> searchResponse);
 
     /**
      * Called to build the next search request.
      *
      * @return SearchRequest to be passed to the search phase.
      */
-    protected abstract SearchRequest buildSearchRequest();
+    protected abstract List<SearchRequest> buildSearchRequests();
 
     /**
      * Called at startup after job has been triggered using {@link #maybeTriggerAsyncJob(long)} and the
@@ -208,12 +211,12 @@ public abstract class AsyncTwoPhaseIndexer<JobPosition, JobStats extends Indexer
      * Executes the {@link SearchRequest} and calls <code>nextPhase</code> with the
      * response or the exception if an error occurs.
      *
-     * @param request
+     * @param requests
      *            The search request to execute
      * @param nextPhase
      *            Listener for the next phase
      */
-    protected abstract void doNextSearch(SearchRequest request, ActionListener<SearchResponse> nextPhase);
+    protected abstract void doNextSearch(List<SearchRequest> requests, ActionListener<SearchResponse> nextPhase);
 
     /**
      * Executes the {@link BulkRequest} and calls <code>nextPhase</code> with the
@@ -324,6 +327,13 @@ public abstract class AsyncTwoPhaseIndexer<JobPosition, JobStats extends Indexer
     }
 
     private void onSearchResponse(SearchResponse searchResponse) {
+
+        // Consume the request and see if we have them all
+        if (resultsConsumer.consume(searchResponse) == false) {
+            return;
+        }
+
+        // If we get here, all other threads are done and we can safely proceed
         stats.markEndSearch();
         try {
             if (checkState(getState()) == false) {
@@ -334,7 +344,7 @@ public abstract class AsyncTwoPhaseIndexer<JobPosition, JobStats extends Indexer
             assert (searchResponse.getShardFailures().length == 0);
 
             stats.incrementNumPages(1);
-            IterationResult<JobPosition> iterationResult = doProcess(searchResponse);
+            IterationResult<JobPosition> iterationResult = doProcess(resultsConsumer.getSearchResponses());
 
             if (iterationResult.isDone()) {
                 logger.debug("Finished indexing for job [" + getJobId() + "], saving state and shutting down.");
@@ -399,8 +409,12 @@ public abstract class AsyncTwoPhaseIndexer<JobPosition, JobStats extends Indexer
     private void nextSearch(ActionListener<SearchResponse> listener) {
         stats.markStartSearch();
         // ensure that partial results are not accepted and cause a search failure
-        SearchRequest searchRequest = buildSearchRequest().allowPartialSearchResults(false);
-        doNextSearch(searchRequest, listener);
+        List<SearchRequest> searchRequests = buildSearchRequests()
+            .stream()
+            .peek(request -> request.allowPartialSearchResults(false))
+            .collect(Collectors.toList());
+        resultsConsumer.setExpectedResponses(searchRequests.size());
+        doNextSearch(searchRequests, listener);
     }
 
     /**
@@ -430,6 +444,43 @@ public abstract class AsyncTwoPhaseIndexer<JobPosition, JobStats extends Indexer
             // Anything other than indexing, aborting or stopping is unanticipated
             logger.warn("Encountered unexpected state [" + currentState + "] while indexing");
             throw new IllegalStateException("Indexer job encountered an illegal state [" + currentState + "]");
+        }
+    }
+
+    static class ResultsConsumer {
+        private volatile List<SearchResponse> bufferedResponses = new ArrayList<>();
+        private volatile long expectedResponses = 0;
+
+        synchronized void setExpectedResponses(long numExpected) {
+            if (this.expectedResponses > 0) {
+                throw new IllegalStateException("Cannot set expected responses to [" + numExpected + "] because ["
+                    + expectedResponses + "] responses are still in-flight!");
+            }
+            this.expectedResponses = numExpected;
+            this.bufferedResponses.clear();
+        }
+
+        synchronized boolean consume(SearchResponse response) {
+            // We are not expecting much contention so a simple synchronization is fine
+
+            boolean allResultsPresent = false;
+
+            bufferedResponses.add(response);
+            expectedResponses -= 1;
+            assert expectedResponses >= 0;
+
+            if (expectedResponses == 0) {
+                allResultsPresent = true;
+            }
+
+            return allResultsPresent;
+        }
+
+        synchronized List<SearchResponse> getSearchResponses() {
+            if (this.expectedResponses > 0) {
+                throw new IllegalStateException("Cannot get responses because [" + expectedResponses + "] responses are still in-flight!");
+            }
+            return bufferedResponses;
         }
     }
 

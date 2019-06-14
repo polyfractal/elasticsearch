@@ -62,7 +62,7 @@ public class RollupIndexerStateTests extends ESTestCase {
         }
 
         @Override
-        protected void doNextSearch(SearchRequest request, ActionListener<SearchResponse> nextPhase) {
+        protected void doNextSearch(List<SearchRequest> request, ActionListener<SearchResponse> nextPhase) {
             // TODO Should use InternalComposite constructor but it is package protected in core.
             Aggregations aggs = new Aggregations(Collections.singletonList(new CompositeAggregation() {
                 @Override
@@ -148,7 +148,7 @@ public class RollupIndexerStateTests extends ESTestCase {
         }
 
         @Override
-        protected void doNextSearch(SearchRequest request, ActionListener<SearchResponse> nextPhase) {
+        protected void doNextSearch(List<SearchRequest> request, ActionListener<SearchResponse> nextPhase) {
             assert latch != null;
             try {
                 latch.await();
@@ -160,13 +160,13 @@ public class RollupIndexerStateTests extends ESTestCase {
     }
 
     private static class NonEmptyRollupIndexer extends RollupIndexer {
-        final Function<SearchRequest, SearchResponse> searchFunction;
+        final Function<List<SearchRequest>, SearchResponse> searchFunction;
         final Function<BulkRequest, BulkResponse> bulkFunction;
         final Consumer<Exception> failureConsumer;
         private CountDownLatch latch;
 
         NonEmptyRollupIndexer(Executor executor, RollupJob job, AtomicReference<IndexerState> initialState,
-                              Map<String, Object> initialPosition, Function<SearchRequest, SearchResponse> searchFunction,
+                              Map<String, Object> initialPosition, Function<List<SearchRequest>, SearchResponse> searchFunction,
                               Function<BulkRequest, BulkResponse> bulkFunction, Consumer<Exception> failureConsumer) {
             super(executor, job, initialState, initialPosition);
             this.searchFunction = searchFunction;
@@ -179,7 +179,7 @@ public class RollupIndexerStateTests extends ESTestCase {
         }
 
         @Override
-        protected void doNextSearch(SearchRequest request, ActionListener<SearchResponse> nextPhase) {
+        protected void doNextSearch(List<SearchRequest> request, ActionListener<SearchResponse> nextPhase) {
             assert latch != null;
             try {
                 latch.await();
@@ -343,7 +343,7 @@ public class RollupIndexerStateTests extends ESTestCase {
                 }
 
                 @Override
-                protected void doNextSearch(SearchRequest request, ActionListener<SearchResponse> nextPhase) {
+                protected void doNextSearch(List<SearchRequest> request, ActionListener<SearchResponse> nextPhase) {
                     try {
                         latch.await();
                     } catch (InterruptedException e) {
@@ -391,7 +391,7 @@ public class RollupIndexerStateTests extends ESTestCase {
                 }
 
                 @Override
-                protected void doNextSearch(SearchRequest request, ActionListener<SearchResponse> nextPhase) {
+                protected void doNextSearch(List<SearchRequest> request, ActionListener<SearchResponse> nextPhase) {
                     try {
                         doNextSearchLatch.await();
                     } catch (InterruptedException e) {
@@ -579,7 +579,7 @@ public class RollupIndexerStateTests extends ESTestCase {
         AtomicBoolean isFinished = new AtomicBoolean(false);
         RollupJob job = new RollupJob(ConfigTestHelpers.randomRollupJobConfig(random()), Collections.emptyMap());
         AtomicReference<IndexerState> state = new AtomicReference<>(IndexerState.STOPPED);
-        Function<SearchRequest, SearchResponse> searchFunction = searchRequest -> {
+        Function<List<SearchRequest>, SearchResponse> searchFunction = searchRequest -> {
             Aggregations aggs = new Aggregations(Collections.singletonList(new CompositeAggregation() {
                 @Override
                 public List<? extends Bucket> getBuckets() {
@@ -687,7 +687,7 @@ public class RollupIndexerStateTests extends ESTestCase {
 
         RollupJob job = new RollupJob(ConfigTestHelpers.randomRollupJobConfig(random()), Collections.emptyMap());
         AtomicReference<IndexerState> state = new AtomicReference<>(IndexerState.STOPPED);
-        Function<SearchRequest, SearchResponse> searchFunction = searchRequest -> {
+        Function<List<SearchRequest>, SearchResponse> searchFunction = searchRequest -> {
             Aggregations aggs = new Aggregations(Collections.singletonList(new CompositeAggregation() {
                 @Override
                 public List<? extends Bucket> getBuckets() {
@@ -793,7 +793,7 @@ public class RollupIndexerStateTests extends ESTestCase {
         AtomicBoolean isFinished = new AtomicBoolean(false);
         RollupJob job = new RollupJob(ConfigTestHelpers.randomRollupJobConfig(random()), Collections.emptyMap());
         AtomicReference<IndexerState> state = new AtomicReference<>(IndexerState.STOPPED);
-        Function<SearchRequest, SearchResponse> searchFunction = searchRequest -> {
+        Function<List<SearchRequest>, SearchResponse> searchFunction = searchRequest -> {
             throw new SearchPhaseExecutionException("query", "Partial shards failure",
                     new ShardSearchFailure[] { new ShardSearchFailure(new RuntimeException("failed")) });
         };
@@ -838,7 +838,7 @@ public class RollupIndexerStateTests extends ESTestCase {
         AtomicBoolean isFinished = new AtomicBoolean(false);
         RollupJob job = new RollupJob(ConfigTestHelpers.randomRollupJobConfig(random()), Collections.emptyMap());
         AtomicReference<IndexerState> state = new AtomicReference<>(IndexerState.STOPPED);
-        Function<SearchRequest, SearchResponse> searchFunction = searchRequest -> {
+        Function<List<SearchRequest>, SearchResponse> searchFunction = searchRequest -> {
             Aggregations aggs = new Aggregations(Collections.singletonList(new CompositeAggregation() {
                 @Override
                 public List<? extends Bucket> getBuckets() {

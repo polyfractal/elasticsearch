@@ -22,6 +22,7 @@ import org.junit.Before;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -63,7 +64,7 @@ public class AsyncTwoPhaseIndexerTests extends ESTestCase {
         }
 
         @Override
-        protected IterationResult<Integer> doProcess(SearchResponse searchResponse) {
+        protected IterationResult<Integer> doProcess(List<SearchResponse> searchResponse) {
             assertFalse("should not be called as stoppedBeforeFinished is false", stoppedBeforeFinished);
             assertThat(step, equalTo(3));
             ++step;
@@ -79,10 +80,10 @@ public class AsyncTwoPhaseIndexerTests extends ESTestCase {
         }
 
         @Override
-        protected SearchRequest buildSearchRequest() {
+        protected List<SearchRequest> buildSearchRequests() {
             assertThat(step, equalTo(1));
             ++step;
-            return new SearchRequest();
+            return Collections.singletonList(new SearchRequest());
         }
 
         @Override
@@ -93,7 +94,7 @@ public class AsyncTwoPhaseIndexerTests extends ESTestCase {
         }
 
         @Override
-        protected void doNextSearch(SearchRequest request, ActionListener<SearchResponse> nextPhase) {
+        protected void doNextSearch(List<SearchRequest> request, ActionListener<SearchResponse> nextPhase) {
             assertThat(step, equalTo(2));
             ++step;
             final SearchResponseSections sections = new SearchResponseSections(
@@ -161,16 +162,16 @@ public class AsyncTwoPhaseIndexerTests extends ESTestCase {
         }
 
         @Override
-        protected IterationResult<Integer> doProcess(SearchResponse searchResponse) {
+        protected IterationResult<Integer> doProcess(List<SearchResponse> searchResponse) {
             fail("should not be called");
             return null;
         }
 
         @Override
-        protected SearchRequest buildSearchRequest() {
+        protected List<SearchRequest> buildSearchRequests() {
             assertThat(step, equalTo(1));
             ++step;
-            return new SearchRequest();
+            return Collections.singletonList(new SearchRequest());
         }
 
         @Override
@@ -181,7 +182,7 @@ public class AsyncTwoPhaseIndexerTests extends ESTestCase {
         }
 
         @Override
-        protected void doNextSearch(SearchRequest request, ActionListener<SearchResponse> nextPhase) {
+        protected void doNextSearch(List<SearchRequest> request, ActionListener<SearchResponse> nextPhase) {
             throw new RuntimeException("Failed to build search request");
         }
 

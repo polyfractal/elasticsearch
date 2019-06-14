@@ -32,6 +32,7 @@ import org.elasticsearch.xpack.dataframe.transforms.pivot.Pivot;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executor;
@@ -126,8 +127,8 @@ public abstract class DataFrameIndexer extends AsyncTwoPhaseIndexer<Map<String, 
     }
 
     @Override
-    protected IterationResult<Map<String, Object>> doProcess(SearchResponse searchResponse) {
-        final CompositeAggregation agg = searchResponse.getAggregations().get(COMPOSITE_AGGREGATION_NAME);
+    protected IterationResult<Map<String, Object>> doProcess(List<SearchResponse> searchResponses) {
+        final CompositeAggregation agg = searchResponses.get(0).getAggregations().get(COMPOSITE_AGGREGATION_NAME);
 
         // we reached the end
         if (agg.getBuckets().isEmpty()) {
@@ -184,8 +185,8 @@ public abstract class DataFrameIndexer extends AsyncTwoPhaseIndexer<Map<String, 
     }
 
     @Override
-    protected SearchRequest buildSearchRequest() {
-        return pivot.buildSearchRequest(getConfig().getSource(), getPosition(), pageSize);
+    protected List<SearchRequest> buildSearchRequests() {
+        return Collections.singletonList(pivot.buildSearchRequest(getConfig().getSource(), getPosition(), pageSize));
     }
 
     /**

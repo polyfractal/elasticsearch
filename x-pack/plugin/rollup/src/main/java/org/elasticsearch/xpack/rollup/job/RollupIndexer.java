@@ -6,13 +6,10 @@
 package org.elasticsearch.xpack.rollup.job;
 
 import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.RangeQueryBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilder;
-import org.elasticsearch.search.aggregations.bucket.composite.CompositeAggregation;
 import org.elasticsearch.search.aggregations.bucket.composite.CompositeAggregationBuilder;
 import org.elasticsearch.search.aggregations.bucket.composite.CompositeValuesSourceBuilder;
 import org.elasticsearch.search.aggregations.bucket.composite.DateHistogramValuesSourceBuilder;
@@ -28,10 +25,8 @@ import org.elasticsearch.search.aggregations.metrics.SumAggregationBuilder;
 import org.elasticsearch.search.aggregations.metrics.ValueCountAggregationBuilder;
 import org.elasticsearch.search.aggregations.support.ValueType;
 import org.elasticsearch.search.aggregations.support.ValuesSourceAggregationBuilder;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.xpack.core.indexing.AsyncTwoPhaseIndexer;
 import org.elasticsearch.xpack.core.indexing.IndexerState;
-import org.elasticsearch.xpack.core.indexing.IterationResult;
 import org.elasticsearch.xpack.core.rollup.RollupField;
 import org.elasticsearch.xpack.core.rollup.job.DateHistogramGroupConfig;
 import org.elasticsearch.xpack.core.rollup.job.GroupConfig;
@@ -60,8 +55,7 @@ public abstract class RollupIndexer extends AsyncTwoPhaseIndexer<Map<String, Obj
     static final String AGGREGATION_NAME = RollupField.NAME;
 
     private final RollupJob job;
-    private final CompositeAggregationBuilder compositeBuilder;
-    private long maxBoundary;
+    protected long maxBoundary;
 
     /**
      * Ctr
@@ -86,7 +80,6 @@ public abstract class RollupIndexer extends AsyncTwoPhaseIndexer<Map<String, Obj
                   Map<String, Object> initialPosition, RollupIndexerJobStats jobStats) {
         super(executor, initialState, initialPosition, jobStats);
         this.job = job;
-        this.compositeBuilder = createCompositeBuilder(job.getConfig());
     }
 
     @Override
@@ -109,39 +102,12 @@ public abstract class RollupIndexer extends AsyncTwoPhaseIndexer<Map<String, Obj
         }
     }
 
-    @Override
-    protected List<SearchRequest> buildSearchRequests() {
-        final Map<String, Object> position = getPosition();
-        SearchSourceBuilder searchSource = new SearchSourceBuilder()
-                .size(0)
-                .trackTotalHits(false)
-                // make sure we always compute complete buckets that appears before the configured delay
-                .query(createBoundaryQuery(position))
-                .aggregation(compositeBuilder.aggregateAfter(position));
-        return Collections.singletonList(new SearchRequest(job.getConfig().getIndexPattern()).source(searchSource));
-    }
-
-    @Override
-    protected IterationResult<Map<String, Object>> doProcess(List<SearchResponse> searchResponses) {
-        final CompositeAggregation response = searchResponses.get(0).getAggregations().get(AGGREGATION_NAME);
-
-        if (response.getBuckets().isEmpty()) {
-            // do not reset the position as we want to continue from where we stopped
-            return new IterationResult<>(Collections.emptyList(), getPosition(), true);
-        }
-
-        return new IterationResult<>(
-                IndexerUtils.processBuckets(response, job.getConfig().getRollupIndex(), getStats(),
-                        job.getConfig().getGroupConfig(), job.getConfig().getId()),
-                response.afterKey(), response.getBuckets().isEmpty());
-    }
-
     /**
      * Creates a skeleton {@link CompositeAggregationBuilder} from the provided job config.
      * @param config The config for the job.
      * @return The composite aggregation that creates the rollup buckets
      */
-    private CompositeAggregationBuilder createCompositeBuilder(RollupJobConfig config) {
+    CompositeAggregationBuilder createCompositeBuilder(RollupJobConfig config) {
         final GroupConfig groupConfig = config.getGroupConfig();
         List<CompositeValuesSourceBuilder<?>> builders = createValueSourceBuilders(groupConfig);
 
@@ -157,31 +123,6 @@ public abstract class RollupIndexer extends AsyncTwoPhaseIndexer<Map<String, Obj
         composite.size(config.getPageSize());
 
         return composite;
-    }
-
-    /**
-     * Creates the range query that limits the search to documents that appear before the maximum allowed time
-     * (see {@link #maxBoundary}
-     * and on or after the last processed time.
-     * @param position The current position of the pagination
-     * @return The range query to execute
-     */
-    private QueryBuilder createBoundaryQuery(Map<String, Object> position) {
-        assert maxBoundary < Long.MAX_VALUE;
-        DateHistogramGroupConfig dateHisto = job.getConfig().getGroupConfig().getDateHistogram();
-        String fieldName = dateHisto.getField();
-        String rollupFieldName = fieldName + "."  + DateHistogramAggregationBuilder.NAME;
-        long lowerBound = 0L;
-        if (position != null) {
-            Number value = (Number) position.get(rollupFieldName);
-            lowerBound = value.longValue();
-        }
-        assert lowerBound <= maxBoundary;
-        final RangeQueryBuilder query = new RangeQueryBuilder(fieldName)
-                .gte(lowerBound)
-                .lt(maxBoundary)
-                .format("epoch_millis");
-        return query;
     }
 
     static Map<String, Object> createMetadata(final GroupConfig groupConfig) {

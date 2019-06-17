@@ -106,7 +106,7 @@ public class DateHistogramGroupConfig implements Writeable, ToXContentObject {
      * For calendar-aware rollups, use {@link CalendarInterval}
      */
     public static class FixedInterval extends DateHistogramGroupConfig {
-        private static final String TYPE_NAME = "fixed_interval";
+        public static final String TYPE_NAME = "fixed_interval";
         public FixedInterval(String field, DateHistogramInterval interval) {
             this(field, interval, null, null);
         }
@@ -136,7 +136,7 @@ public class DateHistogramGroupConfig implements Writeable, ToXContentObject {
      * For fixed time rollups, use {@link FixedInterval}
      */
     public static class CalendarInterval extends DateHistogramGroupConfig {
-        private static final String TYPE_NAME = "calendar_interval";
+        public static final String TYPE_NAME = "calendar_interval";
         public CalendarInterval(String field, DateHistogramInterval interval) {
             this(field, interval, null, null);
         }

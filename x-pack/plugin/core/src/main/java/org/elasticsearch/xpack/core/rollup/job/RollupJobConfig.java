@@ -5,6 +5,7 @@
  */
 package org.elasticsearch.xpack.core.rollup.job;
 
+import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.fieldcaps.FieldCapabilities;
 import org.elasticsearch.common.Nullable;
@@ -46,6 +47,7 @@ public class RollupJobConfig implements NamedWriteable, ToXContentObject {
     private static final String PAGE_SIZE = "page_size";
     private static final String INDEX_PATTERN = "index_pattern";
     private static final String ROLLUP_INDEX = "rollup_index";
+    private static final String CONCURRENT_QUERIES = "concurrent_queries";
 
     private final String id;
     private final String indexPattern;
@@ -55,6 +57,7 @@ public class RollupJobConfig implements NamedWriteable, ToXContentObject {
     private final TimeValue timeout;
     private final String cron;
     private final int pageSize;
+    private final int concurrentQueries;
 
     private static final ConstructingObjectParser<RollupJobConfig, String> PARSER;
     static {
@@ -68,7 +71,9 @@ public class RollupJobConfig implements NamedWriteable, ToXContentObject {
             TimeValue timeout = (TimeValue) args[5];
             String cron = (String) args[6];
             int pageSize = (int) args[7];
-            return new RollupJobConfig(id, indexPattern, rollupIndex, cron, pageSize, groupConfig, metricsConfig, timeout);
+            int concurrentQueries = args[8] == null ? 1 : (int) args[8];
+            return new RollupJobConfig(id, indexPattern, rollupIndex, cron, pageSize, groupConfig,
+                metricsConfig, timeout, concurrentQueries);
         });
         PARSER.declareString(optionalConstructorArg(), new ParseField(ID));
         PARSER.declareString(constructorArg(), new ParseField(INDEX_PATTERN));
@@ -79,6 +84,7 @@ public class RollupJobConfig implements NamedWriteable, ToXContentObject {
             new ParseField(TIMEOUT), ObjectParser.ValueType.STRING_OR_NULL);
         PARSER.declareString(constructorArg(), new ParseField(CRON));
         PARSER.declareInt(constructorArg(), new ParseField(PAGE_SIZE));
+        PARSER.declareInt(optionalConstructorArg(), new ParseField(CONCURRENT_QUERIES));
     }
 
     public RollupJobConfig(final String id,
@@ -88,7 +94,8 @@ public class RollupJobConfig implements NamedWriteable, ToXContentObject {
                            final int pageSize,
                            final GroupConfig groupConfig,
                            final List<MetricConfig> metricsConfig,
-                           final @Nullable TimeValue timeout) {
+                           final @Nullable TimeValue timeout,
+                           final int concurrentQueries) {
         if (id == null || id.isEmpty()) {
             throw new IllegalArgumentException("Id must be a non-null, non-empty string");
         }
@@ -118,6 +125,9 @@ public class RollupJobConfig implements NamedWriteable, ToXContentObject {
         if (groupConfig == null && (metricsConfig == null || metricsConfig.isEmpty())) {
             throw new IllegalArgumentException("At least one grouping or metric must be configured");
         }
+        if (concurrentQueries <= 0) {
+            throw new IllegalArgumentException("Number of concurrent queries must be a positive integer");
+        }
 
         this.id = id;
         this.indexPattern = indexPattern;
@@ -127,6 +137,7 @@ public class RollupJobConfig implements NamedWriteable, ToXContentObject {
         this.timeout = timeout != null ? timeout : DEFAULT_TIMEOUT;
         this.cron = cron;
         this.pageSize = pageSize;
+        this.concurrentQueries = concurrentQueries;
     }
 
     public RollupJobConfig(final StreamInput in) throws IOException {
@@ -138,6 +149,11 @@ public class RollupJobConfig implements NamedWriteable, ToXContentObject {
         metricsConfig = in.readList(MetricConfig::new);
         timeout = in.readTimeValue();
         pageSize = in.readInt();
+        if (in.getVersion().onOrAfter(Version.V_8_0_0)) { // TODO change this after backport
+            concurrentQueries = in.readVInt();
+        } else {
+            concurrentQueries = 1;
+        }
     }
 
     public String getId() {
@@ -170,6 +186,10 @@ public class RollupJobConfig implements NamedWriteable, ToXContentObject {
 
     public int getPageSize() {
         return pageSize;
+    }
+
+    public int getConcurrentQueries() {
+        return concurrentQueries;
     }
 
     @Override
@@ -220,6 +240,7 @@ public class RollupJobConfig implements NamedWriteable, ToXContentObject {
                 builder.field(TIMEOUT, timeout.getStringRep());
             }
             builder.field(PAGE_SIZE, pageSize);
+            builder.field(CONCURRENT_QUERIES, concurrentQueries);
         }
         builder.endObject();
         return builder;
@@ -235,6 +256,9 @@ public class RollupJobConfig implements NamedWriteable, ToXContentObject {
         out.writeList(metricsConfig);
         out.writeTimeValue(timeout);
         out.writeInt(pageSize);
+        if (out.getVersion().onOrAfter(Version.V_8_0_0)) { // TODO change this after backport
+            out.writeVInt(concurrentQueries);
+        }
     }
 
     @Override
@@ -248,18 +272,19 @@ public class RollupJobConfig implements NamedWriteable, ToXContentObject {
 
         final RollupJobConfig that = (RollupJobConfig) other;
         return Objects.equals(this.id, that.id)
-                && Objects.equals(this.indexPattern, that.indexPattern)
-                && Objects.equals(this.rollupIndex, that.rollupIndex)
-                && Objects.equals(this.cron, that.cron)
-                && Objects.equals(this.groupConfig, that.groupConfig)
-                && Objects.equals(this.metricsConfig, that.metricsConfig)
-                && Objects.equals(this.timeout, that.timeout)
-                && Objects.equals(this.pageSize, that.pageSize);
+            && Objects.equals(this.indexPattern, that.indexPattern)
+            && Objects.equals(this.rollupIndex, that.rollupIndex)
+            && Objects.equals(this.cron, that.cron)
+            && Objects.equals(this.groupConfig, that.groupConfig)
+            && Objects.equals(this.metricsConfig, that.metricsConfig)
+            && Objects.equals(this.timeout, that.timeout)
+            && Objects.equals(this.pageSize, that.pageSize)
+            && Objects.equals(this.concurrentQueries, that.concurrentQueries);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, indexPattern, rollupIndex, cron, groupConfig, metricsConfig, timeout, pageSize);
+        return Objects.hash(id, indexPattern, rollupIndex, cron, groupConfig, metricsConfig, timeout, pageSize, concurrentQueries);
     }
 
     @Override

@@ -29,11 +29,13 @@ import org.elasticsearch.index.fielddata.IndexOrdinalsFieldData;
 import org.elasticsearch.index.mapper.DateFieldMapper;
 import org.elasticsearch.index.mapper.MappedFieldType;
 import org.elasticsearch.index.mapper.RangeFieldMapper;
+import org.elasticsearch.index.mapper.RangeType;
 import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.script.AggregationScript;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.AggregationExecutionException;
+import org.elasticsearch.search.aggregations.AggregatorFactory;
 
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -230,7 +232,7 @@ public class ValuesSourceConfig<VS extends ValuesSource> {
     /** Get a value source given its configuration. A return value of null indicates that
      *  no value source could be built. */
     @Nullable
-    public VS toValuesSource(QueryShardContext context) {
+    public VS toValuesSource(QueryShardContext context, ResolvableUnmappedMissingAggFactory factory) {
         if (!valid()) {
             throw new IllegalStateException(
                     "value source config is invalid; must have either a field context or a script or marked as unwrapped");
@@ -241,7 +243,12 @@ public class ValuesSourceConfig<VS extends ValuesSource> {
             if (missing() == null) {
                 // otherwise we will have values because of the missing value
                 vs = null;
-            } else if (valueSourceType() == ValuesSourceType.NUMERIC) {
+            } else {
+                vs = (VS) factory.resolveUnmappedMissingVS(missing());
+            }
+
+            /*
+            else if (valueSourceType() == ValuesSourceType.NUMERIC) {
                 vs = (VS) ValuesSource.Numeric.EMPTY;
             } else if (valueSourceType() == ValuesSourceType.GEOPOINT) {
                 vs = (VS) ValuesSource.GeoPoint.EMPTY;
@@ -251,6 +258,7 @@ public class ValuesSourceConfig<VS extends ValuesSource> {
                 // TODO: Do we need a missing case for Range values type?
                 throw new IllegalArgumentException("Can't deal with unmapped ValuesSource type " + valueSourceType());
             }
+            */
         } else {
             vs = originalValuesSource();
         }
@@ -273,6 +281,9 @@ public class ValuesSourceConfig<VS extends ValuesSource> {
             // TODO: also support the structured formats of geo points
             final GeoPoint missing = new GeoPoint(missing().toString());
             return (VS) MissingValues.replaceMissing((ValuesSource.GeoPoint) vs, missing);
+        } else if (vs instanceof ValuesSource.Range) {
+            RangeFieldMapper.Range range = (RangeFieldMapper.Range) missing;
+            return (VS) MissingValues.replaceMissing((ValuesSource.Range) vs, range);
         } else {
             // Should not happen
             throw new IllegalArgumentException("Can't apply missing values on a " + vs.getClass());

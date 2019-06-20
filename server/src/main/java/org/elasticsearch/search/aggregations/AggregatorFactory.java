@@ -26,6 +26,8 @@ import org.elasticsearch.common.lease.Releasables;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.ObjectArray;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
+import org.elasticsearch.search.aggregations.support.ResolvableUnmappedMissingAggFactory;
+import org.elasticsearch.search.aggregations.support.ValuesSource;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.search.internal.SearchContext.Lifetime;
 
@@ -33,7 +35,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-public abstract class AggregatorFactory<AF extends AggregatorFactory<AF>> {
+public abstract class AggregatorFactory<AF extends AggregatorFactory<AF>> implements ResolvableUnmappedMissingAggFactory {
 
     public static final class MultiBucketAggregatorWrapper extends Aggregator {
         private final BigArrays bigArrays;
@@ -233,4 +235,7 @@ public abstract class AggregatorFactory<AF extends AggregatorFactory<AF>> {
         return new MultiBucketAggregatorWrapper(bigArrays, context, parent, factory, first);
     }
 
+    public ValuesSource resolveUnmappedMissingVS(Object missingValue) {
+        throw new UnsupportedOperationException("boom");
+    }
 }

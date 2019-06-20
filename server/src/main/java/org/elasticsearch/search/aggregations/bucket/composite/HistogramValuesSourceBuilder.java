@@ -26,6 +26,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.mapper.MappedFieldType;
 import org.elasticsearch.search.aggregations.bucket.histogram.Histogram;
+import org.elasticsearch.search.aggregations.support.ResolvableUnmappedMissingAggFactory;
 import org.elasticsearch.search.aggregations.support.ValueType;
 import org.elasticsearch.search.aggregations.support.ValuesSource;
 import org.elasticsearch.search.aggregations.support.ValuesSourceConfig;
@@ -111,7 +112,7 @@ public class HistogramValuesSourceBuilder extends CompositeValuesSourceBuilder<H
 
     @Override
     protected CompositeValuesSourceConfig innerBuild(SearchContext context, ValuesSourceConfig<?> config) throws IOException {
-        ValuesSource orig = config.toValuesSource(context.getQueryShardContext());
+        ValuesSource orig = config.toValuesSource(context.getQueryShardContext(), this);
         if (orig == null) {
             orig = ValuesSource.Numeric.EMPTY;
         }

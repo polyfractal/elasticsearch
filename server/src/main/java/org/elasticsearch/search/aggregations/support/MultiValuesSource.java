@@ -30,7 +30,7 @@ import java.util.Objects;
 /**
  * Class to encapsulate a set of ValuesSource objects labeled by field name
  */
-public abstract class MultiValuesSource <VS extends ValuesSource> {
+public abstract class MultiValuesSource <VS extends ValuesSource> implements ResolvableUnmappedMissingAggFactory {
     protected Map<String, VS> values;
 
     public static class NumericMultiValuesSource extends MultiValuesSource<ValuesSource.Numeric> {
@@ -38,7 +38,7 @@ public abstract class MultiValuesSource <VS extends ValuesSource> {
                                         QueryShardContext context) {
             values = new HashMap<>(valuesSourceConfigs.size());
             for (Map.Entry<String, ValuesSourceConfig<ValuesSource.Numeric>> entry : valuesSourceConfigs.entrySet()) {
-                values.put(entry.getKey(), entry.getValue().toValuesSource(context));
+                values.put(entry.getKey(), entry.getValue().toValuesSource(context, this));
             }
         }
 
@@ -57,5 +57,10 @@ public abstract class MultiValuesSource <VS extends ValuesSource> {
 
     public boolean areValuesSourcesEmpty() {
         return values.values().stream().allMatch(Objects::isNull);
+    }
+
+    @Override
+    public ValuesSource resolveUnmappedMissingVS(Object missingValue) {
+        throw new UnsupportedOperationException("boom");
     }
 }

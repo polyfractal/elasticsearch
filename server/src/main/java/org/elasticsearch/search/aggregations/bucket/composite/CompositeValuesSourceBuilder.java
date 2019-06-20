@@ -25,6 +25,7 @@ import org.elasticsearch.common.io.stream.Writeable;
 import org.elasticsearch.common.xcontent.ToXContentFragment;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.script.Script;
+import org.elasticsearch.search.aggregations.support.ResolvableUnmappedMissingAggFactory;
 import org.elasticsearch.search.aggregations.support.ValueType;
 import org.elasticsearch.search.aggregations.support.ValuesSourceConfig;
 import org.elasticsearch.search.aggregations.support.ValuesSource;
@@ -37,7 +38,8 @@ import java.util.Objects;
 /**
  * A {@link ValuesSource} builder for {@link CompositeAggregationBuilder}
  */
-public abstract class CompositeValuesSourceBuilder<AB extends CompositeValuesSourceBuilder<AB>> implements Writeable, ToXContentFragment {
+public abstract class CompositeValuesSourceBuilder<AB extends CompositeValuesSourceBuilder<AB>>
+    implements Writeable, ToXContentFragment, ResolvableUnmappedMissingAggFactory {
 
     protected final String name;
     private String field = null;
@@ -278,5 +280,10 @@ public abstract class CompositeValuesSourceBuilder<AB extends CompositeValuesSou
         ValuesSourceConfig<?> config = ValuesSourceConfig.resolve(context.getQueryShardContext(),
             valueType, field, script, null,null, format);
         return innerBuild(context, config);
+    }
+
+    @Override
+    public ValuesSource resolveUnmappedMissingVS(Object missingValue) {
+        throw new UnsupportedOperationException("boom");
     }
 }

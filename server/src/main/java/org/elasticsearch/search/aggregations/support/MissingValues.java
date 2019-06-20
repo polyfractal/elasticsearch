@@ -29,6 +29,8 @@ import org.elasticsearch.index.fielddata.AbstractSortedSetDocValues;
 import org.elasticsearch.index.fielddata.MultiGeoPointValues;
 import org.elasticsearch.index.fielddata.SortedBinaryDocValues;
 import org.elasticsearch.index.fielddata.SortedNumericDoubleValues;
+import org.elasticsearch.index.mapper.RangeFieldMapper;
+import org.elasticsearch.index.mapper.RangeType;
 
 import java.io.IOException;
 import java.util.function.LongUnaryOperator;
@@ -53,6 +55,20 @@ public enum MissingValues {
             @Override
             public String toString() {
                 return "anon ValuesSource.Bytes of [" + super.toString() + "]";
+            }
+        };
+    }
+
+    public static ValuesSource.Range replaceMissing(final ValuesSource.Range valuesSource, final RangeFieldMapper.Range missing) {
+        return new ValuesSource.Range(valuesSource.indexFieldData, valuesSource.rangeType()) {
+            @Override
+            public SortedBinaryDocValues bytesValues(LeafReaderContext context) {
+                return null; // Magic to make a ranger or whatever
+            }
+
+            @Override
+            public String toString() {
+                return "anon ValuesSource.Range of [" + super.toString() + "]";
             }
         };
     }

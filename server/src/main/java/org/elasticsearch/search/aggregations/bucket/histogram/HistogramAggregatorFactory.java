@@ -19,6 +19,7 @@
 
 package org.elasticsearch.search.aggregations.bucket.histogram;
 
+import org.elasticsearch.ingest.ValueSource;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
 import org.elasticsearch.search.aggregations.AggregatorFactory;
@@ -93,5 +94,14 @@ public final class HistogramAggregatorFactory extends ValuesSourceAggregatorFact
             throws IOException {
         return new NumericHistogramAggregator(name, factories, interval, offset, order, keyed, minDocCount, minBound, maxBound,
             null, config.format(), context, parent, pipelineAggregators, metaData);
+    }
+
+    @Override
+    public ValuesSource resolveUnmappedMissingVS(Object missingValue) {
+        if (missingValue instanceof Number) {
+            return ValuesSource.Numeric.EMPTY;
+        } else {
+            return ValuesSource.Range.EMPTY;
+        }
     }
 }

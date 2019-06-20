@@ -139,6 +139,23 @@ public class RangeHistogramAggregatorTests extends AggregatorTestCase {
         }
     }
 
+    public void testUnctionmappedMissing() throws Exception {
+        RangeType rangeType = RangeType.LONG;
+        try (Directory dir = newDirectory();
+             RandomIndexWriter w = new RandomIndexWriter(random(), dir)) {
+
+            HistogramAggregationBuilder aggBuilder = new HistogramAggregationBuilder("my_agg")
+                .field("field")
+                .interval(5)
+                .missing(new RangeFieldMapper.Range(rangeType, 1L, 5L, true, true));
+
+            try (IndexReader reader = w.getReader()) {
+                IndexSearcher searcher = new IndexSearcher(reader);
+                InternalHistogram histogram = search(searcher, new MatchAllDocsQuery(), aggBuilder, (MappedFieldType) null);
+            }
+        }
+    }
+
     public void testMultipleRanges() throws Exception {
         RangeType rangeType = RangeType.LONG;
         try (Directory dir = newDirectory();

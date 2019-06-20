@@ -67,6 +67,15 @@ public abstract class ValuesSource {
     }
 
     public static class Range extends ValuesSource {
+
+        public static final Range EMPTY = new Range(null, RangeType.LONG) {
+
+            @Override
+            public SortedBinaryDocValues bytesValues(LeafReaderContext context) {
+                return org.elasticsearch.index.fielddata.FieldData.emptySortedBinary();
+            }
+
+        };
         private final RangeType rangeType;
         protected final IndexFieldData<?> indexFieldData;
 

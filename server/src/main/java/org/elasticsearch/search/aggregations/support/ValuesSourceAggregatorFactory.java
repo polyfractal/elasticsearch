@@ -22,6 +22,7 @@ package org.elasticsearch.search.aggregations.support;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
 import org.elasticsearch.search.aggregations.AggregatorFactory;
+import org.elasticsearch.search.aggregations.bucket.histogram.HistogramAggregatorFactory;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
 import org.elasticsearch.search.internal.SearchContext;
 
@@ -43,7 +44,7 @@ public abstract class ValuesSourceAggregatorFactory<VS extends ValuesSource, AF 
     @Override
     public Aggregator createInternal(Aggregator parent, boolean collectsFromSingleBucket,
             List<PipelineAggregator> pipelineAggregators, Map<String, Object> metaData) throws IOException {
-        VS vs = config.toValuesSource(context.getQueryShardContext());
+        VS vs = config.toValuesSource(context.getQueryShardContext(), this);
         if (vs == null) {
             return createUnmapped(parent, pipelineAggregators, metaData);
         }

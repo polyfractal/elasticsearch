@@ -18,6 +18,7 @@
  */
 package org.elasticsearch.search.aggregations;
 
+import org.apache.lucene.util.SetOnce;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.NamedWriteable;
 import org.elasticsearch.common.io.stream.StreamInput;
@@ -132,13 +133,14 @@ public abstract class InternalAggregation implements Aggregation, NamedWriteable
      * construction.
      */
     public final InternalAggregation reduce(List<InternalAggregation> aggregations, ReduceContext reduceContext) {
-        InternalAggregation aggResult = doReduce(aggregations, reduceContext);
-        if (reduceContext.isFinalReduce()) {
-            for (PipelineAggregator pipelineAggregator : pipelineAggregators) {
-                aggResult = pipelineAggregator.reduce(aggResult, reduceContext);
-            }
+        return doReduce(aggregations, reduceContext);
+    }
+
+    public final InternalAggregation materializePipelines(InternalAggregation reducedAggs, ReduceContext reduceContext) {
+        for (PipelineAggregator pipelineAggregator : pipelineAggregators) {
+            reducedAggs = pipelineAggregator.materializePipeline(reducedAggs, reduceContext);
         }
-        return aggResult;
+        return reducedAggs;
     }
 
     public abstract InternalAggregation doReduce(List<InternalAggregation> aggregations, ReduceContext reduceContext);

@@ -404,7 +404,7 @@ public abstract class AggregatorTestCase extends ESTestCase {
             A internalAgg = (A) aggs.get(0).doReduce(aggs, context);
             if (internalAgg.pipelineAggregators().size() > 0) {
                 for (PipelineAggregator pipelineAggregator : internalAgg.pipelineAggregators()) {
-                    internalAgg = (A) pipelineAggregator.reduce(internalAgg, context);
+                    internalAgg = (A) pipelineAggregator.materializePipeline(internalAgg, context);
                 }
             }
             doAssertReducedMultiBucketConsumer(internalAgg, reduceBucketConsumer);

@@ -11,6 +11,8 @@ import org.elasticsearch.license.XPackLicenseState;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.SearchPlugin;
+import org.elasticsearch.xpack.analytics.metricselector.InternalMetricSelector;
+import org.elasticsearch.xpack.analytics.metricselector.MetricSelectorAggregationBuilder;
 import org.elasticsearch.xpack.core.XPackPlugin;
 import org.elasticsearch.xpack.core.action.XPackInfoFeatureAction;
 import org.elasticsearch.xpack.core.action.XPackUsageFeatureAction;
@@ -51,5 +53,15 @@ public class AnalyticsPlugin extends Plugin implements SearchPlugin, ActionPlugi
             new ActionHandler<>(XPackUsageFeatureAction.ANALYTICS, AnalyticsUsageTransportAction.class),
             new ActionHandler<>(XPackInfoFeatureAction.ANALYTICS, AnalyticsInfoTransportAction.class),
             new ActionHandler<>(AnalyticsStatsAction.INSTANCE, TransportAnalyticsStatsAction.class));
+    }
+
+    @Override
+    public List<AggregationSpec> getAggregations() {
+        return singletonList(
+            new AggregationSpec(
+                MetricSelectorAggregationBuilder.NAME,
+                MetricSelectorAggregationBuilder::new,
+                MetricSelectorAggregationBuilder::parse).addResultReader(InternalMetricSelector::new)
+        );
     }
 }

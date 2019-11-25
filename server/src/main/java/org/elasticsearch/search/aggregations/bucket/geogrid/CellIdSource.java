@@ -30,6 +30,8 @@ import org.elasticsearch.search.aggregations.support.ValuesSourceType;
 
 import java.io.IOException;
 
+import static org.elasticsearch.search.aggregations.MultiBucketConsumerService.MultiBucketConsumer;
+
 /**
  * Wrapper class to help convert {@link MultiGeoValues}
  * to numeric long values for bucketing.
@@ -38,12 +40,14 @@ public class CellIdSource extends ValuesSource.Numeric {
     private final ValuesSource.Geo valuesSource;
     private final int precision;
     private final GeoGridTiler encoder;
+    private final MultiBucketConsumer multiBucketConsumer;
 
-    public CellIdSource(Geo valuesSource, int precision, GeoGridTiler encoder) {
+    public CellIdSource(Geo valuesSource, int precision, GeoGridTiler encoder, MultiBucketConsumer multiBucketConsumer) {
         this.valuesSource = valuesSource;
         //different GeoPoints could map to the same or different hashing cells.
         this.precision = precision;
         this.encoder = encoder;
+        this.multiBucketConsumer = multiBucketConsumer;
     }
 
     public int precision() {
@@ -57,7 +61,7 @@ public class CellIdSource extends ValuesSource.Numeric {
 
     @Override
     public SortedNumericDocValues longValues(LeafReaderContext ctx) {
-        return new CellValues(valuesSource.geoValues(ctx), precision, encoder);
+        return new CellValues(valuesSource.geoValues(ctx), precision, encoder, multiBucketConsumer);
     }
 
     @Override
@@ -74,11 +78,13 @@ public class CellIdSource extends ValuesSource.Numeric {
         private MultiGeoValues geoValues;
         private int precision;
         private GeoGridTiler tiler;
+        private final MultiBucketConsumer multiBucketConsumer;
 
-        protected CellValues(MultiGeoValues geoValues, int precision, GeoGridTiler tiler) {
+        protected CellValues(MultiGeoValues geoValues, int precision, GeoGridTiler tiler, MultiBucketConsumer multiBucketConsumer) {
             this.geoValues = geoValues;
             this.precision = precision;
             this.tiler = tiler;
+            this.multiBucketConsumer = multiBucketConsumer;
         }
 
         @Override
@@ -93,7 +99,9 @@ public class CellIdSource extends ValuesSource.Numeric {
                     }
                 } else if (CoreValuesSourceType.GEOSHAPE == vs || CoreValuesSourceType.GEO == vs) {
                     MultiGeoValues.GeoValue target = geoValues.nextValue();
-                    // TODO(talevy): determine reasonable circuit-breaker here
+
+                    multiBucketConsumer.accept((int) tiler.getBoundingTileCount(target, precision));
+
                     // must resize array to contain the upper-bound of matching cells, which
                     // is the number of tiles that overlap the shape's bounding-box. No need
                     // to be concerned with original docValueCount since shape doc-values are

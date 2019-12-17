@@ -51,7 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-class MinAggregator extends NumericMetricsAggregator.SingleValue {
+public class MinAggregator extends NumericMetricsAggregator.SingleValue {
     private static final int MAX_BKD_LOOKUPS = 1024;
 
     final ValuesSource.Numeric valuesSource;
@@ -201,7 +201,7 @@ class MinAggregator extends NumericMetricsAggregator.SingleValue {
      * Returns the minimum value indexed in the <code>fieldName</code> field or <code>null</code>
      * if the value cannot be inferred from the indexed {@link PointValues}.
      */
-    static Number findLeafMinValue(LeafReader reader, String fieldName, Function<byte[], Number> converter) throws IOException {
+    public static Number findLeafMinValue(LeafReader reader, String fieldName, Function<byte[], Number> converter) throws IOException {
         final PointValues pointValues = reader.getPointValues(fieldName);
         if (pointValues == null) {
             return null;

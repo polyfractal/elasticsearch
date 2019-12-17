@@ -19,7 +19,13 @@
 
 package org.elasticsearch.search.aggregations.bucket.histogram;
 
+import org.apache.lucene.document.LongPoint;
+import org.apache.lucene.index.IndexOptions;
+import org.apache.lucene.search.MatchAllDocsQuery;
 import org.elasticsearch.common.Rounding;
+import org.elasticsearch.index.mapper.DateFieldMapper;
+import org.elasticsearch.index.mapper.MappedFieldType;
+import org.elasticsearch.index.mapper.NumberFieldMapper;
 import org.elasticsearch.index.mapper.RangeType;
 import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.search.aggregations.Aggregator;
@@ -31,10 +37,13 @@ import org.elasticsearch.search.aggregations.support.ValuesSource;
 import org.elasticsearch.search.aggregations.support.ValuesSourceAggregatorFactory;
 import org.elasticsearch.search.aggregations.support.ValuesSourceConfig;
 import org.elasticsearch.search.internal.SearchContext;
+import org.elasticsearch.search.profile.Profilers;
+import org.elasticsearch.search.profile.aggregation.ProfilingAggregator;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 public final class DateHistogramAggregatorFactory
         extends ValuesSourceAggregatorFactory<ValuesSource> {
@@ -104,8 +113,20 @@ public final class DateHistogramAggregatorFactory
     private Aggregator createAggregator(ValuesSource.Numeric valuesSource, SearchContext searchContext,
                                         Aggregator parent, List<PipelineAggregator> pipelineAggregators,
             Map<String, Object> metaData) throws IOException {
-        return new DateHistogramAggregator(name, factories, rounding, shardRounding, offset, order, keyed, minDocCount, extendedBounds,
-                valuesSource, config.format(), searchContext, parent, pipelineAggregators, metaData);
+
+        // If we don't have a parent, the date_histo agg can potentially optimize by using the BKD tree. But BKD
+        // traversal is per-bucket, which means that docs are potentially called out-of-order across multiple
+        // buckets. To prevent this from causing problems, we create a special AggregatorFactories that
+        // wraps all the sub-aggs with a MultiBucketAggregatorWrapper. This effectively creates a new agg
+        // sub-tree for each range and prevents out-of-order problems
+        Function<byte[], Number> pointReader = getPointReaderOrNull(searchContext, parent, config);
+        AggregatorFactories wrappedFactories = factories;
+        if (pointReader != null) {
+            wrappedFactories = wrapSubAggsAsMultiBucket(factories);
+        }
+
+        return new DateHistogramAggregator(name, wrappedFactories, rounding, shardRounding, offset, order, keyed, minDocCount, extendedBounds,
+                config, valuesSource, config.format(), pointReader, searchContext, parent, pipelineAggregators, metaData);
     }
 
     private Aggregator createRangeAggregator(ValuesSource.Range valuesSource,
@@ -123,5 +144,53 @@ public final class DateHistogramAggregatorFactory
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
         return createAggregator(null, searchContext, parent, pipelineAggregators, metaData);
+    }
+
+    /**
+     * Creates a new{@link AggregatorFactories} object so that sub-aggs are automatically
+     * wrapped with a {@link org.elasticsearch.search.aggregations.AggregatorFactory.MultiBucketAggregatorWrapper}.
+     * This allows sub-aggs to execute in their own isolated sub tree
+     */
+    private static AggregatorFactories wrapSubAggsAsMultiBucket(AggregatorFactories factories) {
+        return new AggregatorFactories(factories.getFactories(), factories.getPipelineAggregatorFactories()) {
+            @Override
+            public Aggregator[] createSubAggregators(SearchContext searchContext, Aggregator parent) throws IOException {
+                Aggregator[] aggregators = new Aggregator[countAggregators()];
+                for (int i = 0; i < this.factories.length; ++i) {
+                    Aggregator factory = asMultiBucketAggregator(factories[i], searchContext, parent);
+                    Profilers profilers = factory.context().getProfilers();
+                    if (profilers != null) {
+                        factory = new ProfilingAggregator(factory, profilers.getAggregationProfiler());
+                    }
+                    aggregators[i] = factory;
+                }
+                return aggregators;
+            }
+        };
+    }
+
+    private static Function<byte[], Number> getPointReaderOrNull(SearchContext context, Aggregator parent,
+                                                                 ValuesSourceConfig<?> config) {
+        if (context.query() != null &&
+            context.query().getClass() != MatchAllDocsQuery.class) {
+            return null;
+        }
+        if (parent != null) {
+            return null;
+        }
+        if (config.fieldContext() != null && config.script() == null && config.missing() == null) {
+            MappedFieldType fieldType = config.fieldContext().fieldType();
+            if (fieldType == null || fieldType.indexOptions() == IndexOptions.NONE) {
+                return null;
+            }
+            Function<byte[], Number> converter = null;
+            if (fieldType instanceof NumberFieldMapper.NumberFieldType) {
+                converter = ((NumberFieldMapper.NumberFieldType) fieldType)::parsePoint;
+            } else if (fieldType.getClass() == DateFieldMapper.DateFieldType.class) {
+                converter = (in) -> LongPoint.decodeDimension(in, 0);
+            }
+            return converter;
+        }
+        return null;
     }
 }

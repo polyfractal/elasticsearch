@@ -48,7 +48,7 @@ import java.util.function.Function;
 
 import static org.elasticsearch.search.aggregations.metrics.MinAggregator.getPointReaderOrNull;
 
-class MaxAggregator extends NumericMetricsAggregator.SingleValue {
+public class MaxAggregator extends NumericMetricsAggregator.SingleValue {
 
     final ValuesSource.Numeric valuesSource;
     final DocValueFormat formatter;
@@ -163,7 +163,7 @@ class MaxAggregator extends NumericMetricsAggregator.SingleValue {
      * Returns the maximum value indexed in the <code>fieldName</code> field or <code>null</code>
      * if the value cannot be inferred from the indexed {@link PointValues}.
      */
-    static Number findLeafMaxValue(LeafReader reader, String fieldName, Function<byte[], Number> converter) throws IOException {
+    public static Number findLeafMaxValue(LeafReader reader, String fieldName, Function<byte[], Number> converter) throws IOException {
         final PointValues pointValues = reader.getPointValues(fieldName);
         if (pointValues == null) {
             return null;

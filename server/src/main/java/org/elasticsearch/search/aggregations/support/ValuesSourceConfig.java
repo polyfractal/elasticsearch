@@ -171,7 +171,7 @@ public class ValuesSourceConfig<VS extends ValuesSource> {
         this.valueSourceType = valueSourceType;
     }
 
-    public ValuesSourceType valueSourceType() {
+    private ValuesSourceType valueSourceType() {
         return valueSourceType;
     }
 

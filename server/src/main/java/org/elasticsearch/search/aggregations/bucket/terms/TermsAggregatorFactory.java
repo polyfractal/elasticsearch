@@ -58,6 +58,7 @@ public class TermsAggregatorFactory extends ValuesSourceAggregatorFactory<Values
     private final SubAggCollectionMode collectMode;
     private final TermsAggregator.BucketCountThresholds bucketCountThresholds;
     private final boolean showTermDocCountError;
+    private final String fieldContext; // TODO temporary, remove with VS Refactor
 
     TermsAggregatorFactory(String name,
                                   ValuesSourceConfig<ValuesSource> config,
@@ -78,6 +79,7 @@ public class TermsAggregatorFactory extends ValuesSourceAggregatorFactory<Values
         this.collectMode = collectMode;
         this.bucketCountThresholds = bucketCountThresholds;
         this.showTermDocCountError = showTermDocCountError;
+        this.fieldContext = config.fieldContext() == null ? "unmapped_or_script" : config.fieldContext().field();
     }
 
     @Override
@@ -152,7 +154,6 @@ public class TermsAggregatorFactory extends ValuesSourceAggregatorFactory<Values
                 }
             }
 
-            DocValueFormat format = config.format();
             if ((includeExclude != null) && (includeExclude.isRegexBased()) && format != DocValueFormat.RAW) {
                 throw new AggregationExecutionException("Aggregation [" + name + "] cannot support regular expression style "
                         + "include/exclude settings as they can only be applied to string fields. Use an array of values for "
@@ -183,19 +184,19 @@ public class TermsAggregatorFactory extends ValuesSourceAggregatorFactory<Values
                 if (includeExclude != null) {
                     longFilter = includeExclude.convertToDoubleFilter();
                 }
-                return new DoubleTermsAggregator(name, factories, (ValuesSource.Numeric) valuesSource, config.format(), order,
+                return new DoubleTermsAggregator(name, factories, (ValuesSource.Numeric) valuesSource, format, order,
                         bucketCountThresholds, searchContext, parent, cm, showTermDocCountError, longFilter,
                         pipelineAggregators, metaData);
             }
             if (includeExclude != null) {
-                longFilter = includeExclude.convertToLongFilter(config.format());
+                longFilter = includeExclude.convertToLongFilter(format);
             }
-            return new LongTermsAggregator(name, factories, (ValuesSource.Numeric) valuesSource, config.format(), order,
+            return new LongTermsAggregator(name, factories, (ValuesSource.Numeric) valuesSource, format, order,
                     bucketCountThresholds, searchContext, parent, cm, showTermDocCountError, longFilter, pipelineAggregators,
                     metaData);
         }
 
-        throw new AggregationExecutionException("terms aggregation cannot be applied to field [" + config.fieldContext().field()
+        throw new AggregationExecutionException("terms aggregation cannot be applied to field [" + fieldContext
             + "]. It can only be applied to numeric or string fields.");
     }
 

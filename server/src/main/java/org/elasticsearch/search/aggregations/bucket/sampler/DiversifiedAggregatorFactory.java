@@ -43,6 +43,7 @@ public class DiversifiedAggregatorFactory extends ValuesSourceAggregatorFactory<
     private final int shardSize;
     private final int maxDocsPerValue;
     private final String executionHint;
+    private final String fieldContext; // TODO temporary, remove with VS Refactor
 
     DiversifiedAggregatorFactory(String name, ValuesSourceConfig<ValuesSource> config, int shardSize, int maxDocsPerValue,
                                  String executionHint, QueryShardContext queryShardContext, AggregatorFactory parent,
@@ -51,6 +52,7 @@ public class DiversifiedAggregatorFactory extends ValuesSourceAggregatorFactory<
         this.shardSize = shardSize;
         this.maxDocsPerValue = maxDocsPerValue;
         this.executionHint = executionHint;
+        this.fieldContext = config.fieldContext() == null ? "unmapped_or_script" : config.fieldContext().field();
     }
 
     @Override
@@ -84,7 +86,7 @@ public class DiversifiedAggregatorFactory extends ValuesSourceAggregatorFactory<
                     metaData);
         }
 
-        throw new AggregationExecutionException("Sampler aggregation cannot be applied to field [" + config.fieldContext().field()
+        throw new AggregationExecutionException("Sampler aggregation cannot be applied to field [" + fieldContext
                 + "]. It can only be applied to numeric or string fields.");
     }
 

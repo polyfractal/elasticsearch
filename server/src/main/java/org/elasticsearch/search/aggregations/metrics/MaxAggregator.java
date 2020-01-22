@@ -38,7 +38,6 @@ import org.elasticsearch.search.aggregations.LeafBucketCollector;
 import org.elasticsearch.search.aggregations.LeafBucketCollectorBase;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
 import org.elasticsearch.search.aggregations.support.ValuesSource;
-import org.elasticsearch.search.aggregations.support.ValuesSourceConfig;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
@@ -46,37 +45,31 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-import static org.elasticsearch.search.aggregations.metrics.MinAggregator.getPointReaderOrNull;
-
 class MaxAggregator extends NumericMetricsAggregator.SingleValue {
 
     final ValuesSource.Numeric valuesSource;
     final DocValueFormat formatter;
-
-    final String pointField;
-    final Function<byte[], Number> pointConverter;
-
-    DoubleArray maxes;
+    private final String pointField;
+    private final Function<byte[], Number> pointConverter;
+    private DoubleArray maxes;
 
     MaxAggregator(String name,
-                    ValuesSourceConfig<ValuesSource.Numeric> config,
-                    ValuesSource.Numeric valuesSource,
-                    SearchContext context,
-                    Aggregator parent, List<PipelineAggregator> pipelineAggregators,
-                    Map<String, Object> metaData) throws IOException {
+                  String fieldName,
+                  Function<byte[], Number> pointConverter,
+                  DocValueFormat format,
+                  ValuesSource.Numeric valuesSource,
+                  SearchContext context,
+                  Aggregator parent, List<PipelineAggregator> pipelineAggregators,
+                  Map<String, Object> metaData) throws IOException {
         super(name, context, parent, pipelineAggregators, metaData);
         this.valuesSource = valuesSource;
         if (valuesSource != null) {
             maxes = context.bigArrays().newDoubleArray(1, false);
             maxes.fill(0, maxes.size(), Double.NEGATIVE_INFINITY);
         }
-        this.formatter = config.format();
-        this.pointConverter = getPointReaderOrNull(context, parent, config);
-        if (pointConverter != null) {
-            pointField = config.fieldContext().field();
-        } else {
-            pointField = null;
-        }
+        this.formatter = format;
+        this.pointConverter = pointConverter;
+        this.pointField = fieldName;
     }
 
     @Override

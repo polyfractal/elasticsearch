@@ -54,7 +54,7 @@ class TDigestPercentilesAggregatorFactory
                                             Aggregator parent,
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
-        return new TDigestPercentilesAggregator(name, null, searchContext, parent, percents, compression, keyed, config.format(),
+        return new TDigestPercentilesAggregator(name, null, searchContext, parent, percents, compression, keyed, format,
                 pipelineAggregators, metaData);
     }
 
@@ -65,7 +65,7 @@ class TDigestPercentilesAggregatorFactory
                                             boolean collectsFromSingleBucket,
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
-        return new TDigestPercentilesAggregator(name, valuesSource, searchContext, parent, percents, compression, keyed, config.format(),
+        return new TDigestPercentilesAggregator(name, valuesSource, searchContext, parent, percents, compression, keyed, format,
                 pipelineAggregators, metaData);
     }
 

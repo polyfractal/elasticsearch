@@ -43,6 +43,7 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
     private final IncludeExclude includeExclude;
     private final int maxDocCount;
     private final double precision;
+    private final String fieldContext; // TODO temporary, remove with VS Refactor
 
     RareTermsAggregatorFactory(String name, ValuesSourceConfig<ValuesSource> config,
                                       IncludeExclude includeExclude,
@@ -53,6 +54,7 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
         this.includeExclude = includeExclude;
         this.maxDocCount = maxDocCount;
         this.precision = precision;
+        this.fieldContext = config.fieldContext() == null ? "unmapped_or_script" : config.fieldContext().field();
     }
 
     @Override
@@ -82,7 +84,6 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
         if (valuesSource instanceof ValuesSource.Bytes) {
             ExecutionMode execution = ExecutionMode.MAP; //TODO global ords not implemented yet, only supports "map"
 
-            DocValueFormat format = config.format();
             if ((includeExclude != null) && (includeExclude.isRegexBased()) && format != DocValueFormat.RAW) {
                 throw new AggregationExecutionException("Aggregation [" + name + "] cannot support " +
                     "regular expression style include/exclude settings as they can only be applied to string fields. " +
@@ -105,13 +106,13 @@ public class RareTermsAggregatorFactory extends ValuesSourceAggregatorFactory<Va
                 throw new AggregationExecutionException("RareTerms aggregation does not support floating point fields.");
             }
             if (includeExclude != null) {
-                longFilter = includeExclude.convertToLongFilter(config.format());
+                longFilter = includeExclude.convertToLongFilter(format);
             }
-            return new LongRareTermsAggregator(name, factories, (ValuesSource.Numeric) valuesSource, config.format(),
+            return new LongRareTermsAggregator(name, factories, (ValuesSource.Numeric) valuesSource, format,
                 searchContext, parent, longFilter, maxDocCount, precision, pipelineAggregators, metaData);
         }
 
-        throw new AggregationExecutionException("RareTerms aggregation cannot be applied to field [" + config.fieldContext().field()
+        throw new AggregationExecutionException("RareTerms aggregation cannot be applied to field [" + fieldContext
             + "]. It can only be applied to numeric or string fields.");
     }
 

@@ -74,6 +74,7 @@ public class SignificantTermsAggregatorFactory extends ValuesSourceAggregatorFac
     private final int supersetNumDocs;
     private final TermsAggregator.BucketCountThresholds bucketCountThresholds;
     private final SignificanceHeuristic significanceHeuristic;
+    private final String fieldContext; // TODO temporary, remove with VS Refactor
 
     public SignificantTermsAggregatorFactory(String name,
                                              ValuesSourceConfig<ValuesSource> config,
@@ -106,6 +107,7 @@ public class SignificantTermsAggregatorFactory extends ValuesSourceAggregatorFac
                 : searcher.count(filter);
         this.bucketCountThresholds = bucketCountThresholds;
         this.significanceHeuristic = significanceHeuristic;
+        this.fieldContext = config.fieldContext() == null ? "unmapped_or_script" : config.fieldContext().field();
     }
 
     /**
@@ -152,12 +154,12 @@ public class SignificantTermsAggregatorFactory extends ValuesSourceAggregatorFac
     }
 
     public long getBackgroundFrequency(BytesRef termBytes) throws IOException {
-        String value = config.format().format(termBytes).toString();
+        String value = format.format(termBytes).toString();
         return getBackgroundFrequency(value);
     }
 
     public long getBackgroundFrequency(long termNum) throws IOException {
-        String value = config.format().format(termNum).toString();
+        String value = format.format(termNum).toString();
         return getBackgroundFrequency(value);
     }
 
@@ -218,7 +220,6 @@ public class SignificantTermsAggregatorFactory extends ValuesSourceAggregatorFac
             }
             assert execution != null;
 
-            DocValueFormat format = config.format();
             if ((includeExclude != null) && (includeExclude.isRegexBased()) && format != DocValueFormat.RAW) {
                 throw new AggregationExecutionException("Aggregation [" + name + "] cannot support regular expression style "
                         + "include/exclude settings as they can only be applied to string fields. Use an array of values for "
@@ -242,15 +243,15 @@ public class SignificantTermsAggregatorFactory extends ValuesSourceAggregatorFac
             }
             IncludeExclude.LongFilter longFilter = null;
             if (includeExclude != null) {
-                longFilter = includeExclude.convertToLongFilter(config.format());
+                longFilter = includeExclude.convertToLongFilter(format);
             }
-            return new SignificantLongTermsAggregator(name, factories, (ValuesSource.Numeric) valuesSource, config.format(),
+            return new SignificantLongTermsAggregator(name, factories, (ValuesSource.Numeric) valuesSource, format,
                     bucketCountThresholds, searchContext, parent, significanceHeuristic, this, longFilter, pipelineAggregators,
                     metaData);
         }
 
         throw new AggregationExecutionException("significant_terms aggregation cannot be applied to field ["
-                + config.fieldContext().field() + "]. It can only be applied to numeric or string fields.");
+                + fieldContext + "]. It can only be applied to numeric or string fields.");
     }
 
     public enum ExecutionMode {

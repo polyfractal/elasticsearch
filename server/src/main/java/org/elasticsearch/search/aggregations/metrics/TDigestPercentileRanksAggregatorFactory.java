@@ -60,7 +60,7 @@ class TDigestPercentileRanksAggregatorFactory
                                             Aggregator parent,
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
-        return new TDigestPercentileRanksAggregator(name, null, searchContext, parent, percents, compression, keyed, config.format(),
+        return new TDigestPercentileRanksAggregator(name, null, searchContext, parent, percents, compression, keyed, format,
                 pipelineAggregators, metaData);
     }
 
@@ -72,7 +72,7 @@ class TDigestPercentileRanksAggregatorFactory
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
         return new TDigestPercentileRanksAggregator(name, valuesSource, searchContext, parent,
-            percents, compression, keyed, config.format(), pipelineAggregators, metaData);
+            percents, compression, keyed, format, pipelineAggregators, metaData);
     }
 
 }

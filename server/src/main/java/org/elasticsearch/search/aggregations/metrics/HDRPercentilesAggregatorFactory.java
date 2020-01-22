@@ -61,7 +61,7 @@ class HDRPercentilesAggregatorFactory extends ValuesSourceAggregatorFactory<Valu
                                             Map<String, Object> metaData)
             throws IOException {
         return new HDRPercentilesAggregator(name, null, searchContext, parent, percents, numberOfSignificantValueDigits, keyed,
-                config.format(), pipelineAggregators, metaData);
+                format, pipelineAggregators, metaData);
     }
 
     @Override
@@ -72,7 +72,7 @@ class HDRPercentilesAggregatorFactory extends ValuesSourceAggregatorFactory<Valu
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
         return new HDRPercentilesAggregator(name, valuesSource, searchContext, parent, percents, numberOfSignificantValueDigits, keyed,
-                config.format(), pipelineAggregators, metaData);
+                format, pipelineAggregators, metaData);
     }
 
 }

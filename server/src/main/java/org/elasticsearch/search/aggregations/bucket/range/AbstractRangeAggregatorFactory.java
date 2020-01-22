@@ -62,7 +62,7 @@ public class AbstractRangeAggregatorFactory<R extends Range> extends ValuesSourc
                                             Aggregator parent,
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
-        return new Unmapped<>(name, ranges, keyed, config.format(), searchContext, parent, rangeFactory, pipelineAggregators, metaData);
+        return new Unmapped<>(name, ranges, keyed, format, searchContext, parent, rangeFactory, pipelineAggregators, metaData);
     }
 
     @Override
@@ -72,7 +72,7 @@ public class AbstractRangeAggregatorFactory<R extends Range> extends ValuesSourc
                                             boolean collectsFromSingleBucket,
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
-        return new RangeAggregator(name, factories, valuesSource, config.format(), rangeFactory, ranges, keyed, searchContext, parent,
+        return new RangeAggregator(name, factories, valuesSource, format, rangeFactory, ranges, keyed, searchContext, parent,
                 pipelineAggregators, metaData);
     }
 

@@ -33,12 +33,16 @@ import org.elasticsearch.search.internal.SearchContext;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 class MaxAggregatorFactory extends ValuesSourceAggregatorFactory<ValuesSource.Numeric> {
+
+    private final ValuesSourceConfig<Numeric> config;
 
     MaxAggregatorFactory(String name, ValuesSourceConfig<Numeric> config, QueryShardContext queryShardContext,
             AggregatorFactory parent, AggregatorFactories.Builder subFactoriesBuilder, Map<String, Object> metaData) throws IOException {
         super(name, config, queryShardContext, parent, subFactoriesBuilder, metaData);
+        this.config = config;
     }
 
     @Override
@@ -46,7 +50,7 @@ class MaxAggregatorFactory extends ValuesSourceAggregatorFactory<ValuesSource.Nu
                                             Aggregator parent,
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
-        return new MaxAggregator(name, config, null, searchContext, parent, pipelineAggregators, metaData);
+        return new MaxAggregator(name, null, null, format, null, searchContext, parent, pipelineAggregators, metaData);
     }
 
     @Override
@@ -56,6 +60,9 @@ class MaxAggregatorFactory extends ValuesSourceAggregatorFactory<ValuesSource.Nu
                                             boolean collectsFromSingleBucket,
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
-        return new MaxAggregator(name, config, valuesSource, searchContext, parent, pipelineAggregators, metaData);
+        Function<byte[], Number> pointConverter = MinAggregatorFactory.getPointReaderOrNull(searchContext, parent, config);
+        String fieldContext = config.fieldContext() == null ? "unmapped_or_script" : config.fieldContext().field();
+        return new MaxAggregator(name, fieldContext, pointConverter, format,
+            valuesSource, searchContext, parent, pipelineAggregators, metaData);
     }
 }

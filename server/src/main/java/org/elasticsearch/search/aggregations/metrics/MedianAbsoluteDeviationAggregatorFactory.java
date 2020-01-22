@@ -62,7 +62,7 @@ public class MedianAbsoluteDeviationAggregatorFactory extends ValuesSourceAggreg
             pipelineAggregators,
             metaData,
             null,
-            config.format(),
+            format,
             compression
         );
     }
@@ -82,7 +82,7 @@ public class MedianAbsoluteDeviationAggregatorFactory extends ValuesSourceAggreg
             pipelineAggregators,
             metaData,
             valuesSource,
-            config.format(),
+            format,
             compression
         );
     }

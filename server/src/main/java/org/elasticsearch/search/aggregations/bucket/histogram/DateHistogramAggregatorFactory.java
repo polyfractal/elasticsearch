@@ -105,7 +105,7 @@ public final class DateHistogramAggregatorFactory
                                         Aggregator parent, List<PipelineAggregator> pipelineAggregators,
             Map<String, Object> metaData) throws IOException {
         return new DateHistogramAggregator(name, factories, rounding, shardRounding, offset, order, keyed, minDocCount, extendedBounds,
-                valuesSource, config.format(), searchContext, parent, pipelineAggregators, metaData);
+                valuesSource, format, searchContext, parent, pipelineAggregators, metaData);
     }
 
     private Aggregator createRangeAggregator(ValuesSource.Range valuesSource,
@@ -114,7 +114,7 @@ public final class DateHistogramAggregatorFactory
                                              List<PipelineAggregator> pipelineAggregators,
                                              Map<String, Object> metaData) throws IOException {
         return new DateRangeHistogramAggregator(name, factories, rounding, shardRounding, offset, order, keyed, minDocCount, extendedBounds,
-            valuesSource, config.format(), searchContext, parent, pipelineAggregators, metaData);
+            valuesSource, format, searchContext, parent, pipelineAggregators, metaData);
     }
 
     @Override

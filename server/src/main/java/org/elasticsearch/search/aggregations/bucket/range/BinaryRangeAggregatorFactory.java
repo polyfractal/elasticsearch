@@ -53,7 +53,7 @@ public class BinaryRangeAggregatorFactory
     protected Aggregator createUnmapped(SearchContext searchContext, Aggregator parent,
                                         List<PipelineAggregator> pipelineAggregators,
                                         Map<String, Object> metaData) throws IOException {
-        return new BinaryRangeAggregator(name, factories, null, config.format(),
+        return new BinaryRangeAggregator(name, factories, null, format,
                 ranges, keyed, searchContext, parent, pipelineAggregators, metaData);
     }
 
@@ -63,7 +63,7 @@ public class BinaryRangeAggregatorFactory
                                           boolean collectsFromSingleBucket,
                                           List<PipelineAggregator> pipelineAggregators,
                                           Map<String, Object> metaData) throws IOException {
-        return new BinaryRangeAggregator(name, factories, valuesSource, config.format(),
+        return new BinaryRangeAggregator(name, factories, valuesSource, format,
                 ranges, keyed, searchContext, parent, pipelineAggregators, metaData);
     }
 

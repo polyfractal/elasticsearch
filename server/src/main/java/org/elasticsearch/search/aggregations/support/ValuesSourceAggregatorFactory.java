@@ -20,6 +20,7 @@
 package org.elasticsearch.search.aggregations.support;
 
 import org.elasticsearch.index.query.QueryShardContext;
+import org.elasticsearch.search.DocValueFormat;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
 import org.elasticsearch.search.aggregations.AggregatorFactory;
@@ -32,12 +33,14 @@ import java.util.Map;
 
 public abstract class ValuesSourceAggregatorFactory<VS extends ValuesSource> extends AggregatorFactory {
 
-    protected ValuesSourceConfig<VS> config;
+    private ValuesSourceConfig<VS> config;
+    protected final DocValueFormat format;
 
     public ValuesSourceAggregatorFactory(String name, ValuesSourceConfig<VS> config, QueryShardContext queryShardContext,
             AggregatorFactory parent, AggregatorFactories.Builder subFactoriesBuilder, Map<String, Object> metaData) throws IOException {
         super(name, queryShardContext, parent, subFactoriesBuilder, metaData);
         this.config = config;
+        this.format = config.format();
     }
 
     @Override

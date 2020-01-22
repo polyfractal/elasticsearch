@@ -54,7 +54,7 @@ class ExtendedStatsAggregatorFactory extends ValuesSourceAggregatorFactory<Value
                                             Aggregator parent,
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
-        return new ExtendedStatsAggregator(name, null, config.format(), searchContext,
+        return new ExtendedStatsAggregator(name, null, format, searchContext,
             parent, sigma, pipelineAggregators, metaData);
     }
 
@@ -65,7 +65,7 @@ class ExtendedStatsAggregatorFactory extends ValuesSourceAggregatorFactory<Value
                                             boolean collectsFromSingleBucket,
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
-        return new ExtendedStatsAggregator(name, valuesSource, config.format(), searchContext,
+        return new ExtendedStatsAggregator(name, valuesSource, format, searchContext,
             parent, sigma, pipelineAggregators, metaData);
     }
 }

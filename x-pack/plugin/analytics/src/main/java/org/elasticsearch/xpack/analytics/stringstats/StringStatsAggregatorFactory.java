@@ -38,7 +38,7 @@ class StringStatsAggregatorFactory extends ValuesSourceAggregatorFactory<ValuesS
                                             Aggregator parent,
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
-        return new StringStatsAggregator(name, showDistribution,null, config.format(), searchContext, parent,
+        return new StringStatsAggregator(name, showDistribution,null, format, searchContext, parent,
                                          pipelineAggregators, metaData);
     }
 
@@ -49,7 +49,7 @@ class StringStatsAggregatorFactory extends ValuesSourceAggregatorFactory<ValuesS
                                           boolean collectsFromSingleBucket,
                                           List<PipelineAggregator> pipelineAggregators,
                                           Map<String, Object> metaData) throws IOException {
-        return new StringStatsAggregator(name, showDistribution, valuesSource, config.format(), searchContext, parent,
+        return new StringStatsAggregator(name, showDistribution, valuesSource, format, searchContext, parent,
                                          pipelineAggregators, metaData);
     }
 

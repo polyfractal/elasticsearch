@@ -19,6 +19,12 @@
 
 package org.elasticsearch.search.aggregations.metrics;
 
+import org.apache.lucene.document.LongPoint;
+import org.apache.lucene.index.IndexOptions;
+import org.apache.lucene.search.MatchAllDocsQuery;
+import org.elasticsearch.index.mapper.DateFieldMapper;
+import org.elasticsearch.index.mapper.MappedFieldType;
+import org.elasticsearch.index.mapper.NumberFieldMapper;
 import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.search.aggregations.Aggregator;
 import org.elasticsearch.search.aggregations.AggregatorFactories;
@@ -33,12 +39,16 @@ import org.elasticsearch.search.internal.SearchContext;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 class MinAggregatorFactory extends ValuesSourceAggregatorFactory<ValuesSource.Numeric> {
+
+    private final ValuesSourceConfig<Numeric> config;
 
     MinAggregatorFactory(String name, ValuesSourceConfig<Numeric> config, QueryShardContext queryShardContext,
             AggregatorFactory parent, AggregatorFactories.Builder subFactoriesBuilder, Map<String, Object> metaData) throws IOException {
         super(name, config, queryShardContext, parent, subFactoriesBuilder, metaData);
+        this.config = config;
     }
 
     @Override
@@ -46,7 +56,7 @@ class MinAggregatorFactory extends ValuesSourceAggregatorFactory<ValuesSource.Nu
                                             Aggregator parent,
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
-        return new MinAggregator(name, config, null, searchContext, parent, pipelineAggregators, metaData);
+        return new MinAggregator(name, null, null, format, null, searchContext, parent, pipelineAggregators, metaData);
     }
 
     @Override
@@ -56,6 +66,42 @@ class MinAggregatorFactory extends ValuesSourceAggregatorFactory<ValuesSource.Nu
                                             boolean collectsFromSingleBucket,
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
-        return new MinAggregator(name, config, valuesSource, searchContext, parent, pipelineAggregators, metaData);
+        Function<byte[], Number> pointConverter = getPointReaderOrNull(searchContext, parent, config);
+        String fieldContext = config.fieldContext() == null ? "unmapped_or_script" : config.fieldContext().field();
+        return new MinAggregator(name, fieldContext, pointConverter, format,
+            valuesSource, searchContext, parent, pipelineAggregators, metaData);
+    }
+
+    /**
+     * Returns a converter for point values if early termination is applicable to
+     * the context or <code>null</code> otherwise.
+     *
+     * @param context The {@link SearchContext} of the aggregation.
+     * @param parent The parent aggregator.
+     * @param config The config for the values source metric.
+     */
+    static Function<byte[], Number> getPointReaderOrNull(SearchContext context, Aggregator parent,
+                                                         ValuesSourceConfig<ValuesSource.Numeric> config) {
+        if (context.query() != null &&
+            context.query().getClass() != MatchAllDocsQuery.class) {
+            return null;
+        }
+        if (parent != null) {
+            return null;
+        }
+        if (config.fieldContext() != null && config.script() == null && config.missing() == null) {
+            MappedFieldType fieldType = config.fieldContext().fieldType();
+            if (fieldType == null || fieldType.indexOptions() == IndexOptions.NONE) {
+                return null;
+            }
+            Function<byte[], Number> converter = null;
+            if (fieldType instanceof NumberFieldMapper.NumberFieldType) {
+                converter = ((NumberFieldMapper.NumberFieldType) fieldType)::parsePoint;
+            } else if (fieldType.getClass() == DateFieldMapper.DateFieldType.class) {
+                converter = (in) -> LongPoint.decodeDimension(in, 0);
+            }
+            return converter;
+        }
+        return null;
     }
 }

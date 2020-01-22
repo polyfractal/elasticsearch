@@ -46,7 +46,7 @@ class AvgAggregatorFactory extends ValuesSourceAggregatorFactory<ValuesSource.Nu
                                             Aggregator parent,
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
-        return new AvgAggregator(name, null, config.format(), searchContext, parent, pipelineAggregators, metaData);
+        return new AvgAggregator(name, null, format, searchContext, parent, pipelineAggregators, metaData);
     }
 
     @Override
@@ -56,6 +56,6 @@ class AvgAggregatorFactory extends ValuesSourceAggregatorFactory<ValuesSource.Nu
                                             boolean collectsFromSingleBucket,
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
-        return new AvgAggregator(name, valuesSource, config.format(), searchContext, parent, pipelineAggregators, metaData);
+        return new AvgAggregator(name, valuesSource, format, searchContext, parent, pipelineAggregators, metaData);
     }
 }

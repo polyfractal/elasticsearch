@@ -51,7 +51,7 @@ class SumAggregatorFactory extends ValuesSourceAggregatorFactory<ValuesSource.Nu
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData)
             throws IOException {
-        return new SumAggregator(name, null, config.format(), searchContext, parent, pipelineAggregators, metaData);
+        return new SumAggregator(name, null, format, searchContext, parent, pipelineAggregators, metaData);
     }
 
     @Override
@@ -61,6 +61,6 @@ class SumAggregatorFactory extends ValuesSourceAggregatorFactory<ValuesSource.Nu
                                             boolean collectsFromSingleBucket,
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
-        return new SumAggregator(name, valuesSource, config.format(), searchContext, parent, pipelineAggregators, metaData);
+        return new SumAggregator(name, valuesSource, format, searchContext, parent, pipelineAggregators, metaData);
     }
 }

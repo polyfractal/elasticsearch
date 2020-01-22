@@ -51,7 +51,7 @@ class StatsAggregatorFactory extends ValuesSourceAggregatorFactory<ValuesSource.
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData)
             throws IOException {
-        return new StatsAggregator(name, null, config.format(), searchContext, parent, pipelineAggregators, metaData);
+        return new StatsAggregator(name, null, format, searchContext, parent, pipelineAggregators, metaData);
     }
 
     @Override
@@ -61,6 +61,6 @@ class StatsAggregatorFactory extends ValuesSourceAggregatorFactory<ValuesSource.
                                             boolean collectsFromSingleBucket,
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
-        return new StatsAggregator(name, valuesSource, config.format(), searchContext, parent, pipelineAggregators, metaData);
+        return new StatsAggregator(name, valuesSource, format, searchContext, parent, pipelineAggregators, metaData);
     }
 }

@@ -69,7 +69,7 @@ public class GeoDistanceRangeAggregatorFactory
                                             Aggregator parent,
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
-        return new RangeAggregator.Unmapped<>(name, ranges, keyed, config.format(), searchContext, parent,
+        return new RangeAggregator.Unmapped<>(name, ranges, keyed, format, searchContext, parent,
             rangeFactory, pipelineAggregators, metaData);
     }
 
@@ -81,7 +81,7 @@ public class GeoDistanceRangeAggregatorFactory
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
         DistanceSource distanceSource = new DistanceSource(valuesSource, distanceType, origin, unit);
-        return new RangeAggregator(name, factories, distanceSource, config.format(), rangeFactory, ranges, keyed, searchContext,
+        return new RangeAggregator(name, factories, distanceSource, format, rangeFactory, ranges, keyed, searchContext,
                 parent,
                 pipelineAggregators, metaData);
     }

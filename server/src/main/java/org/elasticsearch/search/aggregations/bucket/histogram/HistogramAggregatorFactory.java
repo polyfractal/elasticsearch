@@ -94,7 +94,7 @@ public final class HistogramAggregatorFactory extends ValuesSourceAggregatorFact
         }
         if (valuesSource instanceof ValuesSource.Numeric) {
             return new NumericHistogramAggregator(name, factories, interval, offset, order, keyed, minDocCount, minBound, maxBound,
-                (ValuesSource.Numeric) valuesSource, config.format(), searchContext, parent, pipelineAggregators, metaData);
+                (ValuesSource.Numeric) valuesSource, format, searchContext, parent, pipelineAggregators, metaData);
         } else if (valuesSource instanceof ValuesSource.Range) {
             ValuesSource.Range rangeValueSource = (ValuesSource.Range) valuesSource;
             if (rangeValueSource.rangeType().isNumeric() == false) {
@@ -102,7 +102,7 @@ public final class HistogramAggregatorFactory extends ValuesSourceAggregatorFact
                     + rangeValueSource.rangeType().name + "]");
             }
             return new RangeHistogramAggregator(name, factories, interval, offset, order, keyed, minDocCount, minBound, maxBound,
-                (ValuesSource.Range) valuesSource, config.format(), searchContext, parent, pipelineAggregators,
+                (ValuesSource.Range) valuesSource, format, searchContext, parent, pipelineAggregators,
                 metaData);
         }
         else {
@@ -117,6 +117,6 @@ public final class HistogramAggregatorFactory extends ValuesSourceAggregatorFact
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
         return new NumericHistogramAggregator(name, factories, interval, offset, order, keyed, minDocCount, minBound, maxBound,
-            null, config.format(), searchContext, parent, pipelineAggregators, metaData);
+            null, format, searchContext, parent, pipelineAggregators, metaData);
     }
 }

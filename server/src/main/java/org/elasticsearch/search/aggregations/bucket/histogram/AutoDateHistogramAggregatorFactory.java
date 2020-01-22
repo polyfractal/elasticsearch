@@ -73,7 +73,7 @@ public final class AutoDateHistogramAggregatorFactory
                                             List<PipelineAggregator> pipelineAggregators,
                                             Map<String, Object> metaData) throws IOException {
         return new AutoDateHistogramAggregator(name, factories, numBuckets, roundingInfos,
-            valuesSource, config.format(), searchContext, parent, pipelineAggregators, metaData);
+            valuesSource, format, searchContext, parent, pipelineAggregators, metaData);
     }
 
     @Override

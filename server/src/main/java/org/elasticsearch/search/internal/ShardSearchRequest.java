@@ -184,12 +184,26 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
             canReturnNullResponseIfMatchNoDocs = false;
             bottomSortValues = null;
         }
-        if (in.getVersion().onOrAfter(Version.V_8_0_0)) {
-            bottomSortValues = in.readOptionalWriteable(SearchSortValuesAndFormats::new);
-        } else {
-            bottomSortValues = null;
-        }
         originalIndices = OriginalIndices.readOriginalIndices(in);
+    }
+
+    public ShardSearchRequest(ShardSearchRequest clone) {
+        this.shardId = clone.shardId;
+        this.searchType = clone.searchType;
+        this.numberOfShards = clone.numberOfShards;
+        this.scroll = clone.scroll;
+        this.source = clone.source;
+        this.aliasFilter = clone.aliasFilter;
+        this.indexBoost = clone.indexBoost;
+        this.nowInMillis = clone.nowInMillis;
+        this.requestCache = clone.requestCache;
+        this.clusterAlias = clone.clusterAlias;
+        this.allowPartialSearchResults = clone.allowPartialSearchResults;
+        this.indexRoutings = clone.indexRoutings;
+        this.preference = clone.preference;
+        this.canReturnNullResponseIfMatchNoDocs = clone.canReturnNullResponseIfMatchNoDocs;
+        this.bottomSortValues = clone.bottomSortValues;
+        this.originalIndices = clone.originalIndices;
     }
 
     @Override
@@ -223,11 +237,8 @@ public class ShardSearchRequest extends TransportRequest implements IndicesReque
             out.writeStringArray(indexRoutings);
             out.writeOptionalString(preference);
         }
-        if (out.getVersion().onOrAfter(Version.V_7_7_0)) {
+        if (out.getVersion().onOrAfter(Version.V_7_7_0) && asKey == false) {
             out.writeBoolean(canReturnNullResponseIfMatchNoDocs);
-            out.writeOptionalWriteable(bottomSortValues);
-        }
-        if (out.getVersion().onOrAfter(Version.V_8_0_0)) {
             out.writeOptionalWriteable(bottomSortValues);
         }
     }

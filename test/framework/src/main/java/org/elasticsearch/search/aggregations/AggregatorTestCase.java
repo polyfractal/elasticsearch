@@ -643,6 +643,9 @@ public abstract class AggregatorTestCase extends ESTestCase {
         if (supportedVSTypes.isEmpty()) {
             // If the test says it doesn't support any VStypes, it has not been converted yet so skip
             return;
+        } else if (supportedVSTypes.contains(CoreValuesSourceType.ANY)) {
+            throw new IllegalArgumentException("Tests should not specify CoreValuesSourceType.ANY as a supported ValuesSourceType, " +
+                "but should instead list the concrete ValuesSourceTypes that are supported");
         }
 
         for (Map.Entry<String, Mapper.TypeParser> mappedType : mapperRegistry.getMapperParsers().entrySet()) {
@@ -687,10 +690,11 @@ public abstract class AggregatorTestCase extends ESTestCase {
                             fail("Aggregator [" + aggregationBuilder.getType() + "] should not support field type ["
                                 + fieldType.typeName() + "] but executing against the field did not throw an exception");
                         }
-                    } catch (Exception e) {
+                    } catch (Exception | AssertionError e) {
                         if (supportedVSTypes.contains(vst) && unsupportedMappedFieldTypes.contains(fieldType.typeName()) == false) {
-                            fail("Aggregator [" + aggregationBuilder.getType() + "] supports field type ["
-                                + fieldType.typeName() + "] but executing against the field threw an exception: [" + e.getMessage() + "]");
+                            throw new AssertionError("Aggregator [" + aggregationBuilder.getType() + "] supports field type ["
+                                + fieldType.typeName() + "] but executing against the field threw an exception: [" + e.getMessage() + "]",
+                                e);
                         }
                     }
                 }
@@ -740,10 +744,9 @@ public abstract class AggregatorTestCase extends ESTestCase {
                 doc.add(new SortedSetDocValuesField(fieldName, new BytesRef("a")));
                 json = "{ \"" + fieldName + "\" : \"a\" }";
             }
-        } else if (vst.equals(CoreValuesSourceType.DATE)) {
+        } else if (vst.equals(CoreValuesSourceType.DATE) || typeName.equals(DateFieldMapper.DATE_NANOS_CONTENT_TYPE)) {
             // positive integer because date_nanos gets unhappy with large longs
-            long v = Math.abs(randomInt());
-            doc.add(new SortedNumericDocValuesField(fieldName, v));
+            v = Math.abs(randomInt());
             json = "{ \"" + fieldName + "\" : \"" + v + "\" }";
         } else if (vst.equals(CoreValuesSourceType.BOOLEAN)) {
             long v = randomBoolean() ? 0 : 1;

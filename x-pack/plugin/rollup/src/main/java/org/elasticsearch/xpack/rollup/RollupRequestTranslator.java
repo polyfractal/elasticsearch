@@ -18,6 +18,7 @@ import org.elasticsearch.search.aggregations.bucket.histogram.HistogramAggregati
 import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.elasticsearch.search.aggregations.metrics.AvgAggregationBuilder;
 import org.elasticsearch.search.aggregations.metrics.SumAggregationBuilder;
+import org.elasticsearch.search.aggregations.metrics.ValueCountAggregationBuilder;
 import org.elasticsearch.search.aggregations.support.ValuesSourceAggregationBuilder;
 import org.elasticsearch.xpack.core.rollup.RollupField;
 import org.elasticsearch.xpack.core.rollup.job.DateHistogramGroupConfig;
@@ -26,6 +27,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 
@@ -469,6 +471,15 @@ public class RollupRequestTranslator {
             // "the_avg._count": { "sum" : { "field" : "some_field.avg._count" }}
             rolledMetrics.add(new SumAggregationBuilder(RollupField.formatCountAggName(metric.getName()))
                     .field(RollupField.formatFieldName(metric, RollupField.COUNT_FIELD)));
+
+            return rolledMetrics;
+        } else if (metric instanceof ValueCountAggregationBuilder) {
+            rolledMetrics = new ArrayList<>(1);
+            // ValueCount has to be translated into a Sum, since we need to "extract" the count and not actually count values
+            SumAggregationBuilder value = new SumAggregationBuilder(metric.getName());
+            value.field(RollupField.formatFieldName(metric, RollupField.VALUE));
+            value.setMetadata(Map.of(RollupField.ORIGINATING_AGG, metric.getType()));
+            rolledMetrics.add(value);
 
             return rolledMetrics;
         }

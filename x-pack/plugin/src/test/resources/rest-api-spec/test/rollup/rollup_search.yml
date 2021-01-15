@@ -37,7 +37,7 @@ setup:
             "metrics": [
               {
                 "field": "price",
-                "metrics": ["max"]
+                "metrics": ["max", "value_count"]
               }
             ]
           }
@@ -57,6 +57,7 @@ setup:
             partition.terms.value: "a"
             partition.terms._count: 1
             price.max.value: 1
+            price.value_count.value: 1
             "_rollup.id": "foo"
             "_rollup.computed":
               - "timestamp.date_histogram"
@@ -72,6 +73,7 @@ setup:
             partition.terms.value: "b"
             partition.terms._count: 2
             price.max.value: 2
+            price.value_count.value: 2
             "_rollup.id": "foo"
             "_rollup.computed":
               - "timestamp.date_histogram"
@@ -87,6 +89,7 @@ setup:
             partition.terms.value: "a"
             partition.terms._count: 10
             price.max.value: 3
+            price.value_count.value: 10
             "_rollup.id": "foo"
             "_rollup.computed":
               - "timestamp.date_histogram"
@@ -102,6 +105,7 @@ setup:
             partition.terms.value: "b"
             partition.terms._count: 10
             price.max.value: 4
+            price.value_count.value: 10
             "_rollup.id": "foo"
             "_rollup.computed":
               - "timestamp.date_histogram"
@@ -117,6 +121,7 @@ setup:
             partition.terms.value: "a"
             partition.terms._count: 10
             price.max.value: 3
+            price.value_count.value: 10
             "_rollup.id": "foo"
             "_rollup.computed":
               - "timestamp.date_histogram"
@@ -265,6 +270,39 @@ setup:
   - match: { aggregations.histo.buckets.3.key_as_string: "2017-01-01T08:00:00.000Z" }
   - match: { aggregations.histo.buckets.3.doc_count: 20 }
   - match: { aggregations.histo.buckets.3.the_max.value: 4 }
+
+---
+"Search with value_count":
+
+  - do:
+      rollup.rollup_search:
+        index: "foo_rollup"
+        body:
+          size: 0
+          aggs:
+            histo:
+              date_histogram:
+                field: "timestamp"
+                calendar_interval: "1h"
+                time_zone: "UTC"
+              aggs:
+                the_value_count:
+                  value_count:
+                    field: "price"
+
+  - length: { aggregations.histo.buckets: 4 }
+  - match: { aggregations.histo.buckets.0.key_as_string: "2017-01-01T05:00:00.000Z" }
+  - match: { aggregations.histo.buckets.0.doc_count: 1 }
+  - match: { aggregations.histo.buckets.0.the_value_count.value: 1 }
+  - match: { aggregations.histo.buckets.1.key_as_string: "2017-01-01T06:00:00.000Z" }
+  - match: { aggregations.histo.buckets.1.doc_count: 2 }
+  - match: { aggregations.histo.buckets.1.the_value_count.value: 2 }
+  - match: { aggregations.histo.buckets.2.key_as_string: "2017-01-01T07:00:00.000Z" }
+  - match: { aggregations.histo.buckets.2.doc_count: 10 }
+  - match: { aggregations.histo.buckets.2.the_value_count.value: 10 }
+  - match: { aggregations.histo.buckets.3.key_as_string: "2017-01-01T08:00:00.000Z" }
+  - match: { aggregations.histo.buckets.3.doc_count: 20 }
+  - match: { aggregations.histo.buckets.3.the_value_count.value: 20 }
 
 ---
 "Search with Query":

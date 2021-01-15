@@ -65,6 +65,7 @@ import org.elasticsearch.search.aggregations.metrics.InternalSum;
 import org.elasticsearch.search.aggregations.metrics.MaxAggregationBuilder;
 import org.elasticsearch.search.aggregations.metrics.MinAggregationBuilder;
 import org.elasticsearch.search.aggregations.metrics.SumAggregationBuilder;
+import org.elasticsearch.search.aggregations.metrics.ValueCountAggregationBuilder;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator.PipelineTree;
 import org.elasticsearch.search.aggregations.support.ValueType;
 import org.elasticsearch.search.internal.InternalSearchResponse;
@@ -879,6 +880,34 @@ public class RollupResponseTranslationTests extends AggregatorTestCase {
         assertThat(unrolled.toString(), not(equalTo(responses.get(1).toString())));
     }
 
+    public void testValueCount() throws IOException {
+        ValueCountAggregationBuilder nonRollup = new ValueCountAggregationBuilder("vc")
+            .field("foo");
+
+        SumAggregationBuilder rollup = new SumAggregationBuilder("vc")
+            .field("foo.value_count." + RollupField.VALUE)
+            .setMetadata(Map.of(RollupField.ORIGINATING_AGG, "value_count"));  // rollup request translation will add this metadata
+
+        MappedFieldType nrFTvalue = new NumberFieldMapper.NumberFieldType("foo", NumberFieldMapper.NumberType.LONG);
+        MappedFieldType rFTvalue = new NumberFieldMapper.NumberFieldType("foo.value_count." + RollupField.VALUE,
+            NumberFieldMapper.NumberType.LONG);
+
+        List<InternalAggregation> responses = doQueries(new MatchAllDocsQuery(),
+            iw -> {
+                iw.addDocument(timestampedValueDoc(100, 1));
+                iw.addDocument(timestampedValueDoc(200, 2));
+                iw.addDocument(timestampedValueDoc(300, 3));
+            }, nonRollup,
+            iw -> {
+                iw.addDocument(timestampedValueRollupDoc(100, 3));
+            }, rollup,
+            new MappedFieldType[]{nrFTvalue}, new MappedFieldType[]{rFTvalue});
+
+        InternalAggregation unrolled = RollupResponseTranslator.unrollAgg(responses.get(1), null, null, -1);
+        assertThat(unrolled.toString(), equalTo(responses.get(0).toString()));
+        assertThat(unrolled.toString(), not(equalTo(responses.get(1).toString())));
+    }
+
     public void testMetric() throws IOException {
         int i = randomIntBetween(0, 2);
         AggregationBuilder nonRollup = null;
@@ -1146,6 +1175,7 @@ public class RollupResponseTranslationTests extends AggregatorTestCase {
         doc.add(new SortedNumericDocValuesField("foo.min." + RollupField.VALUE, value));
         doc.add(new SortedNumericDocValuesField("foo.max." + RollupField.VALUE, value));
         doc.add(new SortedNumericDocValuesField("foo.sum." + RollupField.VALUE, value));
+        doc.add(new SortedNumericDocValuesField("foo.value_count." + RollupField.VALUE, value));
         doc.add(new SortedNumericDocValuesField("bar.histogram." + RollupField.VALUE, value));
         doc.add(new SortedNumericDocValuesField("bar.histogram." + RollupField.COUNT_FIELD, 1));
         doc.add(new SortedNumericDocValuesField("bar.histogram." + RollupField.INTERVAL, 1));

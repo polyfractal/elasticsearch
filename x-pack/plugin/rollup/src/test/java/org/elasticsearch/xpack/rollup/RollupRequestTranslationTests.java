@@ -22,9 +22,11 @@ import org.elasticsearch.search.aggregations.metrics.MaxAggregationBuilder;
 import org.elasticsearch.search.aggregations.metrics.MinAggregationBuilder;
 import org.elasticsearch.search.aggregations.metrics.StatsAggregationBuilder;
 import org.elasticsearch.search.aggregations.metrics.SumAggregationBuilder;
+import org.elasticsearch.search.aggregations.metrics.ValueCountAggregationBuilder;
 import org.elasticsearch.search.aggregations.support.ValueType;
 import org.elasticsearch.search.aggregations.support.ValuesSourceAggregationBuilder;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.xpack.core.rollup.RollupField;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 
@@ -298,6 +300,19 @@ public class RollupRequestTranslationTests extends ESTestCase {
         assertThat(metrics.get("test_metric._count"), Matchers.instanceOf(SumAggregationBuilder.class));
         assertThat(((SumAggregationBuilder)metrics.get("test_metric._count")).field(),
                 equalTo("foo.avg._count"));
+    }
+
+    public void testValueCountMetric() {
+        List<AggregationBuilder> translated = translateAggregation(new ValueCountAggregationBuilder("test_metric")
+            .field("foo"), namedWriteableRegistry);
+
+        assertThat(translated.size(), equalTo(1));
+        AggregationBuilder metric = translated.get(0);
+
+        assertThat(metric, Matchers.instanceOf(SumAggregationBuilder.class));
+        assertThat(metric.getName(), equalTo("test_metric"));
+        assertThat(((SumAggregationBuilder)metric).field(), equalTo("foo.value_count.value"));
+        assertThat(((SumAggregationBuilder)metric).getMetadata(), equalTo(Map.of(RollupField.ORIGINATING_AGG, ValueCountAggregationBuilder.NAME)));
     }
 
     public void testStringTerms() throws IOException {

@@ -31,7 +31,9 @@ import org.elasticsearch.search.aggregations.metrics.InternalMax;
 import org.elasticsearch.search.aggregations.metrics.InternalMin;
 import org.elasticsearch.search.aggregations.metrics.InternalNumericMetricsAggregation.SingleValue;
 import org.elasticsearch.search.aggregations.metrics.InternalSum;
+import org.elasticsearch.search.aggregations.metrics.InternalValueCount;
 import org.elasticsearch.search.aggregations.metrics.SumAggregationBuilder;
+import org.elasticsearch.search.aggregations.metrics.ValueCountAggregationBuilder;
 import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator.PipelineTree;
 import org.elasticsearch.search.internal.InternalSearchResponse;
 import org.elasticsearch.xpack.core.rollup.RollupField;
@@ -537,6 +539,23 @@ public class RollupResponseTranslator {
                 // Note: Avgs have a slightly different name to prevent collision with empty bucket defaults
                 return new InternalAvg(metric.getName().replace("." + RollupField.VALUE, ""), metric.value(), count, DocValueFormat.RAW,
                         metric.getMetadata());
+            }
+
+            // value_count's must also "proxy" through a Sum agg, so we need to convert back to a value_count for the response
+            // We know this because the original agg type is stored in the metadata
+            if (metric.getMetadata() != null) {
+                Object originatingAgg = metric.getMetadata().get(RollupField.ORIGINATING_AGG);
+                if (originatingAgg != null && originatingAgg.equals(ValueCountAggregationBuilder.NAME)) {
+                    Map<String, Object> meta = null;
+
+                    // Only set the metadata if the user has also added some fields. Otherwise the response will
+                    // return an empty meta object
+                    if (metric.getMetadata().size() > 1) {
+                        meta = new HashMap<>(metric.getMetadata());
+                        meta.remove(RollupField.ORIGINATING_AGG);
+                    }
+                    return new InternalValueCount(metric.getName(), (long)((InternalSum) metric).getValue(), meta);
+                }
             }
             return metric;
         } else {
